@@ -849,8 +849,8 @@
                 <div class="label">Thành phần trong 1 Language Pack</div>
             </div>
             <div class="stat-card">
-                <div class="value">2</div>
-                <div class="label">Pipeline CI/CD độc lập: Frontend &amp; Backend</div>
+                <div class="value">1</div>
+                <div class="label">Workflow CI chung: job Frontend &amp; Backend chạy theo phần code thay đổi</div>
             </div>
             <div class="stat-card">
                 <div class="value">$0*</div>
@@ -872,15 +872,16 @@
         <div class="section-header">
             <div class="icon" style="background:#dcfce7;color:var(--success);">📍</div>
             <div>
-                <div class="section-num">Cập nhật 14/10/2026</div>
+                <div class="section-num">Cập nhật 18/10/2026</div>
                 <h2>Hiện Trạng Triển Khai So Với Thiết Kế</h2>
             </div>
         </div>
 
         <p style="margin-bottom:1rem;color:var(--text-secondary);">
             Phần còn lại của tài liệu mô tả <strong>thiết kế đích</strong>. Mục này ghi lại những gì đã có thật
-            trong code. Code được tách thành <strong>2 repo độc lập</strong>: <code>geonarrate-backend</code> và
-            <code>geonarrate-frontend</code>, cả hai hiện chưa có commit nào. Trạng thái tương ứng với
+            trong code. Toàn bộ code nằm trong <strong>một monorepo</strong> <code>geonarrate</code>
+            (remote <code>git@github.com:huynhthanhtien/geonarrate.git</code>, nhánh <code>main</code>, chưa có commit nào)
+            với 3 thư mục: <code>backend/</code>, <code>frontend/</code>, <code>docs/</code>. Trạng thái tương ứng với
             <strong>Sprint 0 — Nền móng</strong>: khung 3 lớp, monorepo frontend, design tokens và CI skeleton đã
             có; chưa có tính năng nghiệp vụ nào.
             Ký hiệu dùng trong các sơ đồ thư mục bên dưới: ✅ đã có · ⏳ dự kiến.
@@ -918,7 +919,7 @@
                     </tr>
                     <tr>
                         <td>Backend · CI/CD</td>
-                        <td>1 workflow <code>ci.yml</code>: ruff, mypy strict, lint-imports, pytest coverage ≥ 85%, <code>openapi.json</code> khớp code, oasdiff so với <code>main</code>; Dockerfile multi-stage, non-root, có ffmpeg</td>
+                        <td>Job <code>backend</code> trong <code>.github/workflows/ci.yml</code> chung (chỉ chạy khi <code>backend/**</code> đổi): ruff, mypy strict, lint-imports, pytest coverage ≥ 85%, <code>openapi.json</code> khớp code, oasdiff so với nhánh đích; Dockerfile multi-stage, non-root, có ffmpeg</td>
                         <td>be-security, push image GHCR + trivy + SBOM, migrate, deploy staging/prod, canary, nightly</td>
                     </tr>
                     <tr>
@@ -938,7 +939,7 @@
                     </tr>
                     <tr>
                         <td>Frontend · CI/CD</td>
-                        <td>1 workflow <code>ci.yml</code>: api-client phải khớp <code>openapi.json</code>, typecheck/test/build theo package bị ảnh hưởng, upload <code>web-dist</code></td>
+                        <td>Job <code>frontend</code> trong cùng workflow (chạy khi <code>frontend/**</code> hoặc <code>backend/openapi.json</code> đổi): api-client phải khớp <code>backend/openapi.json</code>, typecheck/test/build theo package bị ảnh hưởng, upload <code>web-dist</code>. Job <code>ci-ok</code> gom kết quả để làm required check</td>
                         <td>lint, preview deploy, Playwright, EAS build/submit/update, release web, nightly</td>
                     </tr>
                 </tbody>
@@ -949,11 +950,13 @@
             <div class="card">
                 <h3>Thay đổi so với thiết kế ban đầu (đã cập nhật trong tài liệu)</h3>
                 <ul>
-                    <li>Backend <strong>tách repo riêng</strong>, không nằm trong <code>services/backend</code> của monorepo; hợp đồng giữa 2 repo là <code>openapi.json</code> được commit ở backend, đồng bộ bằng <code>pnpm api:sync</code></li>
-                    <li>Mỗi repo một workflow <code>ci.yml</code>, chưa tách <code>fe-*</code>/<code>be-*</code>/<code>contract.yml</code></li>
+                    <li><strong>Một monorepo</strong> gồm <code>backend/</code> (Python, ngoài pnpm workspace) và <code>frontend/</code> (pnpm + Turborepo). Hai repo cũ chưa có commit nên gộp không mất lịch sử</li>
+                    <li>Hợp đồng API vẫn là <code>backend/openapi.json</code> được commit, nhưng frontend <strong>sinh client đọc thẳng file này</strong> (<code>pnpm api:generate</code>); đã bỏ bước copy <code>pnpm api:sync</code>. Một PR đổi API sửa được cả backend lẫn client</li>
+                    <li><strong>Một workflow CI</strong> <code>.github/workflows/ci.yml</code>: job <code>changes</code> lọc theo đường dẫn, job <code>backend</code>/<code>frontend</code>, job cổng <code>ci-ok</code>; chưa tách <code>fe-*</code>/<code>be-*</code>/<code>contract.yml</code></li>
                     <li>MongoDB driver: <strong>PyMongo Async API</strong> thay Motor (đã deprecated) / Beanie; entity là <code>dataclass</code>, mapping nằm trong repository</li>
                     <li>Hàng đợi: chọn <strong>Arq</strong> (Redis); audio mobile: <strong>expo-audio</strong> thay react-native-track-player</li>
                     <li>Hằng số: backend ở <code>app/core/config.py</code>, client ở <code>packages/core/src/constants.ts</code></li>
+                    <li><code>allowBuilds</code> trong <code>pnpm-workspace.yaml</code> đã chốt: <code>dtrace-provider</code> và <code>protobufjs</code> đặt <code>false</code> (chỉ là dependency của <code>eas-cli</code>, không cần script build)</li>
                 </ul>
             </div>
             <div class="card">
@@ -962,7 +965,8 @@
                     <li><strong>Thuật toán JWT:</strong> chương 10 ghi RS256, nhưng cấu hình hiện có là <code>JWT_SECRET</code> (khoá đối xứng, hợp HS256)</li>
                     <li><strong>Lộ trình:</strong> mốc trong Gantt (05/01–31/03/2026) đã qua so với ngày cập nhật, cần đặt lại lịch</li>
                     <li><strong>Danh sách ngôn ngữ</strong> đang lặp ở 3 nơi (<code>Settings.supported_langs</code>, <code>DEFAULT_LANGUAGES</code>, <code>SUPPORTED_LANGS</code> ở client); về lâu dài client nên đọc từ <code>GET /api/v1/languages</code></li>
-                    <li><code>pnpm-workspace.yaml</code> còn <code>allowBuilds</code> với giá trị placeholder "set this to true or false"</li>
+                    <li><strong>Phân công:</strong> tài liệu viết cho 2 vai trò FE/BE nhưng nhóm có 3 người, cần chốt ai giữ phần pack/delivery (gợi ý: người làm mobile, vì đó là hợp đồng giữa server và app)</li>
+                    <li>Branch protection trên GitHub: chỉ đặt <code>ci-ok</code> làm required check</li>
                 </ul>
             </div>
         </div>
@@ -1197,7 +1201,7 @@
         </div>
 
         <h3 style="margin:1.5rem 0 .8rem;">Cấu trúc thư mục backend</h3>
-        <div class="code-block"><span class="comment"># geonarrate-backend/ — FastAPI, kiến trúc 3 lớp (✅ đã có · ⏳ dự kiến)</span>
+        <div class="code-block"><span class="comment"># backend/ — FastAPI, kiến trúc 3 lớp (✅ đã có · ⏳ dự kiến)</span>
 app/
 ├── main.py                ✅ <span class="comment"># tạo app, mount router, lifespan: connect Mongo, ensure_indexes, seed ngôn ngữ; /healthz</span>
 ├── core/                     <span class="comment"># cross-cutting</span>
@@ -2496,12 +2500,18 @@ openapi.json              ✅ <span class="comment"># được commit; CI chặn
         <p style="margin-bottom:1rem;color:var(--text-secondary);">
             Web và mobile dùng chung một monorepo để <strong>chia sẻ logic, kiểu dữ liệu và design tokens</strong>,
             nhưng vẫn giữ khả năng tối ưu riêng cho từng nền tảng. Quy tắc: phần <em>không phụ thuộc DOM hay
-            native</em> nằm trong <code>packages/</code>; phần render nằm trong <code>apps/</code>. Backend nằm ở repo riêng
-            <code>geonarrate-backend</code>; hai repo nối với nhau qua <code>openapi.json</code> do backend commit.
+            native</em> nằm trong <code>packages/</code>; phần render nằm trong <code>apps/</code>. Backend nằm cùng repo
+            ở <code>backend/</code>; hai phần nối với nhau qua <code>backend/openapi.json</code> do backend commit.
         </p>
 
         <h3 style="margin:1.5rem 0 .8rem;">Cấu trúc monorepo</h3>
-        <div class="code-block"><span class="comment"># geonarrate-frontend/ — pnpm workspaces + Turborepo (✅ đã có · ⏳ dự kiến)</span>
+        <div class="code-block"><span class="comment"># geonarrate/ — monorepo (✅ đã có · ⏳ dự kiến)</span>
+backend/            ✅ <span class="comment"># FastAPI 3 lớp (chương 01, 09) — openapi.json là hợp đồng API được commit</span>
+docs/               ✅ <span class="comment"># tài liệu này</span>
+.github/workflows/
+├── ci.yml          ✅ <span class="comment"># changes → backend · frontend → ci-ok (lọc theo đường dẫn)</span>
+└── ⏳ fe-release-web.yml  fe-release-mobile.yml  fe-ota.yml  be-deploy.yml  nightly.yml
+frontend/           ✅ <span class="comment"># pnpm workspaces + Turborepo</span>
 apps/
 ├── web/            ✅ <span class="comment"># React 19 + Vite: CMS, Studio, Analytics (react-router)</span>
 └── mobile/         ✅ <span class="comment"># Expo SDK 57 · React Native 0.86 (New Architecture), android/ios sinh bởi prebuild</span>
@@ -2513,14 +2523,8 @@ packages/
 ├── ui/             ⏳ <span class="comment"># primitives: Button, Card, Sheet… (web: DOM, mobile: RN)</span>
 ├── i18n/           ⏳ <span class="comment"># ICU messages, format số/ngày, plural rules theo locale</span>
 └── testing/        ⏳ <span class="comment"># render helpers, MSW handlers, factories dùng chung</span>
-scripts/sync-openapi.sh   ✅ <span class="comment"># copy ../geonarrate-backend/openapi.json rồi sinh lại type</span>
-.github/workflows/
-├── ci.yml          ✅ <span class="comment"># PR gate: api-client khớp openapi.json + typecheck/test/build</span>
-└── ⏳ fe-release-web.yml  fe-release-mobile.yml  fe-ota.yml  fe-nightly.yml
 turbo.json  pnpm-workspace.yaml  .nvmrc
-
-<span class="comment"># geonarrate-backend/ — repo riêng, CI riêng (chương 01, 09)</span>
-openapi.json        ✅ <span class="comment"># hợp đồng API được commit — nguồn sinh api-client</span></div>
+<span class="comment"># api-client sinh type bằng: openapi-typescript ../../../backend/openapi.json (pnpm api:generate)</span></div>
 
         <div class="table-wrap">
             <table>
@@ -2738,33 +2742,39 @@ openapi.json        ✅ <span class="comment"># hợp đồng API được commi
             </table>
         </div>
 
-        <h3 style="margin:1.5rem 0 .8rem;">Workflow PR gate hiện tại (<code>geonarrate-frontend/.github/workflows/ci.yml</code>)</h3>
-        <div class="code-block"><span class="keyword">name</span>: ci
-<span class="keyword">on</span>:
-  pull_request:
-  push:
-    branches: [main]
-<span class="keyword">concurrency</span>: { group: ci-${{ github.ref }}, cancel-in-progress: <span class="keyword">true</span> }
-<span class="keyword">jobs</span>:
-  quality:
-    runs-on: ubuntu-latest
+        <h3 style="margin:1.5rem 0 .8rem;">Workflow PR gate hiện tại (<code>.github/workflows/ci.yml</code> — job <code>changes</code> và <code>frontend</code>)</h3>
+        <div class="code-block"><span class="keyword">jobs</span>:
+  changes:                             <span class="comment"># quyết định job nào cần chạy</span>
+    <span class="keyword">steps</span>:
+      - uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            backend:  [<span class="string">'backend/**'</span>]
+            frontend: [<span class="string">'frontend/**'</span>, <span class="string">'backend/openapi.json'</span>]   <span class="comment"># đổi hợp đồng API → FE chạy lại</span>
+
+  frontend:
+    needs: changes
+    <span class="keyword">if</span>: needs.changes.outputs.frontend == <span class="string">'true'</span>
+    defaults: { run: { working-directory: frontend } }
     <span class="keyword">steps</span>:
       - uses: actions/checkout@v4
         with: { fetch-depth: 0 }        <span class="comment"># cần cho turbo --filter=...[origin/main]</span>
       - uses: pnpm/action-setup@v4
+        with: { package_json_file: frontend/package.json }
       - uses: actions/setup-node@v4
-        with: { node-version-file: <span class="string">'.nvmrc'</span>, cache: <span class="string">'pnpm'</span> }
+        with: { node-version-file: frontend/.nvmrc, cache: pnpm, cache-dependency-path: frontend/pnpm-lock.yaml }
       - run: pnpm install --frozen-lockfile
-      - name: api-client phải khớp openapi.json đã commit
+      - name: api-client phải khớp backend/openapi.json
         run: pnpm api:generate &amp;&amp; git diff --exit-code -- packages/api-client/src
       <span class="comment"># PR: chỉ chạy package bị ảnh hưởng; push main: chạy hết</span>
       - run: pnpm turbo run typecheck test build --filter=<span class="string">'...[origin/${{ github.base_ref }}]'</span>
         <span class="keyword">if</span>: github.event_name == <span class="string">'pull_request'</span>
       - run: pnpm turbo run typecheck test build
         <span class="keyword">if</span>: github.event_name == <span class="string">'push'</span>
-      - uses: actions/upload-artifact@v4
-        <span class="keyword">if</span>: github.event_name == <span class="string">'push'</span>
-        with: { name: web-dist, path: apps/web/dist }
+
+  ci-ok:                               <span class="comment"># required check duy nhất; job bị skip vẫn tính là đạt</span>
+    needs: [backend, frontend]
+    <span class="keyword">if</span>: always()
 
 <span class="comment"># ⏳ chưa có: lint (ESLint/Prettier), Turborepo remote cache (TURBO_TOKEN),</span>
 <span class="comment">#    job mobile-build: eas build --platform android --profile preview --non-interactive --no-wait</span></div>
@@ -2860,7 +2870,7 @@ openapi.json        ✅ <span class="comment"># hợp đồng API được commi
                     </tr>
                     <tr>
                         <td><code>be-contract</code></td>
-                        <td>Xuất OpenAPI, so với <code>openapi.json</code> đã commit và với nhánh đích bằng oasdiff; repo frontend sinh lại TS client qua <code>pnpm api:sync</code></td>
+                        <td>Xuất OpenAPI, so với <code>openapi.json</code> đã commit và với nhánh đích bằng oasdiff; job frontend tự chạy lại và kiểm tra client sinh từ <code>backend/openapi.json</code> (<code>pnpm api:generate</code>)</td>
                         <td>Không có breaking change; client đã commit</td>
                     </tr>
                     <tr>
@@ -2904,7 +2914,7 @@ openapi.json        ✅ <span class="comment"># hợp đồng API được commi
   push:
     branches: [main]
 <span class="keyword">jobs</span>:
-  verify:                              <span class="comment"># ✅ geonarrate-backend/.github/workflows/ci.yml</span>
+  backend:                             <span class="comment"># ✅ .github/workflows/ci.yml (working-directory: backend, chỉ chạy khi backend/** đổi)</span>
     runs-on: ubuntu-latest
     <span class="keyword">steps</span>:
       - uses: actions/checkout@v4
@@ -2923,7 +2933,7 @@ openapi.json        ✅ <span class="comment"># hợp đồng API được commi
       - run: oasdiff breaking base.json openapi.json --fail-on ERR   <span class="comment"># base = openapi.json của nhánh đích</span>
 
   image:                               <span class="comment"># ⏳ dự kiến</span>
-    needs: verify
+    needs: backend
     runs-on: ubuntu-latest
     permissions: { contents: read, packages: write, id-token: write }
     <span class="keyword">steps</span>:
@@ -3590,10 +3600,11 @@ sequenceDiagram
 
         <p style="margin-bottom:1rem;color:var(--text-secondary);">
             Dưới đây là cách hệ thống được đặc tả ở mức nghiệp vụ trước khi chia việc: một
-            <strong>danh mục use case</strong> để nhìn toàn cảnh, và <strong>một use case viết đầy đủ</strong> —
-            chọn đúng use case mang lại giá trị cốt lõi của đề tài (nghe thuyết minh tự động, offline, đa ngôn ngữ)
-            — kèm <strong>task breakdown cho FE/BE</strong> và tiêu chí nghiệm thu. Đây là mẫu để viết tiếp cho 12 use
-            case còn lại.
+            <strong>danh mục use case</strong> để nhìn toàn cảnh, và <strong>hai use case viết đầy đủ</strong>:
+            UC-02 (nghe thuyết minh tự động, giá trị cốt lõi của đề tài) và UC-01 (tải Language Pack, điều kiện để
+            UC-02 chạy được). Mỗi use case kèm <strong>task breakdown cho FE/BE</strong> và tiêu chí nghiệm thu. Mục
+            14.3 viết UC-01 dưới dạng <strong>một story giao việc được</strong>: có câu user story, người phụ trách,
+            sprint và Definition of Done. 11 use case còn lại viết theo cùng khung.
         </p>
 
         <h3 style="margin:1.5rem 0 .8rem;">14.1 · Danh mục use case</h3>
@@ -3609,7 +3620,7 @@ sequenceDiagram
                     </tr>
                 </thead>
                 <tbody>
-                    <tr><td><code>UC-01</code></td><td>Tải Language Pack cho một tour</td><td>Du khách</td><td>Cao</td><td>04 · 05</td></tr>
+                    <tr><td><code>UC-01</code></td><td><strong>Tải Language Pack cho một tour</strong> (đặc tả ở 14.3)</td><td>Du khách</td><td>Cao</td><td>04 · 05</td></tr>
                     <tr><td><code>UC-02</code></td><td><strong>Nghe thuyết minh tự động khi vào vùng geofence</strong></td><td>Du khách</td><td><strong>Cao nhất</strong></td><td>05 · 11</td></tr>
                     <tr><td><code>UC-03</code></td><td>Nghe lại, xem transcript, đổi tốc độ đọc</td><td>Du khách</td><td>Cao</td><td>05</td></tr>
                     <tr><td><code>UC-04</code></td><td>Cập nhật pack gia tăng (delta)</td><td>Du khách</td><td>Trung bình</td><td>04 · 05</td></tr>
@@ -3838,8 +3849,198 @@ sequenceDiagram
             </table>
         </div>
 
+
+        <h3 style="margin:2rem 0 .8rem;">14.3 · UC-01 — Tải Language Pack cho một tour (viết dưới dạng story)</h3>
+
+        <div class="highlight success">
+            <strong>User story:</strong> Là <em>du khách</em>, tôi muốn tải gói thuyết minh của tour bằng ngôn ngữ của mình
+            trước khi đi, để khi đến điểm tham quan không có mạng tôi vẫn nghe được đầy đủ.
+        </div>
+
+        <div class="table-wrap">
+            <table>
+                <tbody>
+                    <tr><th style="width:200px;">Story</th><td><code>S-06</code> · gom từ <code>UC-01</code> · ưu tiên <strong>Cao</strong> · thuộc MVP</td></tr>
+                    <tr><th>Phụ trách</th><td>FE (mobile) làm chính · BE hỗ trợ phần <code>/delivery</code> và <code>/devices</code>. Nhóm 3 người: người làm mobile giữ cả hai đầu (xem mục Hiện trạng)</td></tr>
+                    <tr><th>Sprint</th><td>Sprint 4 — Pack &amp; offline (chương 13). App làm trước từ Sprint 2 bằng <strong>pack mẫu</strong> tạo tay, không chờ pack service</td></tr>
+                    <tr><th>Actor chính</th><td>Du khách — đang có mạng (thường ở khách sạn, Wi-Fi)</td></tr>
+                    <tr><th>Actor phụ</th><td>Delivery API (backend), CDN + object storage, trình tải nền của hệ điều hành (iOS <code>URLSession</code> background / Android <code>WorkManager</code>)</td></tr>
+                    <tr><th>Mô tả</th><td>Du khách chọn một tour và một ngôn ngữ. App xem manifest, báo dung lượng cần tải, tải toàn bộ file ở nền, kiểm tra chữ ký và checksum, rồi kích hoạt pack theo kiểu nguyên tử. Từ đó tour dùng được hoàn toàn offline (UC-02, UC-03)</td></tr>
+                    <tr><th>Trigger</th><td>Du khách bấm "Tải" ở màn hình chi tiết tour, hoặc mở deep link / quét mã QR của tour</td></tr>
+                    <tr><th>Tiền điều kiện</th><td>
+                        <ol style="padding-left:1.2rem;">
+                            <li>Thiết bị có mạng; chế độ "chỉ Wi-Fi" đang bật mặc định</li>
+                            <li>Có pack ở trạng thái <code>published</code> cho cặp <code>(scope, lang)</code> được chọn</li>
+                            <li>Phiên bản app ≥ <code>min_app_version</code> trong manifest</li>
+                            <li>Thiết bị đã đăng ký <code>device_id</code> (tạo tự động ở lần mở app đầu tiên)</li>
+                        </ol>
+                    </td></tr>
+                    <tr><th>Hậu điều kiện thành công</th><td>Pack ở trạng thái active: mọi file nằm trong thư mục pack và khớp SHA-256; dữ liệu điểm, segment và transcript đã nạp vào SQLite; MMKV ghi pack đang dùng; <code>download_event {result: "success"}</code> được ghi cục bộ và đồng bộ lên server khi có mạng; <code>devices.installed_packs</code> được cập nhật</td></tr>
+                    <tr><th>Hậu điều kiện thất bại</th><td>Không có trạng thái nửa vời: pack cũ (nếu có) vẫn active và dùng được; file tạm được giữ lại để resume hoặc bị xoá nếu không hợp lệ; <code>download_event</code> ghi <code>error_code</code></td></tr>
+                    <tr><th>Dữ liệu liên quan</th><td>Server: <code>audio_packs</code>, <code>pack_components</code>, <code>devices</code>, <code>download_events</code> · Thiết bị: SQLite (attractions, segments, transcript), FileSystem (audio, ảnh, PMTiles), MMKV (active pack, ngôn ngữ)</td></tr>
+                    <tr><th>API liên quan</th><td><code>GET /api/v1/delivery/manifest?scope=…&amp;lang=…</code> (no-cache + ETag) · <code>POST /api/v1/delivery/urls</code> (signed URL TTL 15 phút, gắn <code>device_id</code>) · <code>POST /api/v1/devices</code> · <code>POST /api/v1/delivery/events</code> (gửi <code>download_events</code> theo lô). Tên endpoint <code>/urls</code> và <code>/events</code> là đề xuất, cần chốt trong <code>openapi.json</code></td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <h4 style="margin:1.2rem 0 .5rem;color:var(--primary-dark);">Luồng chính</h4>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr><th style="width:60px;">Bước</th><th style="width:120px;">Actor</th><th>Hành động</th><th>Phản hồi của hệ thống</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>1</td><td>Du khách</td><td>Mở "Thư viện tour", chọn tour "Di sản Quận 1" và ngôn ngữ <code>ja</code></td><td>App gọi <code>GET /delivery/manifest</code>, hiển thị số điểm, tổng thời lượng và <strong>dung lượng cần tải</strong> (vd. "cần tải 178 MB")</td></tr>
+                    <tr><td>2</td><td>Hệ thống</td><td>—</td><td>Kiểm tra <code>min_app_version</code>, số pack đang cài (tối đa 3) và ngân sách dung lượng (mặc định 1,5 GB)</td></tr>
+                    <tr><td>3</td><td>Du khách</td><td>Bấm "Tải"</td><td>Nếu đang dùng dữ liệu di động và chế độ chỉ Wi-Fi đang bật → xem A2</td></tr>
+                    <tr><td>4</td><td>Hệ thống</td><td>—</td><td>Kiểm tra chữ ký Ed25519 của manifest; sai chữ ký thì dừng ngay (A5)</td></tr>
+                    <tr><td>5</td><td>Hệ thống</td><td>—</td><td>Xin signed URL cho danh sách file, tạo thư mục tạm <code>packs/{pack_id}-v{version}.tmp/</code></td></tr>
+                    <tr><td>6</td><td>Hệ thống</td><td>—</td><td>Giao cho trình tải nền của OS: 4 luồng song song, resume theo từng file; UI hiện tiến độ theo byte và theo số file</td></tr>
+                    <tr><td>7</td><td>Hệ thống</td><td>—</td><td>Mỗi file tải xong được so SHA-256 với manifest; sai thì tải lại file đó, tối đa 3 lần</td></tr>
+                    <tr><td>8</td><td>Hệ thống</td><td>—</td><td>Đủ file: nạp <code>index.json</code> (điểm, segment, transcript) vào SQLite trong một transaction</td></tr>
+                    <tr><td>9</td><td>Hệ thống</td><td>—</td><td>Đổi tên thư mục tạm thành thư mục active (kích hoạt nguyên tử), ghi pack đang dùng vào MMKV</td></tr>
+                    <tr><td>10</td><td>Du khách</td><td>Thấy "Sẵn sàng nghe offline"</td><td>Ghi <code>download_event</code> cục bộ; khi có mạng gửi lên server và cập nhật <code>installed_packs</code></td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <h4 style="margin:1.2rem 0 .5rem;color:var(--primary-dark);">Luồng thay thế &amp; ngoại lệ</h4>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr><th style="width:70px;">Mã</th><th style="width:230px;">Tình huống</th><th>Xử lý</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td><code>A1</code></td><td>Mất mạng giữa chừng</td><td>Tạm dừng, giữ file đã xong; có mạng lại thì tải tiếp từ file dở (retry backoff 30/60/120 giây). Không bắt tải lại từ đầu</td></tr>
+                    <tr><td><code>A2</code></td><td>Đang dùng 4G trong khi bật "chỉ Wi-Fi"</td><td>Hỏi người dùng: "Chờ Wi-Fi" hoặc "Tải bằng dữ liệu di động (178 MB)". Pack &gt; 100 MB luôn hiện cảnh báo dung lượng</td></tr>
+                    <tr><td><code>A3</code></td><td>Không đủ dung lượng / vượt ngân sách</td><td>Gợi ý gỡ pack ít dùng nhất (LRU) kèm dung lượng sẽ giải phóng; không tự xoá pack của tour đang đi</td></tr>
+                    <tr><td><code>A4</code></td><td>Đã cài đủ 3 pack</td><td>Yêu cầu chọn một pack để gỡ trước khi tải; pack ít dùng nhất được chọn sẵn</td></tr>
+                    <tr><td><code>A5</code></td><td>Chữ ký manifest sai, hoặc một file vẫn sai checksum sau 3 lần</td><td>Huỷ lượt tải, xoá thư mục tạm, giữ nguyên pack cũ; báo "Gói tải về bị lỗi, hãy thử lại" và ghi <code>download_event</code> lỗi</td></tr>
+                    <tr><td><code>A6</code></td><td>Phiên bản app thấp hơn <code>min_app_version</code></td><td>Không tải; báo cần cập nhật app và mở trang store</td></tr>
+                    <tr><td><code>A7</code></td><td>App bị đưa xuống nền hoặc bị OS kill</td><td>Trình tải nền của OS tiếp tục chạy; mở lại app thì đồng bộ tiến độ từ trạng thái lưu trong SQLite</td></tr>
+                    <tr><td><code>A8</code></td><td>Signed URL hết hạn (HTTP 403) giữa chừng</td><td>Xin URL mới cho các file còn lại rồi tải tiếp, người dùng không thấy lỗi</td></tr>
+                    <tr><td><code>A9</code></td><td>Máy đã có version cũ của đúng pack này</td><td>Chuyển sang <code>UC-04</code> (cập nhật delta) thay vì tải lại toàn bộ</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <h4 style="margin:1.2rem 0 .5rem;color:var(--primary-dark);">Quy tắc nghiệp vụ</h4>
+        <div class="card-grid">
+            <div class="card">
+                <h3>An toàn của pack</h3>
+                <ul>
+                    <li><strong>BR-1:</strong> chỉ kích hoạt khi chữ ký manifest hợp lệ và 100% file khớp SHA-256</li>
+                    <li><strong>BR-2:</strong> kích hoạt nguyên tử bằng đổi tên thư mục; không bao giờ có pack dùng dở</li>
+                    <li><strong>BR-3:</strong> manifest luôn <code>no-cache</code> + ETag; file audio/ảnh/map là immutable (đường dẫn chứa hash)</li>
+                    <li><strong>BR-4:</strong> signed URL sống 15 phút và gắn với <code>device_id</code></li>
+                </ul>
+            </div>
+            <div class="card">
+                <h3>Mạng &amp; dung lượng</h3>
+                <ul>
+                    <li><strong>BR-5:</strong> mặc định chỉ tải qua Wi-Fi; pack &gt; 100 MB luôn cảnh báo trước</li>
+                    <li><strong>BR-6:</strong> tối đa 4 luồng song song (<code>DOWNLOAD_CONCURRENCY</code>), retry 30/60/120 giây</li>
+                    <li><strong>BR-7:</strong> tối đa 3 pack (<code>PACK_MAX_INSTALLED</code>), ngân sách 1,5 GB (<code>DEVICE_STORAGE_BUDGET</code>), gỡ theo LRU</li>
+                    <li><strong>BR-8:</strong> sự kiện tải ghi cục bộ trước, gửi lên server sau; không chặn trải nghiệm</li>
+                </ul>
+            </div>
+        </div>
+
+        <h4 style="margin:1.2rem 0 .5rem;color:var(--primary-dark);">Yêu cầu phi chức năng riêng của UC-01</h4>
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th>Chỉ tiêu</th><th>Ngưỡng</th><th>Cách đo</th></tr></thead>
+                <tbody>
+                    <tr><td>Tỉ lệ tải pack thành công</td><td>≥ 99% (chỉ số nghiệm thu chương 13)</td><td>Tổng hợp <code>download_events</code></td></tr>
+                    <tr><td>Resume sau khi mất mạng</td><td>Không tải lại file đã xong</td><td>Test tắt/bật mạng giữa chừng, so số byte tải</td></tr>
+                    <tr><td>Thời gian kích hoạt sau khi tải xong</td><td>≤ 5 giây trên máy tầm trung (đề xuất)</td><td>Đo bước 8–9, pack 100 điểm</td></tr>
+                    <tr><td>Dung lượng pack 100 điểm + bản đồ thành phố</td><td>≈ 175 MB (Opus 32 kbps)</td><td>Bảng ước lượng chương 04</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <h4 style="margin:1.2rem 0 .5rem;color:var(--primary-dark);">Tiêu chí nghiệm thu (Gherkin)</h4>
+        <div class="code-block"><span class="comment"># Pack tour-heritage-d1-ja version 7 đã publish, 178 MB</span>
+<span class="keyword">Given</span> tôi đang dùng Wi-Fi và máy còn trống 2 GB
+<span class="keyword">When</span> tôi chọn tour "tour-heritage-d1", ngôn ngữ ja và bấm "Tải"
+<span class="keyword">Then</span> app hiện "cần tải 178 MB" trước khi bắt đầu
+<span class="keyword">And</span> khi tải xong pack ở trạng thái active
+<span class="keyword">And</span> bật chế độ máy bay, mở điểm "chua-ngoc-hoang" vẫn nghe được
+
+<span class="keyword">Given</span> đang tải được 60%
+<span class="keyword">When</span> tôi tắt Wi-Fi rồi bật lại sau 2 phút
+<span class="keyword">Then</span> app tải tiếp từ file đang dở, không tải lại phần đã xong
+
+<span class="keyword">Given</span> một file trên CDN bị sai checksum
+<span class="keyword">When</span> app tải file đó 3 lần vẫn sai
+<span class="keyword">Then</span> lượt tải bị huỷ, thư mục tạm bị xoá
+<span class="keyword">And</span> pack cũ (nếu có) vẫn dùng được bình thường
+
+<span class="keyword">Given</span> tôi đang dùng 4G và chế độ "chỉ Wi-Fi" đang bật
+<span class="keyword">When</span> tôi bấm "Tải"
+<span class="keyword">Then</span> app hỏi "Chờ Wi-Fi" hay "Tải bằng dữ liệu di động (178 MB)"</div>
+
+        <h4 style="margin:1.2rem 0 .5rem;color:var(--primary-dark);">Chia việc từ story này</h4>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr><th style="width:110px;">Task</th><th style="width:110px;">Vai trò</th><th>Nội dung</th><th>Definition of Done</th></tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>BE-04</code></td>
+                        <td>BE · hợp đồng</td>
+                        <td>Chốt schema manifest + DTO các endpoint <code>/delivery</code>, <code>/devices</code> trong <code>backend/openapi.json</code>; script sinh <strong>pack mẫu</strong> (3 điểm, Edge-TTS, ký bằng khoá dev)</td>
+                        <td>Ngày đầu story; app dùng được pack mẫu mà không cần pack service</td>
+                    </tr>
+                    <tr>
+                        <td><code>FE-05</code></td>
+                        <td>FE · mobile</td>
+                        <td>Màn hình thư viện tour + chi tiết: số điểm, thời lượng, dung lượng, nút Tải / Tạm dừng / Gỡ</td>
+                        <td>Dùng MSW mock theo <code>openapi.json</code>; component test cho các trạng thái tải</td>
+                    </tr>
+                    <tr>
+                        <td><code>FE-06</code></td>
+                        <td>FE · mobile</td>
+                        <td>Download manager: tải nền native, 4 luồng, resume theo file, retry backoff, chỉ Wi-Fi, xin lại signed URL khi 403 (A1, A2, A7, A8)</td>
+                        <td>Test tắt mạng giữa chừng và kill app khi đang tải trên máy Android thật</td>
+                    </tr>
+                    <tr>
+                        <td><code>FE-07</code></td>
+                        <td>FE · core + mobile</td>
+                        <td>Verify chữ ký Ed25519 + SHA-256, nạp SQLite trong transaction, kích hoạt nguyên tử (BR-1, BR-2)</td>
+                        <td>Unit test trong <code>packages/core</code> (coverage ≥ 85%); test file hỏng → giữ pack cũ (A5)</td>
+                    </tr>
+                    <tr>
+                        <td><code>FE-08</code></td>
+                        <td>FE · core</td>
+                        <td>Ngân sách dung lượng + LRU + giới hạn 3 pack (A3, A4, BR-7)</td>
+                        <td>Unit test các trường hợp đầy bộ nhớ, đủ 3 pack, pack đang đi tour không bị gỡ</td>
+                    </tr>
+                    <tr>
+                        <td><code>BE-05</code></td>
+                        <td>BE · 3 lớp</td>
+                        <td><code>POST /delivery/urls</code>: cấp signed URL TTL 15 phút gắn <code>device_id</code>; dùng chung <code>DeliveryService</code> với <code>BE-01</code></td>
+                        <td>import-linter xanh; test URL hết hạn trả 403; contract test OpenAPI</td>
+                    </tr>
+                    <tr>
+                        <td><code>BE-06</code></td>
+                        <td>BE · 3 lớp</td>
+                        <td><code>POST /devices</code> + <code>POST /delivery/events</code>: đăng ký thiết bị, nhận <code>download_events</code> theo lô, cập nhật <code>installed_packs</code></td>
+                        <td>Gửi lại cùng lô không tạo bản ghi trùng; TTL 180 ngày trên <code>download_events</code></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="highlight">
+            <strong>Story này xong khi:</strong> 4 kịch bản Gherkin ở trên chạy được trên máy thật với pack mẫu (và với
+            pack thật khi Story S-05 xong); job <code>ci-ok</code> xanh; <code>backend/openapi.json</code> và client sinh ra
+            đã commit cùng PR; người còn lại trong nhóm đã review mọi PR đổi API; mục Hiện trạng được cập nhật.
+        </div>
+
         <div class="highlight info">
-            <strong>Cách dùng mẫu này:</strong> 12 use case còn lại viết theo cùng khung — <em>thông tin chung →
+            <strong>Cách dùng mẫu này:</strong> 11 use case còn lại viết theo cùng khung — <em>thông tin chung →
             tiền/hậu điều kiện → luồng chính → luồng thay thế → quy tắc nghiệp vụ → NFR → tiêu chí nghiệm thu →
             task breakdown</em>. Điểm quan trọng không nằm ở việc vẽ được sơ đồ use case, mà ở chỗ mỗi use case phải
             trả lời được: <strong>ai làm, khi nào, hỏng thì sao, và thế nào là xong</strong> — có như vậy task giao
@@ -3891,7 +4092,7 @@ sequenceDiagram
             <div class="card">
                 <h3>Hạ tầng &amp; CI/CD</h3>
                 <ul>
-                    <li><strong>GitHub Actions</strong> — CI/CD cho cả FE và BE, mỗi repo một pipeline riêng</li>
+                    <li><strong>GitHub Actions</strong> — CI/CD cho cả FE và BE trong một workflow, job chạy theo đường dẫn thay đổi</li>
                     <li><strong>EAS Build / Submit / Update</strong> — build, phát hành store, OTA</li>
                     <li><strong>Docker multi-stage</strong> + <strong>Trivy</strong> + SBOM — đóng gói &amp; quét lỗ hổng</li>
                     <li><strong>GHCR</strong> — registry image; <strong>Terraform</strong> — IaC</li>
@@ -4086,6 +4287,10 @@ sequenceDiagram
             {
                 "key": "uc02-sequence",
                 "label": "🎧 UC-02 theo trình tự"
+            },
+            {
+                "key": "uc01-sequence",
+                "label": "⬇️ UC-01 theo trình tự"
             }
         ]
     },
@@ -4151,8 +4356,8 @@ sequenceDiagram
             "mermaid": "graph TB\n    subgraph SHELL[\"App Shell\"]\n        ROUTER[\"React Router<br/>lazy route + guard theo quyền\"]\n        QUERY[\"TanStack Query<br/>cache + optimistic update\"]\n        API[\"api-client<br/>sinh từ OpenAPI\"]\n    end\n\n    subgraph MOD[\"Năm khu vực chức năng\"]\n        CS[\"Content Studio<br/>TipTap · bản đồ chọn vùng<br/>autosave · version diff\"]\n        TW[\"Translation Workbench<br/>2 cột · glossary · COMET-QE<br/>phím tắt duyệt\"]\n        VS[\"Voice Studio<br/>nghe thử · SSML<br/>tiến độ SSE\"]\n        PC[\"Pack Console<br/>diff dung lượng · QA checklist<br/>publish canary · rollback\"]\n        AN[\"Analytics<br/>completion rate · drop-off<br/>chất lượng tải pack\"]\n    end\n\n    subgraph SHARED[\"Dùng chung với mobile\"]\n        TOK[\"tokens\"]\n        UIK[\"ui primitives\"]\n        CORE[\"core: pack diff · i18n\"]\n    end\n\n    ROUTER --> CS\n    ROUTER --> TW\n    ROUTER --> VS\n    ROUTER --> PC\n    ROUTER --> AN\n    CS --> QUERY\n    TW --> QUERY\n    VS --> QUERY\n    PC --> QUERY\n    AN --> QUERY\n    QUERY --> API\n    SHARED --> MOD\n"
         },
         "monorepo": {
-            "title": "Cấu trúc 2 repo — monorepo frontend + backend riêng, nối bằng openapi.json",
-            "mermaid": "graph TB\n    subgraph FE[\"repo geonarrate-frontend (pnpm + Turborepo)\"]\n        subgraph APPS[\"apps/\"]\n            WEB[\"web<br/>React 19 + Vite<br/>CMS · Studio · Analytics\"]\n            MOBILE[\"mobile<br/>Expo SDK 57 · RN 0.86<br/>expo-audio · expo-location\"]\n        end\n        subgraph PKG[\"packages/ — chia sẻ\"]\n            TOK[\"tokens ✅<br/>màu · font · spacing\"]\n            CORE[\"core ✅<br/>hằng số · geofence math<br/>⏳ queue · pack diff\"]\n            CLIENT[\"api-client ✅<br/>sinh từ openapi.json\"]\n            CFG[\"config ✅<br/>tsconfig\"]\n            UI[\"ui ⏳\"]\n            I18N[\"i18n ⏳\"]\n            TEST[\"testing ⏳\"]\n        end\n        FECI[\"ci.yml<br/>sync api-client · typecheck · test · build\"]\n    end\n\n    subgraph BEREPO[\"repo geonarrate-backend\"]\n        BE[\"FastAPI 3 lớp\"]\n        SPEC[\"openapi.json<br/>hợp đồng API (commit)\"]\n        BECI[\"ci.yml<br/>ruff · mypy · import-linter<br/>pytest · openapi · oasdiff\"]\n    end\n\n    WEB --> TOK\n    WEB --> CORE\n    WEB --> CLIENT\n    WEB -.-> UI\n    WEB -.-> I18N\n    MOBILE --> TOK\n    MOBILE --> CORE\n    MOBILE -.-> CLIENT\n    MOBILE -.-> UI\n    MOBILE -.-> I18N\n    BE --> SPEC\n    SPEC -->|\"pnpm api:sync\"| CLIENT\n    CFG --> APPS\n    CFG --> PKG\n    TEST -.-> APPS"
+            "title": "Monorepo geonarrate — backend/ + frontend/ nối bằng backend/openapi.json",
+            "mermaid": "graph TB\n    subgraph REPO[\"repo geonarrate\"]\n        subgraph FE[\"frontend/ (pnpm + Turborepo)\"]\n            subgraph APPS[\"apps/\"]\n                WEB[\"web<br/>React 19 + Vite<br/>CMS · Studio · Analytics\"]\n                MOBILE[\"mobile<br/>Expo SDK 57 · RN 0.86<br/>expo-audio · expo-location\"]\n            end\n            subgraph PKG[\"packages/ — chia sẻ\"]\n                TOK[\"tokens ✅<br/>màu · font · spacing\"]\n                CORE[\"core ✅<br/>hằng số · geofence math<br/>⏳ queue · pack diff\"]\n                CLIENT[\"api-client ✅<br/>sinh từ backend/openapi.json\"]\n                CFG[\"config ✅<br/>tsconfig\"]\n                UI[\"ui ⏳\"]\n                I18N[\"i18n ⏳\"]\n                TEST[\"testing ⏳\"]\n            end\n        end\n        subgraph BEDIR[\"backend/\"]\n            BE[\"FastAPI 3 lớp\"]\n            SPEC[\"openapi.json<br/>hợp đồng API (commit)\"]\n        end\n        CI[\".github/workflows/ci.yml<br/>changes → backend · frontend → ci-ok\"]\n    end\n\n    WEB --> TOK\n    WEB --> CORE\n    WEB --> CLIENT\n    WEB -.-> UI\n    WEB -.-> I18N\n    MOBILE --> TOK\n    MOBILE --> CORE\n    MOBILE -.-> CLIENT\n    MOBILE -.-> UI\n    MOBILE -.-> I18N\n    BE --> SPEC\n    SPEC -->|\"pnpm api:generate (đọc trực tiếp)\"| CLIENT\n    CFG --> APPS\n    CFG --> PKG\n    TEST -.-> APPS\n    CI -.-> BEDIR\n    CI -.-> FE"
         },
         "cicd-frontend": {
             "title": "Pipeline CI/CD Frontend — từ PR đến store và OTA",
@@ -4160,7 +4365,7 @@ sequenceDiagram
         },
         "cicd-backend": {
             "title": "Pipeline CI/CD Backend — verify · image · migrate · canary",
-            "mermaid": "flowchart LR\n    PUSH[\"PR / push main<br/>repo geonarrate-backend\"] --> Q1[\"be-quality<br/>ruff · mypy strict\"]\n    Q1 --> Q2[\"be-arch<br/>import-linter 3 lớp\"]\n    Q2 --> Q3[\"be-unit<br/>pytest coverage ≥ 85%\"]\n    Q3 --> Q4[\"be-integration<br/>testcontainers Mongo + Redis\"]\n    Q4 --> Q5[\"be-contract<br/>openapi.json khớp code<br/>oasdiff breaking gate\"]\n    Q5 --> Q6[\"be-security<br/>bandit · pip-audit · gitleaks\"]\n    Q6 --> IMG[\"be-image<br/>docker multi-stage + trivy<br/>SBOM → GHCR\"]\n    IMG --> MIG[\"be-migrate<br/>idempotent<br/>expand → migrate → contract\"]\n    MIG --> STG[\"be-deploy-staging<br/>blue green + smoke 10 API\"]\n    STG --> CAN{\"canary\"}\n    CAN -->|\"10%\"| C1[\"theo dõi 10 phút<br/>error rate · p95\"]\n    C1 -->|\"đạt\"| C2[\"50% → 100%\"]\n    C1 -->|\"vượt SLO\"| RB[\"Tự rollback<br/>về image trước\"]\n    C2 --> PROD[\"Production ổn định\"]\n    NIGHT[\"be-nightly<br/>k6 load test · restore drill\"] --> PROD\n"
+            "mermaid": "flowchart LR\n    PUSH[\"PR / push main<br/>có thay đổi trong backend/\"] --> Q1[\"be-quality<br/>ruff · mypy strict\"]\n    Q1 --> Q2[\"be-arch<br/>import-linter 3 lớp\"]\n    Q2 --> Q3[\"be-unit<br/>pytest coverage ≥ 85%\"]\n    Q3 --> Q4[\"be-integration<br/>testcontainers Mongo + Redis\"]\n    Q4 --> Q5[\"be-contract<br/>openapi.json khớp code<br/>oasdiff breaking gate\"]\n    Q5 --> Q6[\"be-security<br/>bandit · pip-audit · gitleaks\"]\n    Q6 --> IMG[\"be-image<br/>docker multi-stage + trivy<br/>SBOM → GHCR\"]\n    IMG --> MIG[\"be-migrate<br/>idempotent<br/>expand → migrate → contract\"]\n    MIG --> STG[\"be-deploy-staging<br/>blue green + smoke 10 API\"]\n    STG --> CAN{\"canary\"}\n    CAN -->|\"10%\"| C1[\"theo dõi 10 phút<br/>error rate · p95\"]\n    C1 -->|\"đạt\"| C2[\"50% → 100%\"]\n    C1 -->|\"vượt SLO\"| RB[\"Tự rollback<br/>về image trước\"]\n    C2 --> PROD[\"Production ổn định\"]\n    NIGHT[\"be-nightly<br/>k6 load test · restore drill\"] --> PROD\n"
         },
         "security-layers": {
             "title": "Các lớp bảo vệ — từ thiết bị đến dữ liệu",
@@ -4177,6 +4382,10 @@ sequenceDiagram
         "usecase-overview": {
             "title": "Sơ đồ use case — actor và 13 use case của hệ thống",
             "mermaid": "flowchart LR\n    VIS([\"Du khách\"])\n    ED([\"Biên tập viên\"])\n    TR([\"Biên dịch viên\"])\n    AD([\"Quản trị nội dung\"])\n    SA([\"Quản trị hệ thống\"])\n\n    subgraph SYS[\"Hệ thống Thuyết minh tự động đa ngôn ngữ\"]\n        UC01([\"UC-01 Tải Language Pack\"])\n        UC02([\"UC-02 Nghe thuyết minh tự động theo vị trí\"])\n        UC03([\"UC-03 Nghe lại và xem transcript\"])\n        UC04([\"UC-04 Cập nhật pack gia tăng\"])\n        UC05([\"UC-05 Soạn điểm tham quan và script\"])\n        UC06([\"UC-06 Gửi duyệt nội dung nguồn\"])\n        UC07([\"UC-07 Dịch và duyệt bản dịch\"])\n        UC08([\"UC-08 Build audio theo ngôn ngữ\"])\n        UC09([\"UC-09 Đóng gói và publish pack\"])\n        UC10([\"UC-10 Rollback pack\"])\n        UC11([\"UC-11 Quản lý người dùng và vai trò\"])\n        UC12([\"UC-12 Xem dashboard chất lượng\"])\n        UC13([\"UC-13 Cấu hình voice và ngưỡng QA\"])\n    end\n\n    TTS[\"Nhà cung cấp TTS\"]\n    CDN[\"CDN + Object storage\"]\n\n    VIS --> UC01\n    VIS --> UC02\n    VIS --> UC03\n    VIS --> UC04\n    ED --> UC05\n    ED --> UC06\n    TR --> UC07\n    AD --> UC08\n    AD --> UC09\n    AD --> UC10\n    SA --> UC11\n    SA --> UC12\n    SA --> UC13\n    UC08 -.->|\"«include»\"| TTS\n    UC09 -.->|\"«include»\"| CDN\n    UC01 -.->|\"«extend»\"| UC04\n\n    classDef focus fill:#eef2ff,stroke:#4f46e5,stroke-width:2px\n    class UC02 focus\n"
+        },
+        "uc01-sequence": {
+            "title": "UC-01 — tải Language Pack từ lúc chọn tour đến khi sẵn sàng offline",
+            "mermaid": "sequenceDiagram\n    autonumber\n    participant U as Du khách\n    participant APP as Mobile app\n    participant API as Delivery API\n    participant CDN as CDN\n    participant OS as Trình tải nền (OS)\n    participant DB as SQLite + FileSystem\n\n    U->>APP: chọn tour + ngôn ngữ\n    APP->>API: GET /delivery/manifest (ETag)\n    API-->>APP: manifest đã ký + total_bytes\n    APP-->>U: cần tải 178 MB\n    U->>APP: bấm Tải\n    APP->>APP: kiểm tra chữ ký, ngân sách, số pack\n    APP->>API: xin signed URL (TTL 15 phút)\n    API-->>APP: danh sách URL\n    APP->>OS: giao 4 luồng tải nền\n    loop từng file\n        OS->>CDN: GET file (resume nếu dở)\n        CDN-->>OS: dữ liệu\n        OS-->>APP: xong file\n        APP->>APP: so SHA-256 với manifest\n    end\n    APP->>DB: nạp index vào SQLite (1 transaction)\n    APP->>DB: đổi tên .tmp thành active\n    APP-->>U: Sẵn sàng nghe offline\n    APP->>API: gửi download_event khi có mạng\n\n    alt mất mạng giữa chừng\n        OS->>OS: tạm dừng, tải tiếp khi có mạng\n    else file sai checksum 3 lần\n        APP->>DB: xoá thư mục tạm, giữ pack cũ\n    else signed URL hết hạn\n        APP->>API: xin URL mới rồi tải tiếp\n    end\n"
         },
         "uc02-sequence": {
             "title": "UC-02 — trình tự xử lý từ fix vị trí đến khi phát xong",
