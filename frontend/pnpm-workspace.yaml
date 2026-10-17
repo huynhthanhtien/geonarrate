@@ -1,0 +1,31 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+
+# React Native/Expo cần node_modules dạng hoisted trong monorepo
+nodeLinker: hoisted
+minimumReleaseAgeExclude:
+  - '@expo/cli@57.0.29'
+  - '@expo/fingerprint@0.20.14'
+  - '@expo/inline-modules@0.1.8'
+  - '@expo/local-build-cache-provider@57.0.9'
+  - '@expo/prebuild-config@57.0.18'
+  - babel-preset-expo@57.0.15
+  - expo-modules-autolinking@57.0.15
+  - expo-modules-core@57.0.22
+  - expo-modules-jsi@57.1.2
+  - expo@57.0.28
+  - expo-location@57.0.21
+  - expo-dev-client@57.0.20
+  - expo-dev-launcher@57.0.21
+  - expo-dev-menu@57.0.20
+
+# Một phiên bản React duy nhất cho web + React Native (bản RN yêu cầu)
+overrides:
+  react: 19.2.3
+  react-dom: 19.2.3
+# Script build của dep phụ thuộc eas-cli — không cần: dtrace-provider là addon native tùy chọn của bunyan,
+# postinstall của protobufjs chỉ kiểm tra phiên bản
+allowBuilds:
+  dtrace-provider: false
+  protobufjs: false

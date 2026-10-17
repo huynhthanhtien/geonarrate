@@ -1,0 +1,91 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "GeoNarrate API",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/api/v1/languages": {
+      "get": {
+        "tags": [
+          "catalog"
+        ],
+        "summary": "List Languages",
+        "operationId": "list_languages_api_v1_languages_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/LanguageOut"
+                  },
+                  "type": "array",
+                  "title": "Response List Languages Api V1 Languages Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/healthz": {
+      "get": {
+        "tags": [
+          "ops"
+        ],
+        "summary": "Healthz",
+        "operationId": "healthz_healthz_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Healthz Healthz Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "LanguageOut": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "bcp47": {
+            "type": "string",
+            "title": "Bcp47"
+          },
+          "native_name": {
+            "type": "string",
+            "title": "Native Name"
+          },
+          "is_source": {
+            "type": "boolean",
+            "title": "Is Source"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "bcp47",
+          "native_name",
+          "is_source"
+        ],
+        "title": "LanguageOut"
+      }
+    }
+  }
+}

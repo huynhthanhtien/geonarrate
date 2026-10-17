@@ -1,0 +1,75 @@
+[project]
+name = "geonarrate-backend"
+version = "0.1.0"
+description = "Backend FastAPI 3 lớp — Thuyết minh tự động đa ngôn ngữ"
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi>=0.115",
+  "uvicorn[standard]>=0.30",
+  "pydantic>=2.8",
+  "pydantic-settings>=2.4",
+  "pymongo>=4.10",          # dùng AsyncMongoClient (thay Motor đã deprecated)
+  "redis>=5.0",
+  "arq>=0.26",
+  "edge-tts>=6.1",
+  "pyjwt>=2.9",
+  "argon2-cffi>=23.1",
+  "httpx>=0.27",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8",
+  "pytest-asyncio>=0.24",
+  "pytest-cov>=5",
+  "ruff>=0.6",
+  "mypy>=1.11",
+  "import-linter>=2.1",
+  "testcontainers[mongodb,redis]>=4.8",
+]
+
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "ASYNC"]
+
+[tool.mypy]
+strict = true
+files = ["app", "tests"]   # mọi hàm, kể cả test, phải có type hint
+plugins = ["pydantic.mypy"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+markers = ["integration: cần Mongo + Redis đang chạy"]
+
+[tool.coverage.run]
+omit = ["app/tools/*"]
+
+[tool.coverage.report]
+fail_under = 85
+
+# Hợp đồng 3 lớp — chạy bằng `lint-imports`
+[tool.importlinter]
+root_package = "app"
+
+[[tool.importlinter.contracts]]
+name = "Kiến trúc 3 lớp: api → services → repositories"
+type = "layers"
+layers = ["app.api", "app.services", "app.repositories"]
+
+[[tool.importlinter.contracts]]
+name = "api không được import repositories trực tiếp"
+type = "forbidden"
+source_modules = ["app.api"]
+forbidden_modules = ["app.repositories"]
+allow_indirect_imports = true

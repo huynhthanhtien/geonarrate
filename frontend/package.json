@@ -1,0 +1,21 @@
+{
+  "name": "thuyet-minh-da-ngon-ngu",
+  "private": true,
+  "packageManager": "pnpm@12.4.2",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "api:generate": "pnpm --filter @geonarrate/api-client generate"
+  },
+  "devDependencies": {
+    "@geonarrate/config": "workspace:*",
+    "turbo": "^2.11.7",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.3"
+  }
+}

@@ -1,0 +1,12 @@
+node_modules/
+dist/
+coverage/
+.turbo/
+.expo/
+*.log
+.env
+.env.*
+!.env.example
+# native project sinh bởi `expo prebuild` (CNG) — không commit
+apps/mobile/android/
+apps/mobile/ios/
