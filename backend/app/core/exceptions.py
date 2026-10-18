@@ -17,12 +17,17 @@ class NotFoundError(DomainError):
     status = 404
 
 
+class UnauthorizedError(DomainError):
+    status = 401
+
+
 def install_handlers(app: FastAPI) -> None:
     @app.exception_handler(DomainError)
     async def _domain(request: Request, exc: DomainError) -> JSONResponse:
         return JSONResponse(
             status_code=exc.status,
             media_type="application/problem+json",
+            headers={"WWW-Authenticate": "Bearer"} if exc.status == 401 else None,
             content={
                 "type": f"urn:geonarrate:{exc.code}",
                 "title": exc.code,

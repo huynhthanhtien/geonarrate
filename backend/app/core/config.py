@@ -15,6 +15,9 @@ class Settings(BaseSettings):
     jwt_secret: str
     storage_dir: str = "./var/storage"
     tts_provider: str = "edge"
+    # Chỉ dùng khi APP_ENV=dev: seed sẵn 1 tài khoản admin để đăng nhập thử
+    dev_admin_email: str | None = None
+    dev_admin_password: str | None = None
 
     # Hằng số then chốt (chương 12)
     access_token_ttl_s: int = 15 * 60

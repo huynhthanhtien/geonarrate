@@ -4,9 +4,9 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.v1.routers import languages
+from app.api.v1.routers import auth, languages
 from app.core import cache, database
-from app.core.deps import get_language_service
+from app.core.deps import get_auth_service, get_language_service
 from app.core.exceptions import install_handlers
 
 
@@ -15,6 +15,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     await database.connect()
     await database.ensure_indexes()
     await get_language_service().seed_defaults()
+    await get_auth_service().seed_dev_admin()
     yield
     await cache.close_redis()
     await database.disconnect()
@@ -28,6 +29,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 install_handlers(app)
+app.include_router(auth.router, prefix="/api/v1")
 app.include_router(languages.router, prefix="/api/v1")
 
 
