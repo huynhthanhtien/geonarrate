@@ -909,8 +909,8 @@
                     </tr>
                     <tr>
                         <td>Backend · dữ liệu</td>
-                        <td>PyMongo Async API (<code>AsyncMongoClient</code>, không dùng Motor/Beanie); <code>ensure_indexes()</code> tạo 7 index (languages, attractions ×3, translations theo <code>attraction_id</code>, audio_assets, jobs); Mongo 7 replica set <code>rs0</code> + Redis 7 qua <code>infra/docker-compose.yml</code></td>
-                        <td>11/12 collection của CSDL v1 (chương 02 §2.0); <code>created_at</code>/<code>updated_at</code> chưa được ghi</td>
+                        <td>PyMongo Async API (<code>AsyncMongoClient</code>, không dùng Motor/Beanie); <code>ensure_indexes()</code> tạo đủ index của 12 collection đúng như <code>docs/erd.dbml</code> (gồm unique, 2dsphere, partial, TTL cho <code>refresh_tokens</code> và <code>playback_events</code> 180 ngày); Mongo 7 replica set <code>rs0</code> + Redis 7 qua <code>infra/docker-compose.yml</code></td>
+                        <td>Model + repository cho 11/12 collection của CSDL v1 (mới có <code>languages</code>; chương 02 §2.0); <code>created_at</code>/<code>updated_at</code> chưa được ghi</td>
                     </tr>
                     <tr>
                         <td>Backend · integration</td>
