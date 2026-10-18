@@ -1,0 +1,389 @@
+{
+  "version": "3.0.0",
+  "darkMode": true,
+  "gridEnabling": false,
+  "currentViewName": null,
+  "defaultView": {
+    "detailLevel": "All",
+    "relationshipMode": "All",
+    "tablePositions": [
+      {
+        "name": "languages",
+        "schemaName": "public",
+        "x": 12,
+        "y": 12
+      },
+      {
+        "name": "attractions",
+        "schemaName": "public",
+        "x": 514.05517578125,
+        "y": 95
+      },
+      {
+        "name": "tours",
+        "schemaName": "public",
+        "x": 1085.7509765625,
+        "y": 1303
+      },
+      {
+        "name": "translations",
+        "schemaName": "public",
+        "x": 1085.7509765625,
+        "y": 12
+      },
+      {
+        "name": "audio_assets",
+        "schemaName": "public",
+        "x": 1085.7509765625,
+        "y": 506
+      },
+      {
+        "name": "audio_packs",
+        "schemaName": "public",
+        "x": 1619.5703125,
+        "y": 12
+      },
+      {
+        "name": "jobs",
+        "schemaName": "public",
+        "x": 514.05517578125,
+        "y": 590
+      },
+      {
+        "name": "users",
+        "schemaName": "public",
+        "x": 12,
+        "y": 346
+      },
+      {
+        "name": "playback_events",
+        "schemaName": "public",
+        "x": 1085.7509765625,
+        "y": 936
+      },
+      {
+        "name": "refresh_tokens",
+        "schemaName": "public",
+        "x": 12,
+        "y": 1577
+      },
+      {
+        "name": "glossaries",
+        "schemaName": "public",
+        "x": 12,
+        "y": 1851
+      },
+      {
+        "name": "audit_logs",
+        "schemaName": "public",
+        "x": 296.3193359375,
+        "y": 1851
+      }
+    ],
+    "tableGroupCollapseStates": [],
+    "stickyNoteLayouts": [],
+    "referencePaths": [
+      {
+        "firstFieldNames": [
+          "code"
+        ],
+        "firstTableName": "languages",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "target_lang"
+        ],
+        "secondTableName": "translations",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "code"
+        ],
+        "firstTableName": "languages",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "lang"
+        ],
+        "secondTableName": "audio_assets",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "code"
+        ],
+        "firstTableName": "languages",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "lang"
+        ],
+        "secondTableName": "audio_packs",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "code"
+        ],
+        "firstTableName": "languages",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "lang"
+        ],
+        "secondTableName": "playback_events",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "_id"
+        ],
+        "firstTableName": "attractions",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "attraction_id"
+        ],
+        "secondTableName": "translations",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "_id"
+        ],
+        "firstTableName": "attractions",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "attraction_id"
+        ],
+        "secondTableName": "audio_assets",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "_id"
+        ],
+        "firstTableName": "attractions",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "attraction_ids"
+        ],
+        "secondTableName": "tours",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "_id"
+        ],
+        "firstTableName": "attractions",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "attraction_id"
+        ],
+        "secondTableName": "playback_events",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "_id"
+        ],
+        "firstTableName": "tours",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "tour_id"
+        ],
+        "secondTableName": "audio_packs",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "_id"
+        ],
+        "firstTableName": "users",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "created_by"
+        ],
+        "secondTableName": "attractions",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "_id"
+        ],
+        "firstTableName": "users",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "reviewed_by"
+        ],
+        "secondTableName": "translations",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "_id"
+        ],
+        "firstTableName": "users",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "published_by"
+        ],
+        "secondTableName": "audio_packs",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "_id"
+        ],
+        "firstTableName": "users",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "created_by"
+        ],
+        "secondTableName": "jobs",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "_id"
+        ],
+        "firstTableName": "users",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "user_id"
+        ],
+        "secondTableName": "refresh_tokens",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "_id"
+        ],
+        "firstTableName": "users",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "actor_id"
+        ],
+        "secondTableName": "audit_logs",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "_id"
+        ],
+        "firstTableName": "users",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "updated_by"
+        ],
+        "secondTableName": "attractions",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "_id"
+        ],
+        "firstTableName": "users",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "updated_by"
+        ],
+        "secondTableName": "tours",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "_id"
+        ],
+        "firstTableName": "users",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "created_by"
+        ],
+        "secondTableName": "glossaries",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "code"
+        ],
+        "firstTableName": "languages",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "target_lang"
+        ],
+        "secondTableName": "glossaries",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "_id"
+        ],
+        "firstTableName": "attractions",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "attraction_id"
+        ],
+        "secondTableName": "glossaries",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      }
+    ]
+  },
+  "views": {}
+}

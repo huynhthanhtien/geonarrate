@@ -25,13 +25,13 @@ def get_db() -> AsyncDatabase[dict[str, Any]]:
 
 
 async def ensure_indexes() -> None:
-    """Index bootstrap theo access pattern (chương 02 §2.3) — idempotent."""
+    """Index bootstrap cho CSDL v1 (chương 02 §2.0, docs/erd.dbml) — idempotent."""
     db = get_db()
     await db.languages.create_index("code", unique=True)
     await db.attractions.create_index("slug", unique=True)
     await db.attractions.create_index([("geo", "2dsphere")])
     await db.attractions.create_index([("status", 1), ("updated_at", -1)])
-    await db.translations.create_index([("script_id", 1), ("target_lang", 1)], unique=True)
+    await db.translations.create_index([("attraction_id", 1), ("target_lang", 1)], unique=True)
     await db.audio_assets.create_index("text_hash")
     await db.jobs.create_index(
         "dedupe_key",

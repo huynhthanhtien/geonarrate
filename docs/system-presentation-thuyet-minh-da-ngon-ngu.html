@@ -900,7 +900,7 @@
                     <tr>
                         <td>Backend · API</td>
                         <td><code>GET /healthz</code> (ping Mongo + Redis), <code>GET /api/v1/languages</code>; tự seed 5 ngôn ngữ vi/en/zh/ja/ko khi khởi động</td>
-                        <td>auth/RBAC, attractions, scripts, translations, audio, packs, delivery, devices, analytics</td>
+                        <td>auth/RBAC, attractions (kèm script), tours, translations, audio, packs, delivery, analytics</td>
                     </tr>
                     <tr>
                         <td>Backend · 3 lớp</td>
@@ -909,8 +909,8 @@
                     </tr>
                     <tr>
                         <td>Backend · dữ liệu</td>
-                        <td>PyMongo Async API (<code>AsyncMongoClient</code>, không dùng Motor/Beanie); <code>ensure_indexes()</code> tạo 7 index (languages, attractions ×3, translations, audio_assets, jobs); Mongo 7 replica set <code>rs0</code> + Redis 7 qua <code>infra/docker-compose.yml</code></td>
-                        <td>Validator JSON Schema, migration, 19/21 collection còn lại; <code>created_at</code>/<code>updated_at</code> chưa được ghi</td>
+                        <td>PyMongo Async API (<code>AsyncMongoClient</code>, không dùng Motor/Beanie); <code>ensure_indexes()</code> tạo 7 index (languages, attractions ×3, translations theo <code>attraction_id</code>, audio_assets, jobs); Mongo 7 replica set <code>rs0</code> + Redis 7 qua <code>infra/docker-compose.yml</code></td>
+                        <td>11/12 collection của CSDL v1 (chương 02 §2.0); <code>created_at</code>/<code>updated_at</code> chưa được ghi</td>
                     </tr>
                     <tr>
                         <td>Backend · integration</td>
@@ -953,6 +953,7 @@
                     <li><strong>Một monorepo</strong> gồm <code>backend/</code> (Python, ngoài pnpm workspace) và <code>frontend/</code> (pnpm + Turborepo). Hai repo cũ chưa có commit nên gộp không mất lịch sử</li>
                     <li>Hợp đồng API vẫn là <code>backend/openapi.json</code> được commit, nhưng frontend <strong>sinh client đọc thẳng file này</strong> (<code>pnpm api:generate</code>); đã bỏ bước copy <code>pnpm api:sync</code>. Một PR đổi API sửa được cả backend lẫn client</li>
                     <li><strong>Một workflow CI</strong> <code>.github/workflows/ci.yml</code>: job <code>changes</code> lọc theo đường dẫn, job <code>backend</code>/<code>frontend</code>, job cổng <code>ci-ok</code>; chưa tách <code>fe-*</code>/<code>be-*</code>/<code>contract.yml</code></li>
+                    <li><strong>CSDL rút gọn cho v1:</strong> vẫn MongoDB nhưng 12 collection thay vì 21; script nhúng trong <code>attractions</code>, bản dịch gắn theo <code>attraction_id</code>, thêm <code>tours</code> (chương 02 §2.0)</li>
                     <li>MongoDB driver: <strong>PyMongo Async API</strong> thay Motor (đã deprecated) / Beanie; entity là <code>dataclass</code>, mapping nằm trong repository</li>
                     <li>Hàng đợi: chọn <strong>Arq</strong> (Redis); audio mobile: <strong>expo-audio</strong> thay react-native-track-player</li>
                     <li>Hằng số: backend ở <code>app/core/config.py</code>, client ở <code>packages/core/src/constants.ts</code></li>
@@ -1005,7 +1006,7 @@
                 <h3>🌏 Biên dịch &amp; kiểm duyệt viên</h3>
                 <ul>
                     <li>Duyệt bản dịch song song theo từng ngôn ngữ (workbench 2 cột)</li>
-                    <li>Áp glossary/thuật ngữ, sửa lỗi máy dịch trước khi build audio</li>
+                    <li>Sửa tên riêng, thuật ngữ và lỗi máy dịch trước khi build audio</li>
                     <li>Chỉ nội dung ở trạng thái <code>reviewed</code> mới được đưa vào pack</li>
                 </ul>
             </div>
@@ -1075,63 +1076,51 @@
                         <th>Bounded context</th>
                         <th>Trách nhiệm</th>
                         <th>API prefix</th>
-                        <th>Tầng dữ liệu</th>
+                        <th>Collection (v1)</th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr>
                         <td>catalog</td>
-                        <td>Danh mục ngôn ngữ (✅ đã có), cấu hình hệ thống</td>
-                        <td><code>/api/v1/languages</code> · <code>/api/v1/admin</code></td>
-                        <td>languages, system_config</td>
+                        <td>Danh mục ngôn ngữ (✅ đã có) và giọng đọc mặc định của từng ngôn ngữ</td>
+                        <td><code>/api/v1/languages</code></td>
+                        <td>languages</td>
                     </tr>
                     <tr>
                         <td>identity</td>
-                        <td>Đăng nhập, refresh token, RBAC, audit</td>
-                        <td><code>/api/v1/auth</code></td>
-                        <td>users, roles, refresh_tokens, audit_logs</td>
+                        <td>Đăng nhập, phân quyền theo vai trò, quản lý tài khoản, nhật ký thao tác</td>
+                        <td><code>/api/v1/auth</code> · <code>/api/v1/users</code> · <code>/api/v1/audit</code></td>
+                        <td>users, refresh_tokens, audit_logs</td>
                     </tr>
                     <tr>
                         <td>content</td>
-                        <td>POI/điểm tham quan, script, ảnh (nhúng trong attractions), phiên bản nội dung</td>
-                        <td><code>/api/v1/attractions</code> · <code>/api/v1/scripts</code></td>
-                        <td>attractions, scripts, script_versions</td>
+                        <td>Điểm tham quan, script tiếng Việt (nhúng trong điểm), ảnh, gửi duyệt và duyệt; tour gom các điểm</td>
+                        <td><code>/api/v1/attractions</code> · <code>/api/v1/tours</code></td>
+                        <td>attractions, tours</td>
                     </tr>
                     <tr>
                         <td>localization</td>
-                        <td>Bản dịch, glossary, trạng thái review, QA dịch</td>
-                        <td><code>/api/v1/translations</code></td>
-                        <td>translations, glossaries, review_tasks</td>
+                        <td>Bản dịch theo điểm × ngôn ngữ, glossary, QA tự động, duyệt</td>
+                        <td><code>/api/v1/translations</code> · <code>/api/v1/glossaries</code></td>
+                        <td>translations, glossaries</td>
                     </tr>
                     <tr>
                         <td>audio</td>
-                        <td>Voice profile, job build TTS, hậu kỳ, asset audio</td>
+                        <td>Job build TTS, hậu kỳ, asset audio, tiến độ</td>
                         <td><code>/api/v1/audio</code></td>
-                        <td>voice_profiles, audio_assets, jobs</td>
+                        <td>audio_assets, jobs</td>
                     </tr>
                     <tr>
-                        <td>packs</td>
-                        <td>Đóng gói, version, ký manifest, publish/rollback</td>
-                        <td><code>/api/v1/packs</code></td>
-                        <td>audio_packs (mỗi version là 1 document), pack_components</td>
-                    </tr>
-                    <tr>
-                        <td>delivery</td>
-                        <td>Manifest công khai, signed URL, delta patch</td>
-                        <td><code>/api/v1/delivery</code></td>
-                        <td>download_events (manifest nằm trên object storage, trỏ bởi <code>audio_packs.manifest_key</code>)</td>
-                    </tr>
-                    <tr>
-                        <td>devices</td>
-                        <td>Đăng ký thiết bị, trạng thái đồng bộ, quota dung lượng</td>
-                        <td><code>/api/v1/devices</code></td>
-                        <td>devices (installed_packs nhúng)</td>
+                        <td>packs &amp; delivery</td>
+                        <td>Đóng gói theo tour × ngôn ngữ, publish, manifest công khai, URL tải</td>
+                        <td><code>/api/v1/packs</code> · <code>/api/v1/delivery</code></td>
+                        <td>audio_packs (danh sách file nằm trong <code>manifest.json</code> trên storage)</td>
                     </tr>
                     <tr>
                         <td>analytics</td>
-                        <td>Sự kiện nghe, chất lượng, dashboard read model</td>
+                        <td>Nhận sự kiện nghe từ app, thống kê tính trực tiếp khi xem</td>
                         <td><code>/api/v1/analytics</code></td>
-                        <td>playback_events, daily_metrics (read model)</td>
+                        <td>playback_events</td>
                     </tr>
                 </tbody>
             </table>
@@ -1176,7 +1165,7 @@
                         <td><strong>1 · Presentation</strong><br><code>api/v1/routers</code></td>
                         <td>Nhận HTTP, validate Pydantic, gọi service, map kết quả sang response schema, set status code</td>
                         <td>Không truy vấn DB, không chứa if/else nghiệp vụ, không biết cấu trúc document Mongo</td>
-                        <td><code>POST /attractions/{id}/scripts</code> → <code>ScriptService.create()</code></td>
+                        <td><code>PUT /attractions/{id}/script</code> → <code>ScriptService.update()</code></td>
                     </tr>
                     <tr>
                         <td><strong>2 · Business</strong><br><code>services/</code></td>
@@ -1213,20 +1202,21 @@ app/
 │   └── deps.py            ✅ <span class="comment"># provider service cho Depends · ⏳ current_user, uow, pagination, idempotency</span>
 ├── api/v1/                   <span class="comment"># ── LỚP 1: PRESENTATION</span>
 │   ├── routers/           ✅ languages.py
-│   │   ├── ⏳ attractions.py  scripts.py  translations.py
-│   │   ├── ⏳ audio.py        packs.py    delivery.py
-│   │   └── ⏳ devices.py      analytics.py  admin.py
+│   │   ├── ⏳ auth.py         users.py    attractions.py <span class="comment"># gồm /attractions/{id}/script</span>
+│   │   ├── ⏳ tours.py        translations.py  audio.py
+│   │   └── ⏳ packs.py        delivery.py      analytics.py
 │   └── schemas/           ✅ <span class="comment"># Pydantic DTO: Request / Response, KHÔNG dùng cho domain</span>
 ├── services/                 <span class="comment"># ── LỚP 2: BUSINESS</span>
 │   ├── ✅ language_service.py
-│   ├── ⏳ attraction_service.py  script_service.py
-│   ├── ⏳ translation_service.py  audio_build_service.py
+│   ├── ⏳ auth_service.py  attraction_service.py  script_service.py <span class="comment"># script nhúng: đọc/ghi qua attraction_repo</span>
+│   ├── ⏳ tour_service.py  translation_service.py  audio_build_service.py
 │   └── ⏳ pack_service.py  delivery_service.py  playback_service.py
 ├── repositories/             <span class="comment"># ── LỚP 3: DATA</span>
 │   ├── ✅ language_repo.py    <span class="comment"># Protocol (để fake trong test) + bản cài Mongo</span>
 │   ├── ⏳ base.py             <span class="comment"># BaseRepository[T], UnitOfWork</span>
-│   ├── ⏳ attraction_repo.py   script_repo.py  translation_repo.py
-│   └── ⏳ audio_repo.py        pack_repo.py    device_repo.py
+│   ├── ⏳ user_repo.py  token_repo.py  audit_repo.py  attraction_repo.py  tour_repo.py
+│   ├── ⏳ translation_repo.py  glossary_repo.py
+│   └── ⏳ audio_repo.py  pack_repo.py  job_repo.py  playback_repo.py   <span class="comment"># 1 repo / collection v1</span>
 ├── models/                ✅ <span class="comment"># domain entity (dataclass) — mapping document ↔ entity nằm trong repository</span>
 ├── integrations/             <span class="comment"># adapter ra thế giới bên ngoài</span>
 │   ├── tts/               ✅ base.py (Protocol)  edge.py · ⏳ azure.py  google.py
@@ -1357,7 +1347,59 @@ openapi.json              ✅ <span class="comment"># được commit; CI chặn
             </div>
         </div>
 
-        <h3 style="margin:1.5rem 0 .8rem;">2.1 · Bản đồ 21 collection theo 9 domain</h3>
+
+        <h3 style="margin:1.5rem 0 .8rem;">2.0 · CSDL rút gọn cho v1 (đang áp dụng)</h3>
+        <div class="highlight success">
+            <strong>Phạm vi đồ án dùng 12 collection, không phải 21.</strong> Vẫn là MongoDB, nhưng các bảng phụ được
+            nhúng vào document cha hoặc chuyển thành hằng số trong code. Các mục 2.1–2.9 bên dưới là
+            <em>thiết kế đích</em> để tham khảo khi mở rộng. Sơ đồ chi tiết của v1: <code>docs/erd.dbml</code>
+            (dán vào dbdiagram.io).
+        </div>
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr><th style="width:160px;">Collection</th><th>Dùng để làm gì</th><th>Gộp thêm từ thiết kế đích</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td><code>languages</code></td><td>5 ngôn ngữ và giọng đọc mặc định của mỗi ngôn ngữ (<code>tts_voice</code>, <code>tts_rate</code>)</td><td><code>voice_profiles</code></td></tr>
+                    <tr><td><code>attractions</code></td><td>Điểm tham quan + ảnh + <code>updated_by</code> + <strong>script tiếng Việt nhúng</strong> (<code>script: {version, body, segments[], status, review_note}</code>)</td><td><code>scripts</code>, <code>script_versions</code>, <code>review_tasks</code> (script)</td></tr>
+                    <tr><td><code>tours</code></td><td>Tour = danh sách điểm; là phạm vi để đóng gói pack. <em>Thiết kế đích thiếu bảng này</em></td><td>(mới)</td></tr>
+                    <tr><td><code>translations</code></td><td>Bản dịch theo điểm × ngôn ngữ đích, trạng thái duyệt và ghi chú trả lại</td><td><code>review_tasks</code> (bản dịch)</td></tr>
+                    <tr><td><code>glossaries</code></td><td>Thuật ngữ bắt buộc dịch đúng (tên riêng, địa danh); đưa vào job dịch và kiểm tra khi QA</td><td>—</td></tr>
+                    <tr><td><code>audio_assets</code></td><td>Một file audio cho mỗi điểm × ngôn ngữ × đoạn, cache theo <code>text_hash</code></td><td>—</td></tr>
+                    <tr><td><code>audio_packs</code></td><td>Mỗi version gói tải về của một tour × ngôn ngữ; danh sách file nằm trong <code>manifest.json</code> trên storage</td><td><code>pack_components</code></td></tr>
+                    <tr><td><code>jobs</code></td><td>Tiến độ việc chạy nền (dịch, build audio, đóng gói) để hiển thị trên web; Arq lo retry</td><td>—</td></tr>
+                    <tr><td><code>users</code></td><td>Tài khoản CMS, <code>role</code> là một chuỗi, quyền của từng vai trò khai báo trong code</td><td><code>roles</code></td></tr>
+                    <tr><td><code>audit_logs</code></td><td>Nhật ký gọn: ai làm gì với đối tượng nào (duyệt, publish, rollback, khoá tài khoản); không lưu bản trước/sau</td><td>—</td></tr>
+                    <tr><td><code>refresh_tokens</code></td><td>Phiên đăng nhập: chỉ lưu hash của token, xoay vòng theo <code>family_id</code>, phát hiện token cũ bị dùng lại, tự xoá khi hết hạn</td><td>—</td></tr>
+                    <tr><td><code>playback_events</code></td><td>Sự kiện nghe từ app, tự xoá sau 180 ngày; dashboard tính trực tiếp từ bảng này</td><td><code>daily_metrics</code></td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="card-grid">
+            <div class="card">
+                <h3>Bỏ khỏi v1</h3>
+                <ul>
+                                        <li><code>devices</code>, <code>download_events</code>: trạng thái pack chỉ cần nằm trên máy</li>
+                                        <li><code>system_config</code>: ngưỡng và quota để trong <code>app/core/config.py</code></li>
+                    <li>JSON Schema validator, migration 3 nhịp, mã hoá email, job đối soát</li>
+                </ul>
+            </div>
+            <div class="card">
+                <h3>Vẫn giữ</h3>
+                <ul>
+                    <li>Replica set <code>rs0</code> để có transaction (vd. publish pack)</li>
+                    <li>Index <code>2dsphere</code> trên <code>attractions.geo</code></li>
+                    <li><code>text_hash</code> để không build lại audio khi nội dung không đổi, cùng index unique <code>(attraction_id, lang, segment_no, text_hash)</code> để build lại không sinh bản ghi trùng</li>
+                    <li>Version bất biến cho pack: sửa nội dung thì tạo version mới</li>
+                    <li>Trường chung <code>created_at</code>, <code>updated_at</code>, <code>schema_version</code></li>
+                </ul>
+            </div>
+        </div>
+
+        <h3 style="margin:1.5rem 0 .8rem;">2.1 · Bản đồ 21 collection theo 9 domain (thiết kế đích)</h3>
         <div class="table-wrap">
             <table>
                 <thead>
@@ -1942,7 +1984,7 @@ openapi.json              ✅ <span class="comment"># được commit; CI chặn
             <div class="card">
                 <h3>Bước 3–4 · Dịch &amp; cổng duyệt người</h3>
                 <ul>
-                    <li>MT (DeepL/Google/LLM) + glossary bắt buộc + termbase của điểm tham quan</li>
+                    <li>MT (DeepL/Google/LLM) + glossary bắt buộc (<code>glossaries</code>); thuật ngữ thiếu thì gắn cờ <code>glossary_miss</code></li>
                     <li>QA tự động: COMET-QE, tỉ lệ độ dài 0.8–1.3, đối chiếu số/ngày/đơn vị</li>
                     <li>Người bản ngữ duyệt 100% trước khi build; trạng thái <code>machine</code> không bao giờ lên app</li>
                 </ul>
@@ -2186,7 +2228,7 @@ openapi.json              ✅ <span class="comment"># được commit; CI chặn
                 <div class="tier-content">
                     <strong>Quay lui khi bản mới lỗi</strong>
                     <span>App giữ lại pack version trước đó đến khi bản mới chạy ổn định (2 lần mở app). Nếu checksum
-                        sai hoặc phát lỗi liên tục, app tự trỏ về version cũ và báo cáo <code>download_event</code>.</span>
+                        sai hoặc phát lỗi liên tục, app tự trỏ về version cũ và ghi lỗi vào log trên máy.</span>
                 </div>
             </div>
         </div>
@@ -2423,9 +2465,9 @@ openapi.json              ✅ <span class="comment"># được commit; CI chặn
             <div class="card">
                 <h3>🛡️ Admin &amp; Audit</h3>
                 <ul>
-                    <li>Quản lý người dùng, vai trò, quyền theo domain</li>
-                    <li>Nhật ký thao tác nội dung: ai sửa gì, khi nào, version nào</li>
-                    <li>Cấu hình hệ thống: voice mặc định, ngưỡng QA, quota build, ngân sách dung lượng</li>
+                    <li>Quản lý tài khoản và vai trò (admin, editor, translator)</li>
+                    <li>Nhật ký thao tác (<code>audit_logs</code>): ai duyệt, publish, rollback, khoá tài khoản, lúc nào</li>
+                    <li>Cấu hình (ngưỡng QA, quota build) ở v1 nằm trong <code>app/core/config.py</code>; giọng mặc định nằm trong <code>languages</code></li>
                 </ul>
             </div>
         </div>
@@ -2447,8 +2489,8 @@ openapi.json              ✅ <span class="comment"># được commit; CI chặn
                         <td><code>attraction:read</code></td>
                     </tr>
                     <tr>
-                        <td><code>/attractions/:id/scripts</code></td>
-                        <td>Soạn &amp; quản lý script, xem version, gửi duyệt</td>
+                        <td><code>/attractions/:id/script</code></td>
+                        <td>Soạn script, gửi duyệt, duyệt / trả lại</td>
                         <td><code>script:write</code></td>
                     </tr>
                     <tr>
@@ -2472,8 +2514,8 @@ openapi.json              ✅ <span class="comment"># được commit; CI chặn
                         <td><code>analytics:view</code></td>
                     </tr>
                     <tr>
-                        <td><code>/admin/*</code></td>
-                        <td>Người dùng, vai trò, audit, cấu hình</td>
+                        <td><code>/admin/users</code> · <code>/admin/audit</code></td>
+                        <td>Tài khoản, vai trò và nhật ký thao tác</td>
                         <td><code>admin:manage</code></td>
                     </tr>
                 </tbody>
@@ -3209,7 +3251,7 @@ sequenceDiagram
 
     ED->>API: Tạo điểm tham quan + script (vi)
     API->>SVC: validate + lưu draft
-    SVC->>DB: attractions + scripts (version 1)
+    SVC->>DB: attractions (script nhúng, version 1)
     ED->>API: Gửi duyệt nội dung
     API->>SVC: chuyển in_review + tạo review task
     ED->>API: Duyệt bản dịch en/zh/ja/ko
@@ -3435,7 +3477,7 @@ sequenceDiagram
             </div>
             <div class="timeline-item">
                 <h4>Sprint 2 (tuần 4–5) — Đa ngôn ngữ</h4>
-                <p><strong>BE:</strong> module translation + glossary + QA tự động, hàng đợi review.
+                <p><strong>BE:</strong> module translation + glossary + QA tự động, hàng đợi duyệt theo <code>review_status</code>.
                     <strong>FE:</strong> Translation Workbench 2 cột, trạng thái theo ngôn ngữ, phím tắt duyệt.
                     <em>DoD:</em> 5 ngôn ngữ dịch và duyệt được từ web.</p>
             </div>
@@ -3657,7 +3699,7 @@ sequenceDiagram
                     </td></tr>
                     <tr><th>Hậu điều kiện thành công</th><td>Đoạn thuyết minh được phát hết; <code>playback_event</code> được ghi cục bộ; điểm vào cooldown 10 phút; UI hiển thị tên điểm và transcript highlight theo đoạn đang đọc</td></tr>
                     <tr><th>Hậu điều kiện thất bại</th><td>Không phát gì (im lặng) và ghi lại lý do; người dùng vẫn luôn có nút "Nghe lại" thủ công</td></tr>
-                    <tr><th>Dữ liệu liên quan</th><td><code>attractions</code> (geo, trigger_radius_m, priority) · <code>translations</code>/<code>scripts</code> (segments) · <code>audio_assets</code> · <code>devices</code> (active_lang, installed_packs) · <code>playback_events</code></td></tr>
+                    <tr><th>Dữ liệu liên quan</th><td><code>attractions</code> (geo, trigger_radius_m, priority) · <code>attractions.script</code>/<code>translations</code> (segments) · <code>audio_assets</code> · <code>playback_events</code> · trên máy: ngôn ngữ đang chọn và pack đã cài (MMKV, SQLite)</td></tr>
                     <tr><th>API liên quan (chỉ khi có mạng)</th><td><code>GET /delivery/manifest</code> (kiểm tra version) · <code>POST /analytics/playback</code> (đồng bộ event theo lô) · <code>POST /audio/synthesize</code> (Tier 3, tuỳ chọn)</td></tr>
                 </tbody>
             </table>
@@ -3837,13 +3879,13 @@ sequenceDiagram
                         <td><code>BE-02</code></td>
                         <td>BE · 3 lớp</td>
                         <td><code>POST /analytics/playback</code>: nhận lô event, chống trùng theo <code>(device_id, event_id)</code>, TTL 180 ngày</td>
-                        <td>Idempotent khi gửi lại cùng lô; index <code>{device_id, ts}</code> dùng IXSCAN</td>
+                        <td>Idempotent khi gửi lại cùng lô nhờ index unique <code>{device_id, event_id}</code></td>
                     </tr>
                     <tr>
                         <td><code>BE-03</code></td>
-                        <td>BE · worker</td>
-                        <td>Job tổng hợp <code>daily_metrics</code> hằng đêm từ <code>playback_events</code></td>
-                        <td>Idempotent theo ngày, chạy lại không nhân đôi số liệu; có test với dữ liệu mẫu</td>
+                        <td>BE · 3 lớp</td>
+                        <td><code>GET /analytics/summary</code>: lượt nghe, tỉ lệ nghe hết theo điểm × ngôn ngữ, aggregate trực tiếp trên <code>playback_events</code> (v1 không có bảng tổng hợp)</td>
+                        <td>Trả đúng số liệu với dữ liệu mẫu; dưới 300 ms với 1 triệu event (index <code>{attraction_id, ts}</code>)</td>
                     </tr>
                 </tbody>
             </table>
@@ -3861,7 +3903,7 @@ sequenceDiagram
             <table>
                 <tbody>
                     <tr><th style="width:200px;">Story</th><td><code>S-06</code> · gom từ <code>UC-01</code> · ưu tiên <strong>Cao</strong> · thuộc MVP</td></tr>
-                    <tr><th>Phụ trách</th><td>FE (mobile) làm chính · BE hỗ trợ phần <code>/delivery</code> và <code>/devices</code>. Nhóm 3 người: người làm mobile giữ cả hai đầu (xem mục Hiện trạng)</td></tr>
+                    <tr><th>Phụ trách</th><td>FE (mobile) làm chính · BE hỗ trợ phần <code>/delivery</code>. Nhóm 3 người: người làm mobile giữ cả hai đầu (xem mục Hiện trạng)</td></tr>
                     <tr><th>Sprint</th><td>Sprint 4 — Pack &amp; offline (chương 13). App làm trước từ Sprint 2 bằng <strong>pack mẫu</strong> tạo tay, không chờ pack service</td></tr>
                     <tr><th>Actor chính</th><td>Du khách — đang có mạng (thường ở khách sạn, Wi-Fi)</td></tr>
                     <tr><th>Actor phụ</th><td>Delivery API (backend), CDN + object storage, trình tải nền của hệ điều hành (iOS <code>URLSession</code> background / Android <code>WorkManager</code>)</td></tr>
@@ -3872,13 +3914,13 @@ sequenceDiagram
                             <li>Thiết bị có mạng; chế độ "chỉ Wi-Fi" đang bật mặc định</li>
                             <li>Có pack ở trạng thái <code>published</code> cho cặp <code>(scope, lang)</code> được chọn</li>
                             <li>Phiên bản app ≥ <code>min_app_version</code> trong manifest</li>
-                            <li>Thiết bị đã đăng ký <code>device_id</code> (tạo tự động ở lần mở app đầu tiên)</li>
+                            <li>App đã có <code>device_id</code> ngẫu nhiên (tự sinh ở lần mở đầu tiên, server không lưu danh sách thiết bị)</li>
                         </ol>
                     </td></tr>
-                    <tr><th>Hậu điều kiện thành công</th><td>Pack ở trạng thái active: mọi file nằm trong thư mục pack và khớp SHA-256; dữ liệu điểm, segment và transcript đã nạp vào SQLite; MMKV ghi pack đang dùng; <code>download_event {result: "success"}</code> được ghi cục bộ và đồng bộ lên server khi có mạng; <code>devices.installed_packs</code> được cập nhật</td></tr>
-                    <tr><th>Hậu điều kiện thất bại</th><td>Không có trạng thái nửa vời: pack cũ (nếu có) vẫn active và dùng được; file tạm được giữ lại để resume hoặc bị xoá nếu không hợp lệ; <code>download_event</code> ghi <code>error_code</code></td></tr>
-                    <tr><th>Dữ liệu liên quan</th><td>Server: <code>audio_packs</code>, <code>pack_components</code>, <code>devices</code>, <code>download_events</code> · Thiết bị: SQLite (attractions, segments, transcript), FileSystem (audio, ảnh, PMTiles), MMKV (active pack, ngôn ngữ)</td></tr>
-                    <tr><th>API liên quan</th><td><code>GET /api/v1/delivery/manifest?scope=…&amp;lang=…</code> (no-cache + ETag) · <code>POST /api/v1/delivery/urls</code> (signed URL TTL 15 phút, gắn <code>device_id</code>) · <code>POST /api/v1/devices</code> · <code>POST /api/v1/delivery/events</code> (gửi <code>download_events</code> theo lô). Tên endpoint <code>/urls</code> và <code>/events</code> là đề xuất, cần chốt trong <code>openapi.json</code></td></tr>
+                    <tr><th>Hậu điều kiện thành công</th><td>Pack ở trạng thái active: mọi file nằm trong thư mục pack và khớp SHA-256; dữ liệu điểm, segment và transcript đã nạp vào SQLite; MMKV ghi pack đang dùng; kết quả lượt tải được ghi vào log trên máy</td></tr>
+                    <tr><th>Hậu điều kiện thất bại</th><td>Không có trạng thái nửa vời: pack cũ (nếu có) vẫn active và dùng được; file tạm được giữ lại để resume hoặc bị xoá nếu không hợp lệ; mã lỗi được ghi vào log trên máy</td></tr>
+                    <tr><th>Dữ liệu liên quan</th><td>Server: <code>tours</code>, <code>audio_packs</code> (danh sách file nằm trong <code>manifest.json</code>) · Thiết bị: SQLite (attractions, segments, transcript), FileSystem (audio, ảnh, PMTiles), MMKV (active pack, ngôn ngữ)</td></tr>
+                    <tr><th>API liên quan</th><td><code>GET /api/v1/tours</code> (thư viện tour) · <code>GET /api/v1/delivery/manifest?tour=…&amp;lang=…</code> (no-cache + ETag) · <code>POST /api/v1/delivery/urls</code> (signed URL TTL 15 phút, gắn <code>device_id</code> do app gửi lên). Tên endpoint <code>/urls</code> là đề xuất, cần chốt trong <code>openapi.json</code></td></tr>
                 </tbody>
             </table>
         </div>
@@ -3899,7 +3941,7 @@ sequenceDiagram
                     <tr><td>7</td><td>Hệ thống</td><td>—</td><td>Mỗi file tải xong được so SHA-256 với manifest; sai thì tải lại file đó, tối đa 3 lần</td></tr>
                     <tr><td>8</td><td>Hệ thống</td><td>—</td><td>Đủ file: nạp <code>index.json</code> (điểm, segment, transcript) vào SQLite trong một transaction</td></tr>
                     <tr><td>9</td><td>Hệ thống</td><td>—</td><td>Đổi tên thư mục tạm thành thư mục active (kích hoạt nguyên tử), ghi pack đang dùng vào MMKV</td></tr>
-                    <tr><td>10</td><td>Du khách</td><td>Thấy "Sẵn sàng nghe offline"</td><td>Ghi <code>download_event</code> cục bộ; khi có mạng gửi lên server và cập nhật <code>installed_packs</code></td></tr>
+                    <tr><td>10</td><td>Du khách</td><td>Thấy "Sẵn sàng nghe offline"</td><td>Ghi pack vào danh sách đã cài trên máy (SQLite) và log kết quả tải</td></tr>
                 </tbody>
             </table>
         </div>
@@ -3915,7 +3957,7 @@ sequenceDiagram
                     <tr><td><code>A2</code></td><td>Đang dùng 4G trong khi bật "chỉ Wi-Fi"</td><td>Hỏi người dùng: "Chờ Wi-Fi" hoặc "Tải bằng dữ liệu di động (178 MB)". Pack &gt; 100 MB luôn hiện cảnh báo dung lượng</td></tr>
                     <tr><td><code>A3</code></td><td>Không đủ dung lượng / vượt ngân sách</td><td>Gợi ý gỡ pack ít dùng nhất (LRU) kèm dung lượng sẽ giải phóng; không tự xoá pack của tour đang đi</td></tr>
                     <tr><td><code>A4</code></td><td>Đã cài đủ 3 pack</td><td>Yêu cầu chọn một pack để gỡ trước khi tải; pack ít dùng nhất được chọn sẵn</td></tr>
-                    <tr><td><code>A5</code></td><td>Chữ ký manifest sai, hoặc một file vẫn sai checksum sau 3 lần</td><td>Huỷ lượt tải, xoá thư mục tạm, giữ nguyên pack cũ; báo "Gói tải về bị lỗi, hãy thử lại" và ghi <code>download_event</code> lỗi</td></tr>
+                    <tr><td><code>A5</code></td><td>Chữ ký manifest sai, hoặc một file vẫn sai checksum sau 3 lần</td><td>Huỷ lượt tải, xoá thư mục tạm, giữ nguyên pack cũ; báo "Gói tải về bị lỗi, hãy thử lại" và ghi lỗi vào log trên máy</td></tr>
                     <tr><td><code>A6</code></td><td>Phiên bản app thấp hơn <code>min_app_version</code></td><td>Không tải; báo cần cập nhật app và mở trang store</td></tr>
                     <tr><td><code>A7</code></td><td>App bị đưa xuống nền hoặc bị OS kill</td><td>Trình tải nền của OS tiếp tục chạy; mở lại app thì đồng bộ tiến độ từ trạng thái lưu trong SQLite</td></tr>
                     <tr><td><code>A8</code></td><td>Signed URL hết hạn (HTTP 403) giữa chừng</td><td>Xin URL mới cho các file còn lại rồi tải tiếp, người dùng không thấy lỗi</td></tr>
@@ -3941,7 +3983,7 @@ sequenceDiagram
                     <li><strong>BR-5:</strong> mặc định chỉ tải qua Wi-Fi; pack &gt; 100 MB luôn cảnh báo trước</li>
                     <li><strong>BR-6:</strong> tối đa 4 luồng song song (<code>DOWNLOAD_CONCURRENCY</code>), retry 30/60/120 giây</li>
                     <li><strong>BR-7:</strong> tối đa 3 pack (<code>PACK_MAX_INSTALLED</code>), ngân sách 1,5 GB (<code>DEVICE_STORAGE_BUDGET</code>), gỡ theo LRU</li>
-                    <li><strong>BR-8:</strong> sự kiện tải ghi cục bộ trước, gửi lên server sau; không chặn trải nghiệm</li>
+                    <li><strong>BR-8:</strong> v1 không gửi sự kiện tải lên server; kết quả tải chỉ ghi log trên máy để kiểm thử</li>
                 </ul>
             </div>
         </div>
@@ -3951,7 +3993,7 @@ sequenceDiagram
             <table>
                 <thead><tr><th>Chỉ tiêu</th><th>Ngưỡng</th><th>Cách đo</th></tr></thead>
                 <tbody>
-                    <tr><td>Tỉ lệ tải pack thành công</td><td>≥ 99% (chỉ số nghiệm thu chương 13)</td><td>Tổng hợp <code>download_events</code></td></tr>
+                    <tr><td>Tỉ lệ tải pack thành công</td><td>≥ 99% (chỉ số nghiệm thu chương 13)</td><td>Đếm từ log tải trên các máy test trong buổi kiểm thử hiện trường</td></tr>
                     <tr><td>Resume sau khi mất mạng</td><td>Không tải lại file đã xong</td><td>Test tắt/bật mạng giữa chừng, so số byte tải</td></tr>
                     <tr><td>Thời gian kích hoạt sau khi tải xong</td><td>≤ 5 giây trên máy tầm trung (đề xuất)</td><td>Đo bước 8–9, pack 100 điểm</td></tr>
                     <tr><td>Dung lượng pack 100 điểm + bản đồ thành phố</td><td>≈ 175 MB (Opus 32 kbps)</td><td>Bảng ước lượng chương 04</td></tr>
@@ -3990,7 +4032,7 @@ sequenceDiagram
                     <tr>
                         <td><code>BE-04</code></td>
                         <td>BE · hợp đồng</td>
-                        <td>Chốt schema manifest + DTO các endpoint <code>/delivery</code>, <code>/devices</code> trong <code>backend/openapi.json</code>; script sinh <strong>pack mẫu</strong> (3 điểm, Edge-TTS, ký bằng khoá dev)</td>
+                        <td>Chốt schema manifest + DTO <code>/tours</code>, <code>/delivery</code> trong <code>backend/openapi.json</code>; script sinh <strong>pack mẫu</strong> (3 điểm, Edge-TTS, ký bằng khoá dev)</td>
                         <td>Ngày đầu story; app dùng được pack mẫu mà không cần pack service</td>
                     </tr>
                     <tr>
@@ -4022,12 +4064,6 @@ sequenceDiagram
                         <td>BE · 3 lớp</td>
                         <td><code>POST /delivery/urls</code>: cấp signed URL TTL 15 phút gắn <code>device_id</code>; dùng chung <code>DeliveryService</code> với <code>BE-01</code></td>
                         <td>import-linter xanh; test URL hết hạn trả 403; contract test OpenAPI</td>
-                    </tr>
-                    <tr>
-                        <td><code>BE-06</code></td>
-                        <td>BE · 3 lớp</td>
-                        <td><code>POST /devices</code> + <code>POST /delivery/events</code>: đăng ký thiết bị, nhận <code>download_events</code> theo lô, cập nhật <code>installed_packs</code></td>
-                        <td>Gửi lại cùng lô không tạo bản ghi trùng; TTL 180 ngày trên <code>download_events</code></td>
                     </tr>
                 </tbody>
             </table>
@@ -4191,8 +4227,12 @@ sequenceDiagram
         ],
         "data": [
             {
+                "key": "erd-v1",
+                "label": "🗄️ ERD v1 (12 collection)"
+            },
+            {
                 "key": "data-domains",
-                "label": "🗂️ Bản đồ 21 collection"
+                "label": "🗂️ Bản đồ 21 collection (đích)"
             },
             {
                 "key": "erd",
@@ -4315,6 +4355,10 @@ sequenceDiagram
             "title": "ERD — 21 collection và quan hệ chính",
             "mermaid": "erDiagram\n    LANGUAGES ||--o{ SCRIPTS : \"ngôn ngữ nguồn\"\n    LANGUAGES ||--o{ TRANSLATIONS : \"ngôn ngữ đích\"\n    LANGUAGES ||--o{ VOICE_PROFILES : \"có giọng đọc\"\n    ATTRACTIONS ||--o{ SCRIPTS : \"có lời thuyết minh\"\n    ATTRACTIONS ||--o{ PLAYBACK_EVENTS : \"được nghe\"\n    SCRIPTS ||--o{ SCRIPT_VERSIONS : \"lịch sử bất biến\"\n    SCRIPTS ||--o{ TRANSLATIONS : \"được dịch sang\"\n    SCRIPTS ||--o{ REVIEW_TASKS : \"chờ duyệt\"\n    TRANSLATIONS ||--o{ REVIEW_TASKS : \"chờ duyệt\"\n    GLOSSARIES }o--o{ TRANSLATIONS : \"ràng buộc thuật ngữ\"\n    TRANSLATIONS ||--o{ AUDIO_ASSETS : \"sinh audio\"\n    VOICE_PROFILES ||--o{ AUDIO_ASSETS : \"đọc bằng\"\n    JOBS ||--o{ AUDIO_ASSETS : \"sinh ra\"\n    AUDIO_ASSETS }o--o{ AUDIO_PACKS : \"đóng vào pack\"\n    AUDIO_PACKS ||--o{ PACK_COMPONENTS : \"gồm nhiều thành phần\"\n    AUDIO_PACKS ||--o{ DEVICES : \"được tải về\"\n    DEVICES ||--o{ DOWNLOAD_EVENTS : \"phát sinh\"\n    AUDIO_PACKS ||--o{ DOWNLOAD_EVENTS : \"thống kê\"\n    DEVICES ||--o{ PLAYBACK_EVENTS : \"phát sinh\"\n    USERS ||--o{ ROLES : \"được gán\"\n    USERS ||--o{ SCRIPTS : \"soạn\"\n    USERS ||--o{ TRANSLATIONS : \"duyệt\"\n    USERS ||--o{ AUDIO_PACKS : \"publish\"\n    USERS ||--o{ AUDIT_LOGS : \"thực hiện\"\n\n    ATTRACTIONS {\n        ObjectId _id\n        string slug\n        Point geo\n        int trigger_radius_m\n        int priority\n        array images\n        string status\n        ObjectId current_script_id\n    }\n    SCRIPTS {\n        ObjectId _id\n        ObjectId attraction_id\n        string lang\n        int version\n        string body\n        array segments\n        string status\n    }\n    TRANSLATIONS {\n        ObjectId _id\n        ObjectId script_id\n        string target_lang\n        int version\n        string text\n        float comet_qe\n        array qa_flags\n        string review_status\n        string text_hash\n    }\n    AUDIO_ASSETS {\n        ObjectId _id\n        ObjectId script_id\n        ObjectId translation_id\n        string lang\n        int segment_no\n        string text_hash\n        string storage_key\n        int bytes\n        int duration_ms\n        string checksum_sha256\n        string status\n    }\n    JOBS {\n        ObjectId _id\n        string type\n        string dedupe_key\n        int priority\n        string status\n        int attempts\n        string locked_by\n        Date heartbeat_at\n    }\n    AUDIO_PACKS {\n        ObjectId _id\n        string pack_id\n        object scope\n        string lang\n        int version\n        string status\n        string manifest_key\n        string signature\n        int total_bytes\n        int delta_from_version\n    }\n    PACK_COMPONENTS {\n        ObjectId _id\n        ObjectId pack_id\n        string kind\n        string ref_id\n        string path\n        int bytes\n        string sha256\n    }\n    DEVICES {\n        ObjectId _id\n        string device_id\n        string platform\n        string active_lang\n        array installed_packs\n        int storage_budget_bytes\n        Date last_sync_at\n    }\n    USERS {\n        ObjectId _id\n        string email\n        string password_hash\n        array role_ids\n        bool is_active\n    }\n    LANGUAGES {\n        ObjectId _id\n        string code\n        string bcp47\n        bool is_source\n        bool is_active\n    }\n"
         },
+        "erd-v1": {
+            "title": "CSDL v1 — 12 collection MongoDB (chương 02 §2.0)",
+            "mermaid": "erDiagram\n    LANGUAGES ||--o{ TRANSLATIONS : \"ngôn ngữ đích\"\n    ATTRACTIONS ||--o{ TRANSLATIONS : \"được dịch\"\n    ATTRACTIONS ||--o{ AUDIO_ASSETS : \"có audio\"\n    TOURS }o--o{ ATTRACTIONS : \"gồm các điểm\"\n    TOURS ||--o{ AUDIO_PACKS : \"đóng gói theo ngôn ngữ\"\n    ATTRACTIONS ||--o{ PLAYBACK_EVENTS : \"được nghe\"\n    USERS ||--o{ ATTRACTIONS : \"tạo / duyệt script\"\n    USERS ||--o{ TRANSLATIONS : \"duyệt\"\n    USERS ||--o{ AUDIO_PACKS : \"publish\"\n    USERS ||--o{ JOBS : \"chạy\"\n    USERS ||--o{ REFRESH_TOKENS : \"phiên đăng nhập\"\n    USERS ||--o{ AUDIT_LOGS : \"thực hiện\"\n    LANGUAGES ||--o{ GLOSSARIES : \"thuật ngữ\"\n\n    LANGUAGES {\n        string code\n        string tts_voice\n    }\n    ATTRACTIONS {\n        ObjectId _id\n        string slug\n        Point geo\n        int trigger_radius_m\n        object script\n        string status\n    }\n    TOURS {\n        ObjectId _id\n        string slug\n        array attraction_ids\n    }\n    TRANSLATIONS {\n        ObjectId attraction_id\n        string target_lang\n        int version\n        string review_status\n        string text_hash\n    }\n    AUDIO_ASSETS {\n        ObjectId attraction_id\n        string lang\n        int segment_no\n        string text_hash\n        string storage_key\n    }\n    AUDIO_PACKS {\n        ObjectId tour_id\n        string lang\n        int version\n        string status\n        string manifest_key\n    }\n    JOBS {\n        string type\n        string dedupe_key\n        string status\n    }\n    USERS {\n        string email\n        string role\n    }\n    REFRESH_TOKENS {\n        ObjectId user_id\n        string token_hash\n        string family_id\n        datetime expires_at\n    }\n    GLOSSARIES {\n        string term\n        string target_lang\n        string translation\n        bool is_required\n    }\n    AUDIT_LOGS {\n        ObjectId actor_id\n        string action\n        object resource\n        datetime ts\n    }\n    PLAYBACK_EVENTS {\n        string device_id\n        string event_id\n        ObjectId attraction_id\n        string event\n    }\n"
+        },
         "data-domains": {
             "title": "Bản đồ 21 collection theo 9 domain và luồng ghi/đọc",
             "mermaid": "graph TB\n    CMS[\"Web CMS (React)<br/>biên tập · dịch · publish\"]\n    WORKER[\"Worker build<br/>TTS · đóng gói pack\"]\n    APP[\"Mobile app<br/>offline\"]\n\n    subgraph CAT[\"1 · Catalog\"]\n        LANG[(\"languages\")]\n        ATTR[(\"attractions<br/>geo 2dsphere<br/>images nhúng\")]\n    end\n    subgraph CONT[\"2 · Content\"]\n        SCR[(\"scripts<br/>segments nhúng\")]\n        SCRV[(\"script_versions<br/>append-only\")]\n    end\n    subgraph LOC[\"3 · Localization\"]\n        TR[(\"translations<br/>text_hash · review_status\")]\n        GLO[(\"glossaries\")]\n        RT[(\"review_tasks\")]\n    end\n    subgraph AUD[\"4 · Audio\"]\n        VP[(\"voice_profiles\")]\n        AA[(\"audio_assets<br/>text_hash = khoá cache TTS\")]\n        JOB[(\"jobs<br/>dedupe_key · heartbeat\")]\n    end\n    subgraph PK[\"5 · Pack & Delivery\"]\n        AP[(\"audio_packs<br/>version bất biến\")]\n        PC[(\"pack_components\")]\n        DE[(\"download_events TTL\")]\n    end\n    subgraph DVS[\"6 · Devices\"]\n        DEV[(\"devices<br/>installed_packs nhúng\")]\n    end\n    subgraph ID[\"7 · Identity\"]\n        US[(\"users\")]\n        RO[(\"roles\")]\n        TK[(\"refresh_tokens TTL\")]\n        AU[(\"audit_logs\")]\n    end\n    subgraph AN[\"8 · Analytics\"]\n        PE[(\"playback_events<br/>TTL 180 ngày\")]\n        DM[(\"daily_metrics<br/>read model\")]\n    end\n    subgraph PF[\"9 · Platform\"]\n        CFG[(\"system_config\")]\n    end\n\n    CMS --> ATTR\n    CMS --> SCR\n    CMS --> TR\n    CMS --> VP\n    CMS --> RT\n    CMS --> AP\n    CMS --> AU\n    ATTR --> SCR\n    SCR --> SCRV\n    GLO --> TR\n    LANG --> TR\n    SCR --> AA\n    TR --> AA\n    WORKER --> JOB\n    JOB --> AA\n    AA --> PC\n    PC --> AP\n    AP --> DEV\n    DEV --> DE\n    DEV --> PE\n    PE -->|\"tổng hợp hằng đêm\"| DM\n    US --> RO\n    US --> AU\n"
@@ -4373,7 +4417,7 @@ sequenceDiagram
         },
         "e2e-publish": {
             "title": "Luồng publish → offline — ai làm gì ở từng bước",
-            "mermaid": "sequenceDiagram\n    autonumber\n    participant ED as Biên tập viên\n    participant CMS as Web CMS\n    participant BE as FastAPI 3 lớp\n    participant WK as Worker build\n    participant CDN as Storage + CDN\n    participant APP as Mobile App\n\n    ED->>CMS: Soạn script và gắn vùng geofence\n    CMS->>BE: POST /attractions/{id}/scripts + toạ độ + bán kính\n    BE-->>CMS: draft đã lưu\n    ED->>CMS: Gửi duyệt và duyệt bản dịch\n    CMS->>BE: POST /translations/{id}/approve\n    BE->>WK: enqueue build theo text_hash\n    WK->>WK: TTS + hậu kỳ -16 LUFS\n    WK->>CDN: upload audio bất biến\n    WK->>BE: cập nhật audio_assets\n    ED->>CMS: Publish pack version mới\n    CMS->>BE: POST /packs/{id}/publish\n    BE->>CDN: ghi manifest đã ký\n    APP->>CDN: GET manifest ETag\n    CDN-->>APP: version mới + danh sách file\n    APP->>CDN: tải delta patch\n    APP->>APP: verify và kích hoạt nguyên tử\n    Note over APP: Từ đây hoạt động không cần mạng\n    APP->>BE: đồng bộ playback_events khi có mạng\n"
+            "mermaid": "sequenceDiagram\n    autonumber\n    participant ED as Biên tập viên\n    participant CMS as Web CMS\n    participant BE as FastAPI 3 lớp\n    participant WK as Worker build\n    participant CDN as Storage + CDN\n    participant APP as Mobile App\n\n    ED->>CMS: Soạn script và gắn vùng geofence\n    CMS->>BE: POST /attractions + PUT /attractions/{id}/script\n    BE-->>CMS: draft đã lưu\n    ED->>CMS: Gửi duyệt và duyệt bản dịch\n    CMS->>BE: POST /translations/{id}/approve\n    BE->>WK: enqueue build theo text_hash\n    WK->>WK: TTS + hậu kỳ -16 LUFS\n    WK->>CDN: upload audio bất biến\n    WK->>BE: cập nhật audio_assets\n    ED->>CMS: Publish pack version mới\n    CMS->>BE: POST /packs/{id}/publish\n    BE->>CDN: ghi manifest đã ký\n    APP->>CDN: GET manifest ETag\n    CDN-->>APP: version mới + danh sách file\n    APP->>CDN: tải delta patch\n    APP->>APP: verify và kích hoạt nguyên tử\n    Note over APP: Từ đây hoạt động không cần mạng\n    APP->>BE: đồng bộ playback_events khi có mạng\n"
         },
         "roadmap": {
             "title": "Lộ trình 12 tuần — 7 sprint",
@@ -4385,7 +4429,7 @@ sequenceDiagram
         },
         "uc01-sequence": {
             "title": "UC-01 — tải Language Pack từ lúc chọn tour đến khi sẵn sàng offline",
-            "mermaid": "sequenceDiagram\n    autonumber\n    participant U as Du khách\n    participant APP as Mobile app\n    participant API as Delivery API\n    participant CDN as CDN\n    participant OS as Trình tải nền (OS)\n    participant DB as SQLite + FileSystem\n\n    U->>APP: chọn tour + ngôn ngữ\n    APP->>API: GET /delivery/manifest (ETag)\n    API-->>APP: manifest đã ký + total_bytes\n    APP-->>U: cần tải 178 MB\n    U->>APP: bấm Tải\n    APP->>APP: kiểm tra chữ ký, ngân sách, số pack\n    APP->>API: xin signed URL (TTL 15 phút)\n    API-->>APP: danh sách URL\n    APP->>OS: giao 4 luồng tải nền\n    loop từng file\n        OS->>CDN: GET file (resume nếu dở)\n        CDN-->>OS: dữ liệu\n        OS-->>APP: xong file\n        APP->>APP: so SHA-256 với manifest\n    end\n    APP->>DB: nạp index vào SQLite (1 transaction)\n    APP->>DB: đổi tên .tmp thành active\n    APP-->>U: Sẵn sàng nghe offline\n    APP->>API: gửi download_event khi có mạng\n\n    alt mất mạng giữa chừng\n        OS->>OS: tạm dừng, tải tiếp khi có mạng\n    else file sai checksum 3 lần\n        APP->>DB: xoá thư mục tạm, giữ pack cũ\n    else signed URL hết hạn\n        APP->>API: xin URL mới rồi tải tiếp\n    end\n"
+            "mermaid": "sequenceDiagram\n    autonumber\n    participant U as Du khách\n    participant APP as Mobile app\n    participant API as Delivery API\n    participant CDN as CDN\n    participant OS as Trình tải nền (OS)\n    participant DB as SQLite + FileSystem\n\n    U->>APP: chọn tour + ngôn ngữ\n    APP->>API: GET /delivery/manifest (ETag)\n    API-->>APP: manifest đã ký + total_bytes\n    APP-->>U: cần tải 178 MB\n    U->>APP: bấm Tải\n    APP->>APP: kiểm tra chữ ký, ngân sách, số pack\n    APP->>API: xin signed URL (TTL 15 phút)\n    API-->>APP: danh sách URL\n    APP->>OS: giao 4 luồng tải nền\n    loop từng file\n        OS->>CDN: GET file (resume nếu dở)\n        CDN-->>OS: dữ liệu\n        OS-->>APP: xong file\n        APP->>APP: so SHA-256 với manifest\n    end\n    APP->>DB: nạp index vào SQLite (1 transaction)\n    APP->>DB: đổi tên .tmp thành active\n    APP-->>U: Sẵn sàng nghe offline\n\n    alt mất mạng giữa chừng\n        OS->>OS: tạm dừng, tải tiếp khi có mạng\n    else file sai checksum 3 lần\n        APP->>DB: xoá thư mục tạm, giữ pack cũ\n    else signed URL hết hạn\n        APP->>API: xin URL mới rồi tải tiếp\n    end\n"
         },
         "uc02-sequence": {
             "title": "UC-02 — trình tự xử lý từ fix vị trí đến khi phát xong",

@@ -1,0 +1,245 @@
+// GeoNarrate — ERD MongoDB, phạm vi v1 (12 collection)
+// Thiết kế đích 21 collection vẫn nằm ở chương 02 (2.1–2.9) của tài liệu; bản này là thứ thực sự xây.
+// Dán vào https://dbdiagram.io để xem. Ref là quan hệ logic: MongoDB không có khoá ngoại.
+// Trường chung không ghi lại ở từng bảng: _id, created_at, updated_at, schema_version.
+
+Project geonarrate {
+  database_type: 'MongoDB'
+}
+
+Table languages {
+  _id objectid [pk]
+  code string [unique, not null]
+  bcp47 string [not null]
+  native_name string [not null]
+  is_source bool
+  is_active bool
+  tts_voice string
+  tts_rate string
+}
+
+Table attractions {
+  _id objectid [pk]
+  slug string [unique, not null]
+  title string [not null]
+  summary string
+  category string [not null]
+  geo geojson_point [not null]
+  trigger_radius_m int [not null]
+  priority int
+  images "object[]"
+  script object [note: 'NHÚNG: {version, body, segments[], status, review_note, reviewed_by, reviewed_at}']
+  status string [not null]
+  published_at datetime
+  created_by objectid
+  updated_by objectid
+
+  indexes {
+    slug [unique]
+    geo [note: '2dsphere']
+    (status, `updated_at`)
+    `script.status`
+  }
+}
+
+Table tours {
+  _id objectid [pk]
+  slug string [unique, not null]
+  name string [not null]
+  attraction_ids "objectid[]"
+  bbox "float[]"
+  status string [not null]
+  updated_by objectid
+}
+
+Table glossaries {
+  _id objectid [pk]
+  term string [not null]
+  target_lang string [not null]
+  translation string [not null]
+  is_required bool
+  attraction_id objectid [note: 'null = áp dụng toàn hệ thống']
+  created_by objectid
+
+  indexes {
+    (term, target_lang, attraction_id) [unique]
+    target_lang
+  }
+}
+
+Table translations {
+  _id objectid [pk]
+  attraction_id objectid [not null]
+  target_lang string [not null]
+  version int [not null]
+  text string [not null]
+  segments "object[]"
+  provider string
+  qa_flags "string[]"
+  review_status string [not null]
+  review_note string
+  reviewed_by objectid
+  reviewed_at datetime
+  text_hash string
+
+  indexes {
+    (attraction_id, target_lang) [unique]
+    (target_lang, review_status)
+  }
+}
+
+Table audio_assets {
+  _id objectid [pk]
+  attraction_id objectid [not null]
+  lang string [not null]
+  segment_no int [not null]
+  text_hash string [not null]
+  voice string [not null]
+  storage_key string [not null]
+  bytes int
+  duration_ms int
+  sha256 string [not null]
+  status string [not null]
+
+  indexes {
+    (attraction_id, lang, segment_no, text_hash) [unique, note: 'build lại không sinh bản ghi trùng']
+    text_hash
+  }
+}
+
+Table audio_packs {
+  _id objectid [pk]
+  tour_id objectid [not null]
+  lang string [not null]
+  version int [not null]
+  status string [not null]
+  archive_key string
+  manifest_key string
+  sha256 string
+  total_bytes int
+  file_count int
+  published_by objectid
+  published_at datetime
+
+  indexes {
+    (tour_id, lang, version) [unique]
+    (tour_id, lang, status)
+  }
+}
+
+Table jobs {
+  _id objectid [pk]
+  type string [not null]
+  payload object
+  dedupe_key string [not null]
+  status string [not null]
+  progress object
+  attempts int
+  error object
+  created_by objectid
+
+  indexes {
+    dedupe_key [unique, note: 'partial: status in (queued, running)']
+    (status, `created_at`)
+  }
+}
+
+Table users {
+  _id objectid [pk]
+  email string [unique, not null]
+  password_hash string [not null]
+  full_name string
+  role string [not null]
+  is_active bool
+  last_login_at datetime
+}
+
+Table audit_logs {
+  _id objectid [pk]
+  actor_id objectid [not null]
+  action string [not null, note: 'vd. script.approve, translation.approve, pack.publish, pack.rollback, user.lock']
+  resource object [not null, note: '{type, id}']
+  note string
+  ts datetime [not null]
+
+  indexes {
+    (`resource.type`, `resource.id`, ts)
+    (actor_id, ts)
+  }
+}
+
+Table refresh_tokens {
+  _id objectid [pk]
+  user_id objectid [not null]
+  token_hash string [unique, not null]
+  family_id string [not null]
+  expires_at datetime [not null]
+  revoked_at datetime
+
+  indexes {
+    token_hash [unique]
+    family_id
+    expires_at [note: 'TTL 0 — hết hạn tự xoá']
+  }
+}
+
+Table playback_events {
+  _id objectid [pk]
+  device_id string [not null]
+  event_id string [not null]
+  attraction_id objectid [not null]
+  lang string [not null]
+  segment_no int
+  event string [not null]
+  position_ms int
+  trigger string
+  ts datetime [not null]
+
+  indexes {
+    (device_id, event_id) [unique]
+    (attraction_id, ts)
+    ts [note: 'TTL 180 ngày']
+  }
+}
+
+Ref: languages.code < translations.target_lang
+Ref: languages.code < audio_assets.lang
+Ref: languages.code < audio_packs.lang
+Ref: languages.code < playback_events.lang
+Ref: attractions._id < translations.attraction_id
+Ref: attractions._id < audio_assets.attraction_id
+Ref: attractions._id <> tours.attraction_ids
+Ref: attractions._id < playback_events.attraction_id
+Ref: tours._id < audio_packs.tour_id
+Ref: users._id < attractions.created_by
+Ref: users._id < translations.reviewed_by
+Ref: users._id < audio_packs.published_by
+Ref: users._id < jobs.created_by
+Ref: users._id < refresh_tokens.user_id
+Ref: users._id < audit_logs.actor_id
+Ref: users._id < attractions.updated_by
+Ref: users._id < tours.updated_by
+Ref: users._id < glossaries.created_by
+Ref: languages.code < glossaries.target_lang
+Ref: attractions._id < glossaries.attraction_id
+
+TableGroup "Nội dung" {
+  languages
+  attractions
+  tours
+  translations
+  glossaries
+}
+
+TableGroup "Audio & pack" {
+  audio_assets
+  audio_packs
+  jobs
+}
+
+TableGroup "Người dùng & số liệu" {
+  users
+  refresh_tokens
+  audit_logs
+  playback_events
+}
