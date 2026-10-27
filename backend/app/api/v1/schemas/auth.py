@@ -17,6 +17,7 @@ class UserOut(BaseModel):
     email: str
     full_name: str
     role: Literal["admin", "editor", "translator"]
+    permissions: list[str] = Field(description="Quyền suy ra từ vai trò, web dùng để ẩn/hiện menu")
 
 
 class TokenOut(BaseModel):

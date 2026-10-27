@@ -4,10 +4,11 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.v1.routers import auth, languages
+from app.api.v1.routers import audit, auth, languages
 from app.core import cache, database
 from app.core.deps import get_auth_service, get_language_service
 from app.core.exceptions import install_handlers
+from app.core.rate_limit import LoginRateLimitMiddleware
 
 
 @asynccontextmanager
@@ -22,6 +23,8 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
 
 
 app = FastAPI(title="GeoNarrate API", version="0.1.0", lifespan=lifespan)
+# Middleware thêm sau nằm ngoài: CORS phải ở ngoài cùng để cả response 429 cũng có header CORS
+app.add_middleware(LoginRateLimitMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173"],
@@ -30,6 +33,7 @@ app.add_middleware(
 )
 install_handlers(app)
 app.include_router(auth.router, prefix="/api/v1")
+app.include_router(audit.router, prefix="/api/v1")
 app.include_router(languages.router, prefix="/api/v1")
 
 

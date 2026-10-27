@@ -78,6 +78,12 @@
         "schemaName": "public",
         "x": 296.3193359375,
         "y": 1851
+      },
+      {
+        "name": "tickets",
+        "schemaName": "public",
+        "x": 1619.5703125,
+        "y": 1303
       }
     ],
     "tableGroupCollapseStates": [],

@@ -5,8 +5,9 @@ from datetime import UTC, datetime, timedelta
 
 from app.core import security
 from app.core.config import get_settings
-from app.core.exceptions import UnauthorizedError
+from app.core.exceptions import ConflictError, UnauthorizedError
 from app.models.user import Role, User
+from app.repositories.access_revocation_repo import AccessRevocationRepository
 from app.repositories.token_repo import RefreshTokenRepository
 from app.repositories.user_repo import UserRepository
 
@@ -32,10 +33,12 @@ class AuthService:
         self,
         users: UserRepository,
         tokens: RefreshTokenRepository,
+        revocations: AccessRevocationRepository,
         clock: Callable[[], datetime] = _utcnow,
     ) -> None:
         self._users = users
         self._tokens = tokens
+        self._revocations = revocations
         self._clock = clock
 
     async def login(self, email: str, password: str) -> TokenPair:
@@ -81,8 +84,33 @@ class AuthService:
         if token is not None:
             await self._tokens.revoke_family(token.family_id, self._clock())
 
+    async def authenticate(self, access_token: str) -> security.Principal:
+        """Giải mã access token và từ chối token phát hành trước lần thu hồi phiên gần nhất."""
+        principal = security.decode_access_token(access_token)
+        cutoff = await self._revocations.get_cutoff(principal.user_id)
+        if cutoff is not None and principal.issued_at <= cutoff:
+            raise UnauthorizedError("token_revoked", "Phiên đăng nhập đã bị thu hồi")
+        return principal
+
     async def logout_all(self, user_id: str) -> None:
-        await self._tokens.revoke_all_for_user(user_id, self._clock())
+        await self.revoke_sessions(user_id)
+
+    async def revoke_sessions(self, user_id: str) -> None:
+        """Thu hồi ngay mọi phiên: refresh token trong DB + access token đang lưu hành.
+
+        Dùng cho đăng xuất mọi nơi; story khoá tài khoản (S-11) cũng gọi hàm này.
+        """
+        now = self._clock()
+        await self._tokens.revoke_all_for_user(user_id, now)
+        await self._revocations.set_cutoff(user_id, now, get_settings().access_token_ttl_s)
+
+    async def create_user(self, email: str, password: str, role: Role, full_name: str = "") -> User:
+        email = normalize_email(email)
+        if await self._users.get_by_email(email) is not None:
+            raise ConflictError("email_taken", f"Email {email} đã có tài khoản")
+        return await self._users.insert(
+            email, security.hash_password(password), role, full_name, self._clock()
+        )
 
     async def seed_dev_admin(self) -> None:
         """Chỉ môi trường dev: tạo admin từ DEV_ADMIN_EMAIL / DEV_ADMIN_PASSWORD nếu chưa có."""

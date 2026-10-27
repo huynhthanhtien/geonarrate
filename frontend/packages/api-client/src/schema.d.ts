@@ -78,6 +78,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Audit Logs
+         * @description Nhật ký thao tác, mới nhất trước. Lọc tài nguyên cần đủ `resource_type` + `resource_id`.
+         */
+        get: operations["list_audit_logs_api_v1_audit_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/languages": {
         parameters: {
             query?: never;
@@ -116,6 +136,30 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AuditLogOut */
+        AuditLogOut: {
+            /** Id */
+            id: string;
+            /** Actor Id */
+            actor_id: string;
+            /** Action */
+            action: string;
+            resource: components["schemas"]["AuditResourceOut"];
+            /** Note */
+            note: string | null;
+            /**
+             * Ts
+             * Format: date-time
+             */
+            ts: string;
+        };
+        /** AuditResourceOut */
+        AuditResourceOut: {
+            /** Type */
+            type: string;
+            /** Id */
+            id: string;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -176,6 +220,11 @@ export interface components {
              * @enum {string}
              */
             role: "admin" | "editor" | "translator";
+            /**
+             * Permissions
+             * @description Quyền suy ra từ vai trò, web dùng để ẩn/hiện menu
+             */
+            permissions: string[];
         };
         /** ValidationError */
         ValidationError: {
@@ -311,6 +360,42 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    list_audit_logs_api_v1_audit_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                actor_id?: string | null;
+                resource_type?: string | null;
+                resource_id?: string | null;
+                /** @description ts của bản ghi cuối trang trước */
+                before?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditLogOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
             };
         };
     };

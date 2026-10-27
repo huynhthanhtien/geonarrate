@@ -10,7 +10,13 @@ Backend FastAPI kiến trúc 3 lớp cho **Thuyết Minh Tự Động Đa Ngôn 
   (`core/database.py::ensure_indexes`) và seed 5 ngôn ngữ vi/en/zh/ja/ko.
 - MongoDB qua PyMongo Async API (`AsyncMongoClient`), không dùng Motor/Beanie.
 - `integrations/tts`: port `TTSProvider` + adapter `EdgeTTS`. `translate/`, `storage/`, `queue/`, `workers/` còn rỗng.
-- Chưa có: auth/RBAC (`core/security.py`), Unit of Work, worker Arq, deploy.
+- Identity (S-01): `/api/v1/auth/{login,refresh,logout,logout-all}` (JWT HS256 15 phút + refresh token
+  xoay vòng 30 ngày, phát hiện dùng lại; `AuthService.revoke_sessions` thu hồi ngay cả access token qua mốc
+  `auth:access_cutoff:{user_id}` trên Redis); bảng vai trò → quyền trong `core/permissions.py`, guard
+  `Depends(require_permission(Permission.X))` (`core/deps.py`); rate limit đăng nhập sai 5 lần/phút/IP trên
+  Redis (`core/rate_limit.py`); `AuditService.record(actor_id, action, AuditResource(type, id))` cho các
+  story sau ghi nhật ký, xem qua `GET /api/v1/audit` (quyền `admin:manage`).
+- Chưa có: quản lý tài khoản (S-11), Unit of Work, worker Arq, deploy.
 
 ## Chạy dev
 

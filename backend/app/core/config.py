@@ -22,6 +22,8 @@ class Settings(BaseSettings):
     # Hằng số then chốt (chương 12)
     access_token_ttl_s: int = 15 * 60
     refresh_token_ttl_s: int = 30 * 24 * 3600
+    login_rate_limit: int = 5  # số lần đăng nhập sai tối đa / IP / cửa sổ
+    login_rate_window_s: int = 60
     segment_max_chars: int = 600
     tts_concurrency: int = 4
     comet_qe_min: float = 0.80

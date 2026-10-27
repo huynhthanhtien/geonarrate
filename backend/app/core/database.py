@@ -58,6 +58,10 @@ async def ensure_indexes() -> None:
     await db.refresh_tokens.create_index("token_hash", unique=True)
     await db.refresh_tokens.create_index("family_id")
     await db.refresh_tokens.create_index("expires_at", expireAfterSeconds=0)
+    await db.tickets.create_index("code_hash", unique=True)
+    # kiểm quyền tải pack: máy này có vé active chứa tour này không
+    await db.tickets.create_index([("device_id", 1), ("tour_ids", 1)])
+    await db.tickets.create_index("batch")
     await db.playback_events.create_index([("device_id", 1), ("event_id", 1)], unique=True)
     await db.playback_events.create_index([("attraction_id", 1), ("ts", -1)])
     await db.playback_events.create_index("ts", expireAfterSeconds=180 * 24 * 3600)

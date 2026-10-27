@@ -5,7 +5,7 @@ import pytest
 
 from app.core import security
 from app.core.config import get_settings
-from app.core.exceptions import UnauthorizedError
+from app.core.exceptions import ConflictError, UnauthorizedError
 from app.models.user import RefreshToken, Role, User
 from app.services.auth_service import AuthService
 
@@ -66,6 +66,17 @@ class FakeTokenRepo:
         return [t for t in self.items.values() if t.revoked_at is None]
 
 
+class FakeRevocationRepo:
+    def __init__(self) -> None:
+        self.cutoffs: dict[str, float] = {}
+
+    async def set_cutoff(self, user_id: str, cutoff: datetime, ttl_s: int) -> None:
+        self.cutoffs[user_id] = cutoff.timestamp()
+
+    async def get_cutoff(self, user_id: str) -> float | None:
+        return self.cutoffs.get(user_id)
+
+
 class Clock:
     def __init__(self) -> None:
         # Đóng băng ở giờ thật: decode_access_token kiểm exp theo đồng hồ hệ thống
@@ -98,7 +109,7 @@ async def users() -> FakeUserRepo:
 
 @pytest.fixture
 def svc(users: FakeUserRepo, tokens: FakeTokenRepo, clock: Clock) -> AuthService:
-    return AuthService(users, tokens, clock)
+    return AuthService(users, tokens, FakeRevocationRepo(), clock)
 
 
 async def test_login_issues_tokens_and_records_login(
@@ -192,8 +203,31 @@ async def test_logout_all_revokes_every_session(svc: AuthService, tokens: FakeTo
     assert tokens.active() == []
 
 
+async def test_logout_all_revokes_live_access_tokens(svc: AuthService, clock: Clock) -> None:
+    # lùi đồng hồ thay vì tiến: PyJWT từ chối token có iat ở tương lai
+    clock.now -= timedelta(seconds=2)
+    old = await svc.login("editor@x.test", PASSWORD)
+    assert (await svc.authenticate(old.access_token)).user_id == "1"
+    await svc.logout_all("1")
+    with pytest.raises(UnauthorizedError) as e:
+        await svc.authenticate(old.access_token)
+    assert e.value.code == "token_revoked"
+
+    clock.now += timedelta(seconds=2)
+    fresh = await svc.login("editor@x.test", PASSWORD)
+    assert (await svc.authenticate(fresh.access_token)).user_id == "1"
+
+
 async def test_seed_dev_admin_is_idempotent(svc: AuthService, users: FakeUserRepo) -> None:
     await svc.seed_dev_admin()
     await svc.seed_dev_admin()
     admins = [u for u in users.items.values() if u.role is Role.ADMIN]
     assert [u.email for u in admins] == [get_settings().dev_admin_email]
+
+
+async def test_create_user_normalizes_email_and_rejects_duplicate(svc: AuthService) -> None:
+    user = await svc.create_user(" Trans@X.test ", "secret-pass", Role.TRANSLATOR, "Tr")
+    assert (user.email, user.role) == ("trans@x.test", Role.TRANSLATOR)
+    assert (await svc.login("trans@x.test", "secret-pass")).user.id == user.id
+    with pytest.raises(ConflictError):
+        await svc.create_user("trans@x.test", "other", Role.EDITOR)
