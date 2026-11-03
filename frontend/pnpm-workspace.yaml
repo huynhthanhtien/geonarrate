@@ -28,4 +28,5 @@ overrides:
 # postinstall của protobufjs chỉ kiểm tra phiên bản
 allowBuilds:
   dtrace-provider: false
+  msw: false
   protobufjs: false

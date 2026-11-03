@@ -17,5 +17,16 @@
     "turbo": "^2.11.7",
     "typescript": "^7.0.2",
     "vitest": "^5.0.3"
+  },
+  "pnpm": {
+    "allowedBuilds": [
+      "msw"
+    ]
+  },
+  "msw": {
+    "workerDirectory": [
+      "",
+      "apps\\web\\public"
+    ]
   }
 }
