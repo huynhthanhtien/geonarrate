@@ -71,9 +71,28 @@ export function findById(id: string) {
   return db.find((a) => a.id === id);
 }
 
-export function create(data: Omit<Attraction, "id" | "created_at" | "updated_at">) {
+export function create(data: {
+  name: string;
+  slug: string;
+  lat: number;
+  lng: number;
+  radius: number;
+  category: string;
+  priority: number;
+  script: string;
+  script_status: AttractionStatus;
+  script_version: number;
+  review_note?: string;
+  created_by: string;
+  updated_by: string;
+}) {
   const now = new Date().toISOString();
-  const attraction: Attraction = { ...data, id: makeId(), created_at: now, updated_at: now };
+  const attraction: Attraction = {
+    id: makeId(),
+    created_at: now,
+    updated_at: now,
+    ...data,
+  };
   db.push(attraction);
   return attraction;
 }
@@ -81,7 +100,7 @@ export function create(data: Omit<Attraction, "id" | "created_at" | "updated_at"
 export function update(id: string, data: Partial<Attraction>) {
   const idx = db.findIndex((a) => a.id === id);
   if (idx === -1) return null;
-  db[idx] = { ...db[idx], ...data, updated_at: new Date().toISOString() };
+  db[idx] = { ...db[idx], ...data, updated_at: new Date().toISOString() } as Attraction;
   return db[idx];
 }
 

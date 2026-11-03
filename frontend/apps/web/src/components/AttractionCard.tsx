@@ -1,10 +1,10 @@
 import { useNavigate } from "react-router";
 
-const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
+const STATUS_CONFIG = {
   draft: { label: "Draft", className: "bg-slate-100 text-slate-600" },
   in_review: { label: "Chờ duyệt", className: "bg-amber-100 text-amber-700" },
   approved: { label: "Đã duyệt", className: "bg-green-100 text-green-700" },
-};
+} as const;
 
 const CATEGORY_ICON: Record<string, string> = {
   temple: "🛕", church: "⛪", museum: "🏛️", park: "🌳", other: "📍",
@@ -12,7 +12,8 @@ const CATEGORY_ICON: Record<string, string> = {
 
 export function AttractionCard({ attraction }: { attraction: any }) {
   const navigate = useNavigate();
-  const statusCfg = STATUS_CONFIG[attraction.script_status] ?? STATUS_CONFIG.draft;
+  const scriptStatus = attraction.script_status as keyof typeof STATUS_CONFIG;
+  const statusCfg = STATUS_CONFIG[scriptStatus] ?? STATUS_CONFIG.draft;
   const icon = CATEGORY_ICON[attraction.category] ?? "📍";
 
   return (
