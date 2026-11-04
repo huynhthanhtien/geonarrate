@@ -21,18 +21,38 @@ class UnauthorizedError(DomainError):
     status = 401
 
 
+class ConflictError(DomainError):
+    status = 409
+
+
+class ForbiddenError(DomainError):
+    status = 403
+
+
+class RateLimitedError(DomainError):
+    status = 429
+
+
+def problem_response(
+    request: Request, exc: DomainError, headers: dict[str, str] | None = None
+) -> JSONResponse:
+    if exc.status == 401:
+        headers = {"WWW-Authenticate": "Bearer", **(headers or {})}
+    return JSONResponse(
+        status_code=exc.status,
+        media_type="application/problem+json",
+        headers=headers,
+        content={
+            "type": f"urn:geonarrate:{exc.code}",
+            "title": exc.code,
+            "status": exc.status,
+            "detail": exc.detail,
+            "trace_id": request.headers.get("x-trace-id"),
+        },
+    )
+
+
 def install_handlers(app: FastAPI) -> None:
     @app.exception_handler(DomainError)
     async def _domain(request: Request, exc: DomainError) -> JSONResponse:
-        return JSONResponse(
-            status_code=exc.status,
-            media_type="application/problem+json",
-            headers={"WWW-Authenticate": "Bearer"} if exc.status == 401 else None,
-            content={
-                "type": f"urn:geonarrate:{exc.code}",
-                "title": exc.code,
-                "status": exc.status,
-                "detail": exc.detail,
-                "trace_id": request.headers.get("x-trace-id"),
-            },
-        )
+        return problem_response(request, exc)

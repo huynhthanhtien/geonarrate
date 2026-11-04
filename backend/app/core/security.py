@@ -2,7 +2,7 @@
 
 import hashlib
 import secrets
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 
 import jwt
@@ -26,6 +26,8 @@ class Principal:
 
     user_id: str
     role: str
+    # `iat` của token (giây, có phần thập phân) — so với mốc thu hồi trong AuthService.authenticate
+    issued_at: float = field(default=0.0, compare=False)
 
 
 def hash_password(password: str) -> str:
@@ -51,7 +53,8 @@ def create_access_token(user_id: str, role: str, now: datetime | None = None) ->
         "sub": user_id,
         "role": role,
         "type": "access",
-        "iat": now,
+        # NumericDate cho phép số lẻ (RFC 7519): cần độ chính xác dưới giây để so với mốc thu hồi
+        "iat": now.timestamp(),
         "exp": now + timedelta(seconds=get_settings().access_token_ttl_s),
     }
     return jwt.encode(claims, get_settings().jwt_secret, algorithm=JWT_ALGORITHM)
@@ -63,7 +66,7 @@ def decode_access_token(token: str) -> Principal:
             token,
             get_settings().jwt_secret,
             algorithms=[JWT_ALGORITHM],
-            options={"require": ["sub", "exp", "type"]},
+            options={"require": ["sub", "exp", "iat", "type"]},
         )
     except jwt.ExpiredSignatureError as e:
         raise UnauthorizedError("token_expired", "Access token đã hết hạn") from e
@@ -71,7 +74,9 @@ def decode_access_token(token: str) -> Principal:
         raise UnauthorizedError("invalid_token", "Access token không hợp lệ") from e
     if claims["type"] != "access":
         raise UnauthorizedError("invalid_token", "Không phải access token")
-    return Principal(user_id=claims["sub"], role=claims.get("role", ""))
+    return Principal(
+        user_id=claims["sub"], role=claims.get("role", ""), issued_at=float(claims["iat"])
+    )
 
 
 def new_refresh_token() -> str:

@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, status
 
 from app.api.v1.schemas.auth import LoginIn, RefreshIn, TokenOut, UserOut
 from app.core.deps import get_auth_service, get_current_principal
+from app.core.permissions import permissions_for
 from app.core.security import Principal
 from app.services.auth_service import AuthService, TokenPair
 
@@ -18,7 +19,13 @@ def _to_out(pair: TokenPair) -> TokenOut:
         access_token=pair.access_token,
         refresh_token=pair.refresh_token,
         expires_in=pair.expires_in,
-        user=UserOut(id=u.id, email=u.email, full_name=u.full_name, role=u.role.value),
+        user=UserOut(
+            id=u.id,
+            email=u.email,
+            full_name=u.full_name,
+            role=u.role.value,
+            permissions=sorted(permissions_for(u.role)),
+        ),
     )
 
 

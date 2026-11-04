@@ -4,13 +4,19 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 from pymongo import MongoClient
+from pymongo.database import Database
+from redis import Redis
 
 from app.core.config import get_settings
+from app.core.deps import get_audit_service
+from app.core.security import hash_password
 from app.main import app
+from app.models.audit import AuditResource
 
 pytestmark = pytest.mark.integration
 
 ADMIN = {"email": "admin@geonarrate.test", "password": "admin-test-password"}
+EDITOR = {"email": "editor@geonarrate.test", "password": "editor-test-password"}
 
 
 @pytest.fixture
@@ -18,7 +24,23 @@ def client() -> Iterator[TestClient]:
     s = get_settings()
     mongo: MongoClient[dict[str, Any]]
     with MongoClient(s.mongo_uri) as mongo:
-        mongo[s.mongo_db].refresh_tokens.delete_many({})
+        db: Database[dict[str, Any]] = mongo[s.mongo_db]
+        db.refresh_tokens.delete_many({})
+        db.audit_logs.delete_many({})
+        db.users.delete_many({"email": EDITOR["email"]})
+        db.users.insert_one(
+            {
+                "email": EDITOR["email"],
+                "password_hash": hash_password(EDITOR["password"]),
+                "full_name": "Editor",
+                "role": "editor",
+                "is_active": True,
+            }
+        )
+    with Redis.from_url(s.redis_url) as redis:
+        for pattern in ("rl:login:*", "auth:access_cutoff:*"):
+            for key in redis.scan_iter(pattern):
+                redis.delete(key)
     with TestClient(app) as c:  # lifespan seed admin dev
         yield c
 
@@ -60,7 +82,71 @@ def test_logout_and_logout_all(client: TestClient) -> None:
     assert client.post("/api/v1/auth/logout-all").status_code == 401
     headers = {"Authorization": f"Bearer {b['access_token']}"}
     assert client.post("/api/v1/auth/logout-all", headers=headers).status_code == 204
+    # access token đang lưu hành cũng bị thu hồi ngay, không chờ hết hạn
+    revoked = client.get("/api/v1/audit", headers=headers)
+    assert revoked.status_code == 401
+    assert revoked.json()["title"] == "token_revoked"
+    fresh = client.post("/api/v1/auth/login", json=ADMIN).json()["access_token"]
+    assert (
+        client.get("/api/v1/audit", headers={"Authorization": f"Bearer {fresh}"}).status_code == 200
+    )
     assert (
         client.post("/api/v1/auth/refresh", json={"refresh_token": b["refresh_token"]}).status_code
         == 401
     )
+
+
+def test_login_rate_limit_counts_only_failures(client: TestClient) -> None:
+    wrong = {**ADMIN, "password": "nope"}
+    for _ in range(4):
+        assert client.post("/api/v1/auth/login", json=wrong).status_code == 401
+    # đăng nhập đúng không bị tính vào hạn mức
+    for _ in range(3):
+        assert client.post("/api/v1/auth/login", json=ADMIN).status_code == 200
+    assert client.post("/api/v1/auth/login", json=wrong).status_code == 401
+
+    blocked = client.post(
+        "/api/v1/auth/login", json=ADMIN, headers={"Origin": "http://localhost:5173"}
+    )
+    assert blocked.status_code == 429
+    # web khác origin vẫn đọc được lỗi 429
+    assert blocked.headers["access-control-allow-origin"] == "http://localhost:5173"
+    assert blocked.headers["content-type"] == "application/problem+json"
+    assert blocked.json()["title"] == "rate_limited"
+    assert 1 <= int(blocked.headers["retry-after"]) <= get_settings().login_rate_window_s
+
+
+def test_permissions_in_token_response(client: TestClient) -> None:
+    admin = client.post("/api/v1/auth/login", json=ADMIN).json()["user"]
+    editor = client.post("/api/v1/auth/login", json=EDITOR).json()["user"]
+    assert "admin:manage" in admin["permissions"]
+    assert editor["role"] == "editor"
+    assert editor["permissions"] == ["attraction:read", "script:write"]
+
+
+def test_audit_requires_admin_manage(client: TestClient) -> None:
+    admin = client.post("/api/v1/auth/login", json=ADMIN).json()
+    editor = client.post("/api/v1/auth/login", json=EDITOR).json()
+    # ghi qua service thật, trên event loop của app (nơi AsyncMongoClient đang sống)
+    portal, record = client.portal, get_audit_service().record
+    assert portal is not None
+    portal.call(record, admin["user"]["id"], "user.lock", AuditResource("user", "u1"))
+    portal.call(record, editor["user"]["id"], "script.submit", AuditResource("script", "s1"))
+
+    assert client.get("/api/v1/audit").status_code == 401
+    r = client.get("/api/v1/audit", headers={"Authorization": f"Bearer {editor['access_token']}"})
+    assert r.status_code == 403
+    assert r.json()["title"] == "forbidden"
+
+    headers = {"Authorization": f"Bearer {admin['access_token']}"}
+    logs = client.get("/api/v1/audit", headers=headers).json()
+    assert [x["action"] for x in logs] == ["script.submit", "user.lock"]
+    assert logs[1]["resource"] == {"type": "user", "id": "u1"}
+
+    params = {"actor_id": admin["user"]["id"], "resource_type": "user", "resource_id": "u1"}
+    assert len(client.get("/api/v1/audit", headers=headers, params=params).json()) == 1
+    before = {"before": logs[0]["ts"]}
+    assert [
+        x["action"] for x in client.get("/api/v1/audit", headers=headers, params=before).json()
+    ] == ["user.lock"]
+    assert client.get("/api/v1/audit", headers=headers, params={"actor_id": "x"}).json() == []

@@ -1,4 +1,4 @@
-// GeoNarrate — ERD MongoDB, phạm vi v1 (12 collection)
+// GeoNarrate — ERD MongoDB, phạm vi v1 (13 collection)
 // Thiết kế đích 21 collection vẫn nằm ở chương 02 (2.1–2.9) của tài liệu; bản này là thứ thực sự xây.
 // Dán vào https://dbdiagram.io để xem. Ref là quan hệ logic: MongoDB không có khoá ngoại.
 // Trường chung không ghi lại ở từng bảng: _id, created_at, updated_at, schema_version.
@@ -6,6 +6,10 @@
 Project geonarrate {
   database_type: 'MongoDB'
 }
+
+
+
+// bảng chưa ngôn ngữ hỗ trợ thuyết minh
 
 Table languages {
   _id objectid [pk]
@@ -17,6 +21,8 @@ Table languages {
   tts_voice string
   tts_rate string
 }
+
+// các điểm thuyết minh
 
 Table attractions {
   _id objectid [pk]
@@ -42,6 +48,9 @@ Table attractions {
   }
 }
 
+// mỗi tours là một khu vực lớn, trong khu vực đó có nhiều diểm thuyết minh bên trong
+// vd ĐHSG, sẽ thuyết minh tại Khu B, C, KLF
+
 Table tours {
   _id objectid [pk]
   slug string [unique, not null]
@@ -49,8 +58,15 @@ Table tours {
   attraction_ids "objectid[]"
   bbox "float[]"
   status string [not null]
+  access string [not null, note: 'free | paid — tour paid cần vé để tải pack']
+  preview_attraction_ids "objectid[]" [note: 'điểm nghe thử miễn phí của tour paid']
   updated_by objectid
 }
+
+// bảng thuật ngữ
+// máy thường dịch sai các tên riêng
+// vd "Ngọ Môn" bị dịch thành "Noon Gate", "Meridian Gate" hoặc "Ngo Mon Gate", mỗi lần một kiểu.
+//
 
 Table glossaries {
   _id objectid [pk]
@@ -66,6 +82,8 @@ Table glossaries {
     target_lang
   }
 }
+
+// loại bỏ segments or đổi tên từ attraction -> segments
 
 Table translations {
   _id objectid [pk]
@@ -88,6 +106,8 @@ Table translations {
   }
 }
 
+
+
 Table audio_assets {
   _id objectid [pk]
   attraction_id objectid [not null]
@@ -106,6 +126,12 @@ Table audio_assets {
     text_hash
   }
 }
+
+//- building: worker đang gom file và tạo manifest.
+//- qa: kiểm tra trước khi phát hành: đủ audio cho mọi điểm chưa, checksum có khớp không.
+//- published: đang phát hành. Mỗi tour × ngôn ngữ chỉ có một version ở trạng thái này.
+//- superseded: bị version mới hơn thay thế, nhưng vẫn giữ lại để rollback và để phục vụ máy chưa cập nhật.
+//- failed: build hoặc QA lỗi.
 
 Table audio_packs {
   _id objectid [pk]
@@ -127,6 +153,8 @@ Table audio_packs {
   }
 }
 
+// bảng theo dõi chạy nền mục tiêu xem tiến trình build các gói ngôn ngữ
+
 Table jobs {
   _id objectid [pk]
   type string [not null]
@@ -144,6 +172,8 @@ Table jobs {
   }
 }
 
+// có thể sủa role thành roles[]
+
 Table users {
   _id objectid [pk]
   email string [unique, not null]
@@ -153,6 +183,8 @@ Table users {
   is_active bool
   last_login_at datetime
 }
+
+// nhật ký thao tác
 
 Table audit_logs {
   _id objectid [pk]
@@ -168,6 +200,8 @@ Table audit_logs {
   }
 }
 
+// thêm bảng tương tự cho customers
+
 Table refresh_tokens {
   _id objectid [pk]
   user_id objectid [not null]
@@ -180,6 +214,29 @@ Table refresh_tokens {
     token_hash [unique]
     family_id
     expires_at [note: 'TTL 0 — hết hạn tự xoá']
+  }
+}
+
+// vé QR bán ở quầy / đối tác: du khách không cần tài khoản, quét vé là máy đó được nghe
+// 1 vé = 1 máy (device_id)
+
+Table tickets {
+  _id objectid [pk]
+  code_hash string [unique, not null, note: 'SHA-256 của mã trong QR; mã gốc chỉ có trên vé in']
+  code_hint string [not null, note: '4 ký tự cuối, để nhân viên tra khi khách báo lỗi']
+  batch string [not null, note: 'lô in / quầy / đối tác — để thu hồi hoặc đối soát cả lô']
+  tour_ids "objectid[]" [not null, note: 'tour lẻ hoặc combo, chọn lúc in vé']
+  valid_until datetime [not null]
+  device_id string [note: '1 vé = 1 máy; null = chưa quét. iOS: UUID trong Keychain, Android: ANDROID_ID']
+  activated_at datetime
+  transfers_left int [not null, note: 'số lần còn được chuyển sang máy mới']
+  status string [not null, note: 'active | revoked']
+  created_by objectid [not null]
+
+  indexes {
+    code_hash [unique]
+    (device_id, tour_ids) [note: 'kiểm quyền tải pack; chỉ tour_ids là mảng nên ghép được']
+    batch
   }
 }
 
@@ -222,6 +279,8 @@ Ref: users._id < tours.updated_by
 Ref: users._id < glossaries.created_by
 Ref: languages.code < glossaries.target_lang
 Ref: attractions._id < glossaries.attraction_id
+Ref: tours._id <> tickets.tour_ids
+Ref: users._id < tickets.created_by
 
 TableGroup "Nội dung" {
   languages
@@ -242,4 +301,8 @@ TableGroup "Người dùng & số liệu" {
   refresh_tokens
   audit_logs
   playback_events
+}
+
+TableGroup "Vé QR" {
+  tickets
 }

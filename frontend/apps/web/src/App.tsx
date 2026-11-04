@@ -1,25 +1,49 @@
-import { useQuery } from "@tanstack/react-query";
-import { createApiClient } from "@geonarrate/api-client";
-import { color, space } from "@geonarrate/tokens";
+import { createBrowserRouter, Navigate, Outlet, RouterProvider } from "react-router";
+import { RequireAuth, RequirePermission } from "./auth/guards";
+import { AppShell } from "./layout/AppShell";
+import { AuditPage } from "./pages/AuditPage";
+import { HomePage } from "./pages/HomePage";
+import { LoginPage } from "./pages/LoginPage";
+import { NotFoundPage } from "./pages/NotFoundPage";
+import { PlaceholderPage } from "./pages/PlaceholderPage";
+import { NAV } from "./routes";
 
-const api = createApiClient();
+const router = createBrowserRouter([
+  { path: "/login", element: <LoginPage /> },
+  {
+    element: <RequireAuth />,
+    children: [
+      {
+        element: <AppShell />,
+        children: [
+          { index: true, element: <HomePage /> },
+          ...NAV.filter((item) => item.path !== "/" && item.path !== "/admin").map((item) => ({
+            path: item.path,
+            element: (
+              <RequirePermission permission={item.permission}>
+                <PlaceholderPage title={item.label} />
+              </RequirePermission>
+            ),
+          })),
+          {
+            path: "/admin",
+            element: (
+              <RequirePermission permission="admin:manage">
+                <Outlet />
+              </RequirePermission>
+            ),
+            children: [
+              { index: true, element: <Navigate to="audit" replace /> },
+              { path: "audit", element: <AuditPage /> },
+            ],
+          },
+          { path: "*", element: <NotFoundPage /> },
+        ],
+      },
+    ],
+  },
+]);
 
 export function App() {
-  const health = useQuery({ queryKey: ["healthz"], queryFn: () => api.GET("/healthz").then((r) => r.data) });
-  const langs = useQuery({ queryKey: ["languages"], queryFn: () => api.GET("/api/v1/languages").then((r) => r.data) });
-
-  return (
-    <main style={{ fontFamily: "system-ui", padding: space.xl, color: color.text }}>
-      <h1 style={{ color: color.primary }}>🎧 GeoNarrate — CMS</h1>
-      <p>Backend: {health.isSuccess ? "✅ ok" : health.isError ? "❌ không kết nối được" : "…"}</p>
-      <h2>Ngôn ngữ</h2>
-      <ul>
-        {langs.data?.map((l) => (
-          <li key={l.code}>
-            <b>{l.code}</b> — {l.native_name} ({l.bcp47}){l.is_source && " · nguồn"}
-          </li>
-        ))}
-      </ul>
-    </main>
-  );
+  return <RouterProvider router={router} />;
 }
