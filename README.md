@@ -14,7 +14,17 @@ docs/       tài liệu thiết kế
 `backend/openapi.json` (sinh từ code FastAPI, được commit) là nguồn duy nhất để `frontend/packages/api-client`
 sinh type. Đổi API thì sửa backend, chạy lại export + `pnpm api:generate` trong `frontend/`, commit cả hai trong cùng PR.
 
+## Chạy backend
 
+```bash
+cd backend
+docker compose -f infra/docker-compose.yml up -d --wait   # MongoDB 7 (replica set rs0) + Redis 7
+python3 -m venv .venv && .venv/bin/pip install -e '.[dev]'
+cp .env.example .env
+.venv/bin/uvicorn app.main:app --reload --port 8000       # http://localhost:8000/docs
+```
+
+Từ lần chạy sau chỉ cần lệnh `docker compose` và `uvicorn`. Chi tiết xem `backend/README.md`.
 
 ## CI
 
