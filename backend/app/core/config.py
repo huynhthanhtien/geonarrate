@@ -9,8 +9,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     app_env: str = "dev"
-    mongo_uri: str
-    mongo_db: str
+    database_url: str
     redis_url: str
     jwt_secret: str
     storage_dir: str = "./var/storage"
@@ -24,7 +23,8 @@ class Settings(BaseSettings):
     refresh_token_ttl_s: int = 30 * 24 * 3600
     login_rate_limit: int = 5  # số lần đăng nhập sai tối đa / IP / cửa sổ
     login_rate_window_s: int = 60
-    segment_max_chars: int = 600
+    playback_retention_days: int = 180
+    purge_interval_s: int = 3600
     tts_concurrency: int = 4
     comet_qe_min: float = 0.80
     asr_wer_max: float = 0.08

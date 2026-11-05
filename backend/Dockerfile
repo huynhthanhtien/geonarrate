@@ -10,6 +10,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg && rm -r
 COPY --from=build /install /usr/local
 WORKDIR /app
 COPY app ./app
+COPY alembic.ini ./
 USER app
 EXPOSE 8000
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

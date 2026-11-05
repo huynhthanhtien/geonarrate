@@ -1,7 +1,11 @@
-from typing import Any, Protocol
+from typing import Protocol
 
-from pymongo.asynchronous.database import AsyncDatabase
+from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.engine import RowMapping
+from sqlalchemy.ext.asyncio import AsyncEngine
 
+from app.core.schema import languages
 from app.models.language import Language
 
 
@@ -10,27 +14,37 @@ class LanguageRepository(Protocol):
     async def upsert(self, lang: Language) -> None: ...
 
 
-class MongoLanguageRepository:
-    def __init__(self, db: AsyncDatabase[dict[str, Any]]) -> None:
-        self._col = db.languages
+class SqlLanguageRepository:
+    def __init__(self, engine: AsyncEngine) -> None:
+        self._engine = engine
 
     async def list_active(self) -> list[Language]:
-        cursor = self._col.find({"is_active": True}, {"_id": 0}).sort("code", 1)
-        return [_to_entity(doc) async for doc in cursor]
+        stmt = select(languages).where(languages.c.is_active).order_by(languages.c.code)
+        async with self._engine.connect() as conn:
+            rows = (await conn.execute(stmt)).mappings().all()
+        return [_to_entity(row) for row in rows]
 
     async def upsert(self, lang: Language) -> None:
-        await self._col.update_one(
-            {"code": lang.code},
-            {"$set": {**lang.__dict__, "schema_version": 1}},
-            upsert=True,
+        values = {
+            "bcp47": lang.bcp47,
+            "native_name": lang.native_name,
+            "is_source": lang.is_source,
+            "is_active": lang.is_active,
+        }
+        stmt = (
+            insert(languages)
+            .values(code=lang.code, **values)
+            .on_conflict_do_update(index_elements=[languages.c.code], set_=values)
         )
+        async with self._engine.begin() as conn:
+            await conn.execute(stmt)
 
 
-def _to_entity(doc: dict[str, Any]) -> Language:
+def _to_entity(row: RowMapping) -> Language:
     return Language(
-        code=doc["code"],
-        bcp47=doc["bcp47"],
-        native_name=doc["native_name"],
-        is_source=doc.get("is_source", False),
-        is_active=doc.get("is_active", True),
+        code=row["code"],
+        bcp47=row["bcp47"],
+        native_name=row["native_name"],
+        is_source=row["is_source"],
+        is_active=row["is_active"],
     )

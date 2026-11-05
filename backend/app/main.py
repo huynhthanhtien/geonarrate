@@ -1,3 +1,5 @@
+import asyncio
+import contextlib
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -6,7 +8,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1.routers import audit, auth, languages
 from app.core import cache, database
-from app.core.deps import get_auth_service, get_language_service
+from app.core.config import get_settings
+from app.core.deps import get_auth_service, get_language_service, get_maintenance_service
 from app.core.exceptions import install_handlers
 from app.core.rate_limit import LoginRateLimitMiddleware
 
@@ -14,10 +17,15 @@ from app.core.rate_limit import LoginRateLimitMiddleware
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     await database.connect()
-    await database.ensure_indexes()
     await get_language_service().seed_defaults()
     await get_auth_service().seed_dev_admin()
+    purge = asyncio.create_task(
+        get_maintenance_service().run_forever(get_settings().purge_interval_s)
+    )
     yield
+    purge.cancel()
+    with contextlib.suppress(asyncio.CancelledError):
+        await purge
     await cache.close_redis()
     await database.disconnect()
 
@@ -39,6 +47,6 @@ app.include_router(languages.router, prefix="/api/v1")
 
 @app.get("/healthz", tags=["ops"])
 async def healthz() -> dict[str, str]:
-    await database.get_db().command("ping")
+    await database.ping()
     await cache.get_redis().ping()
     return {"status": "ok"}

@@ -13,7 +13,7 @@ class Role(StrEnum):
 
 @dataclass(frozen=True)
 class User:
-    """Domain entity — không phụ thuộc Mongo hay HTTP."""
+    """Domain entity — không phụ thuộc CSDL hay HTTP."""
 
     id: str
     email: str

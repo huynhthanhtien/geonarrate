@@ -1,10 +1,13 @@
 from datetime import datetime
-from typing import Any, Protocol
+from typing import Protocol
 
-from bson import ObjectId
-from pymongo.asynchronous.database import AsyncDatabase
+from sqlalchemy import insert, select
+from sqlalchemy.engine import RowMapping
+from sqlalchemy.ext.asyncio import AsyncEngine
 
+from app.core.schema import audit_logs
 from app.models.audit import AuditLog, AuditResource
+from app.repositories._ids import parse_uuid
 
 
 class AuditLogRepository(Protocol):
@@ -25,9 +28,9 @@ class AuditLogRepository(Protocol):
     ) -> list[AuditLog]: ...
 
 
-class MongoAuditLogRepository:
-    def __init__(self, db: AsyncDatabase[dict[str, Any]]) -> None:
-        self._col = db.audit_logs
+class SqlAuditLogRepository:
+    def __init__(self, engine: AsyncEngine) -> None:
+        self._engine = engine
 
     async def insert(
         self,
@@ -37,17 +40,22 @@ class MongoAuditLogRepository:
         note: str | None,
         ts: datetime,
     ) -> AuditLog:
-        doc: dict[str, Any] = {
-            "actor_id": ObjectId(actor_id),
-            "action": action,
-            # resource.id giữ dạng chuỗi để mọi loại tài nguyên lọc theo cùng một kiểu
-            "resource": {"type": resource.type, "id": resource.id},
-            "note": note,
-            "ts": ts,
-            "schema_version": 1,
-        }
-        result = await self._col.insert_one(doc)
-        return _to_entity({**doc, "_id": result.inserted_id})
+        stmt = (
+            insert(audit_logs)
+            .values(
+                actor_id=parse_uuid(actor_id),
+                action=action,
+                # resource_id giữ dạng chuỗi để mọi loại tài nguyên lọc theo cùng một kiểu
+                resource_type=resource.type,
+                resource_id=resource.id,
+                note=note,
+                ts=ts,
+            )
+            .returning(audit_logs)
+        )
+        async with self._engine.begin() as conn:
+            row = (await conn.execute(stmt)).mappings().one()
+        return _to_entity(row)
 
     async def find(
         self,
@@ -57,25 +65,30 @@ class MongoAuditLogRepository:
         before: datetime | None = None,
     ) -> list[AuditLog]:
         """Mới nhất trước; `before` là `ts` của bản ghi cuối trang trước."""
-        query: dict[str, Any] = {}
+        stmt = select(audit_logs).order_by(audit_logs.c.ts.desc()).limit(limit)
         if actor_id is not None:
-            if not ObjectId.is_valid(actor_id):
+            uid = parse_uuid(actor_id)
+            if uid is None:
                 return []
-            query["actor_id"] = ObjectId(actor_id)
+            stmt = stmt.where(audit_logs.c.actor_id == uid)
         if resource is not None:
-            query |= {"resource.type": resource.type, "resource.id": resource.id}
+            stmt = stmt.where(
+                audit_logs.c.resource_type == resource.type,
+                audit_logs.c.resource_id == resource.id,
+            )
         if before is not None:
-            query["ts"] = {"$lt": before}
-        cursor = self._col.find(query).sort("ts", -1).limit(limit)
-        return [_to_entity(doc) async for doc in cursor]
+            stmt = stmt.where(audit_logs.c.ts < before)
+        async with self._engine.connect() as conn:
+            rows = (await conn.execute(stmt)).mappings().all()
+        return [_to_entity(row) for row in rows]
 
 
-def _to_entity(doc: dict[str, Any]) -> AuditLog:
+def _to_entity(row: RowMapping) -> AuditLog:
     return AuditLog(
-        id=str(doc["_id"]),
-        actor_id=str(doc["actor_id"]),
-        action=doc["action"],
-        resource=AuditResource(type=doc["resource"]["type"], id=doc["resource"]["id"]),
-        ts=doc["ts"],
-        note=doc.get("note"),
+        id=str(row["id"]),
+        actor_id=str(row["actor_id"]),
+        action=row["action"],
+        resource=AuditResource(type=row["resource_type"], id=row["resource_id"]),
+        ts=row["ts"],
+        note=row["note"],
     )

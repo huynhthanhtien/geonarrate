@@ -1,11 +1,13 @@
 from datetime import datetime
 from typing import Any, Protocol
 
-from bson import ObjectId
-from bson.errors import InvalidId
-from pymongo.asynchronous.database import AsyncDatabase
+from sqlalchemy import insert, select, update
+from sqlalchemy.engine import RowMapping
+from sqlalchemy.ext.asyncio import AsyncEngine
 
+from app.core.schema import users
 from app.models.user import Role, User
+from app.repositories._ids import parse_uuid
 
 
 class UserRepository(Protocol):
@@ -17,58 +19,69 @@ class UserRepository(Protocol):
     async def mark_login(self, user_id: str, now: datetime, password_hash: str | None) -> None: ...
 
 
-class MongoUserRepository:
-    def __init__(self, db: AsyncDatabase[dict[str, Any]]) -> None:
-        self._col = db.users
+class SqlUserRepository:
+    def __init__(self, engine: AsyncEngine) -> None:
+        self._engine = engine
 
     async def get_by_email(self, email: str) -> User | None:
-        doc = await self._col.find_one({"email": email})
-        return _to_entity(doc) if doc else None
+        async with self._engine.connect() as conn:
+            row = (
+                (await conn.execute(select(users).where(users.c.email == email)))
+                .mappings()
+                .one_or_none()
+            )
+        return _to_entity(row) if row else None
 
     async def get_by_id(self, user_id: str) -> User | None:
-        oid = _oid(user_id)
-        doc = await self._col.find_one({"_id": oid}) if oid else None
-        return _to_entity(doc) if doc else None
+        uid = parse_uuid(user_id)
+        if uid is None:
+            return None
+        async with self._engine.connect() as conn:
+            row = (
+                (await conn.execute(select(users).where(users.c.id == uid)))
+                .mappings()
+                .one_or_none()
+            )
+        return _to_entity(row) if row else None
 
     async def insert(
         self, email: str, password_hash: str, role: Role, full_name: str, now: datetime
     ) -> User:
-        doc: dict[str, Any] = {
-            "email": email,
-            "password_hash": password_hash,
-            "full_name": full_name,
-            "role": role.value,
-            "is_active": True,
-            "last_login_at": None,
-            "created_at": now,
-            "updated_at": now,
-            "schema_version": 1,
-        }
-        result = await self._col.insert_one(doc)
-        return _to_entity({**doc, "_id": result.inserted_id})
+        stmt = (
+            insert(users)
+            .values(
+                email=email,
+                password_hash=password_hash,
+                full_name=full_name,
+                role=role.value,
+                created_at=now,
+                updated_at=now,
+            )
+            .returning(users)
+        )
+        async with self._engine.begin() as conn:
+            row = (await conn.execute(stmt)).mappings().one()
+        return _to_entity(row)
 
     async def mark_login(self, user_id: str, now: datetime, password_hash: str | None) -> None:
         """Ghi `last_login_at`; kèm hash mới nếu tham số argon2 đã đổi."""
-        update: dict[str, Any] = {"last_login_at": now}
+        uid = parse_uuid(user_id)
+        if uid is None:
+            return
+        values: dict[str, Any] = {"last_login_at": now}
         if password_hash:
-            update |= {"password_hash": password_hash, "updated_at": now}
-        await self._col.update_one({"_id": _oid(user_id)}, {"$set": update})
+            values |= {"password_hash": password_hash, "updated_at": now}
+        async with self._engine.begin() as conn:
+            await conn.execute(update(users).where(users.c.id == uid).values(**values))
 
 
-def _oid(value: str) -> ObjectId | None:
-    try:
-        return ObjectId(value)
-    except InvalidId:
-        return None
-
-
-def _to_entity(doc: dict[str, Any]) -> User:
+def _to_entity(row: RowMapping) -> User:
     return User(
-        id=str(doc["_id"]),
-        email=doc["email"],
-        password_hash=doc["password_hash"],
-        role=Role(doc["role"]),
-        full_name=doc.get("full_name", ""),
-        is_active=doc.get("is_active", True),
-        last_login_at=doc.get("last_login_at"),
+        id=str(row["id"]),
+        email=row["email"],
+        password_hash=row["password_hash"],
+        role=Role(row["role"]),
+        full_name=row["full_name"],
+        is_active=row["is_active"],
+        last_login_at=row["last_login_at"],
     )

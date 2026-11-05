@@ -3,7 +3,7 @@
 Monorepo cho **Thuyết Minh Tự Động Đa Ngôn Ngữ**.
 
 ```
-backend/    FastAPI + MongoDB + Redis (Python 3.12) — xem backend/README.md
+backend/    FastAPI + PostgreSQL + Redis (Python 3.12) — xem backend/README.md
 frontend/   pnpm + Turborepo: apps/web (React), apps/mobile (Expo) — xem frontend/README.md
 docs/       tài liệu thiết kế
 .github/    CI chung (.github/workflows/ci.yml)
@@ -18,9 +18,10 @@ sinh type. Đổi API thì sửa backend, chạy lại export + `pnpm api:genera
 
 ```bash
 cd backend
-docker compose -f infra/docker-compose.yml up -d --wait   # MongoDB 7 (replica set rs0) + Redis 7
+docker compose -f infra/docker-compose.yml up -d --wait   # PostgreSQL 16 + PostGIS + Redis 7
 python3 -m venv .venv && .venv/bin/pip install -e '.[dev]'
 cp .env.example .env
+.venv/bin/alembic upgrade head                            # tạo/cập nhật schema
 .venv/bin/uvicorn app.main:app --reload --port 8000       # http://localhost:8000/docs
 ```
 

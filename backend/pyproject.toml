@@ -8,7 +8,10 @@ dependencies = [
   "uvicorn[standard]>=0.30",
   "pydantic>=2.8",
   "pydantic-settings>=2.4",
-  "pymongo>=4.10",          # dùng AsyncMongoClient (thay Motor đã deprecated)
+  "sqlalchemy[asyncio]>=2.0.30",
+  "asyncpg>=0.29",
+  "alembic>=1.13",
+  "geoalchemy2>=0.15",       # kiểu geography của PostGIS cho toạ độ điểm thuyết minh
   "redis>=5.0",
   "arq>=0.26",
   "edge-tts>=6.1",
@@ -25,7 +28,7 @@ dev = [
   "ruff>=0.6",
   "mypy>=1.11",
   "import-linter>=2.1",
-  "testcontainers[mongodb,redis]>=4.8",
+  "testcontainers[postgres,redis]>=4.8",
 ]
 
 [build-system]
@@ -34,6 +37,9 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 include = ["app*"]
+
+[tool.setuptools.package-data]
+"app.migrations" = ["script.py.mako"]
 
 [tool.ruff]
 line-length = 100
@@ -47,13 +53,18 @@ strict = true
 files = ["app", "tests"]   # mọi hàm, kể cả test, phải có type hint
 plugins = ["pydantic.mypy"]
 
+[[tool.mypy.overrides]]
+module = "geoalchemy2.*"
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
-markers = ["integration: cần Mongo + Redis đang chạy"]
+markers = ["integration: cần PostgreSQL + Redis đang chạy"]
 
 [tool.coverage.run]
-omit = ["app/tools/*"]
+concurrency = ["greenlet", "thread"]  # SQLAlchemy async chạy qua greenlet
+omit = ["app/tools/*", "app/migrations/*"]
 
 [tool.coverage.report]
 fail_under = 85

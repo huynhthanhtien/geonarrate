@@ -1,19 +1,27 @@
 from collections.abc import Iterator
-from typing import Any
+from datetime import UTC, datetime
+from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
-from pymongo import MongoClient
-from pymongo.database import Database
 from redis import Redis
+from sqlalchemy import delete, insert
+from sqlalchemy.ext.asyncio import AsyncConnection
 
 from app.core.config import get_settings
 from app.core.deps import get_audit_service
+from app.core.schema import audit_logs, refresh_tokens, users
 from app.core.security import hash_password
 from app.main import app
 from app.models.audit import AuditResource
+from tests.integration.conftest import run_sql
 
 pytestmark = pytest.mark.integration
+
+
+def get_utc_now() -> datetime:
+    return datetime.now(UTC)
+
 
 ADMIN = {"email": "admin@geonarrate.test", "password": "admin-test-password"}
 EDITOR = {"email": "editor@geonarrate.test", "password": "editor-test-password"}
@@ -22,21 +30,22 @@ EDITOR = {"email": "editor@geonarrate.test", "password": "editor-test-password"}
 @pytest.fixture
 def client() -> Iterator[TestClient]:
     s = get_settings()
-    mongo: MongoClient[dict[str, Any]]
-    with MongoClient(s.mongo_uri) as mongo:
-        db: Database[dict[str, Any]] = mongo[s.mongo_db]
-        db.refresh_tokens.delete_many({})
-        db.audit_logs.delete_many({})
-        db.users.delete_many({"email": EDITOR["email"]})
-        db.users.insert_one(
-            {
-                "email": EDITOR["email"],
-                "password_hash": hash_password(EDITOR["password"]),
-                "full_name": "Editor",
-                "role": "editor",
-                "is_active": True,
-            }
+    editor_hash = hash_password(EDITOR["password"])
+
+    async def reset(conn: AsyncConnection) -> None:
+        await conn.execute(delete(refresh_tokens))
+        await conn.execute(delete(audit_logs))
+        await conn.execute(delete(users).where(users.c.email == EDITOR["email"]))
+        await conn.execute(
+            insert(users).values(
+                email=EDITOR["email"],
+                password_hash=editor_hash,
+                full_name="Editor",
+                role="editor",
+            )
         )
+
+    run_sql(reset)
     with Redis.from_url(s.redis_url) as redis:
         for pattern in ("rl:login:*", "auth:access_cutoff:*"):
             for key in redis.scan_iter(pattern):
@@ -127,7 +136,7 @@ def test_permissions_in_token_response(client: TestClient) -> None:
 def test_audit_requires_admin_manage(client: TestClient) -> None:
     admin = client.post("/api/v1/auth/login", json=ADMIN).json()
     editor = client.post("/api/v1/auth/login", json=EDITOR).json()
-    # ghi qua service thật, trên event loop của app (nơi AsyncMongoClient đang sống)
+    # ghi qua service thật, trên event loop của app (nơi connection pool đang sống)
     portal, record = client.portal, get_audit_service().record
     assert portal is not None
     portal.call(record, admin["user"]["id"], "user.lock", AuditResource("user", "u1"))
@@ -150,3 +159,23 @@ def test_audit_requires_admin_manage(client: TestClient) -> None:
         x["action"] for x in client.get("/api/v1/audit", headers=headers, params=before).json()
     ] == ["user.lock"]
     assert client.get("/api/v1/audit", headers=headers, params={"actor_id": "x"}).json() == []
+
+
+def test_foreign_id_formats_do_not_crash(client: TestClient) -> None:
+    """JWT phát trước khi đổi CSDL mang ObjectId; id lạ phải được coi là không tồn tại."""
+    from app.core.deps import get_auth_service
+    from app.core.security import create_access_token
+
+    portal = client.portal
+    assert portal is not None
+    svc = get_auth_service()
+    legacy_id = "66f1c0a2b3c4d5e6f7a8b9c0"
+    assert portal.call(svc._users.get_by_id, legacy_id) is None
+    portal.call(svc._users.mark_login, legacy_id, get_utc_now(), None)
+    portal.call(svc._tokens.revoke_all_for_user, legacy_id, get_utc_now())
+
+    token = create_access_token(legacy_id, "admin", get_utc_now())
+    r = client.post("/api/v1/auth/logout-all", headers={"Authorization": f"Bearer {token}"})
+    assert r.status_code == 204
+    # không có user nào mang id ngẫu nhiên này
+    assert portal.call(svc._users.get_by_id, str(uuid4())) is None
