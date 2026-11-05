@@ -7,6 +7,7 @@ coverage/
 .env
 .env.*
 !.env.example
+docs/
 # native project sinh bởi `expo prebuild` (CNG) — không commit
 apps/mobile/android/
 apps/mobile/ios/

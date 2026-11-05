@@ -8,6 +8,8 @@ export interface NavItem {
 export const NAV: NavItem[] = [
   { path: "/", label: "Tổng quan" },
   { path: "/attractions", label: "Điểm tham quan", permission: "attraction:read" },
+  // Chưa có quyền riêng cho duyệt script; theo use case người duyệt là admin
+  { path: "/reviews", label: "Duyệt script", permission: "admin:manage" },
   { path: "/translations", label: "Bản dịch", permission: "translation:review" },
   { path: "/studio/voice", label: "Voice Studio", permission: "audio:build" },
   { path: "/packs", label: "Pack", permission: "pack:publish" },
