@@ -1,5 +1,7 @@
 """Rate limit đăng nhập theo IP trên Redis (cửa sổ cố định)."""
 
+from typing import Any
+
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 
@@ -46,5 +48,8 @@ class LoginRateLimitMiddleware(BaseHTTPMiddleware):
             return problem_response(request, exc, {"Retry-After": str(retry_after)})
         response = await call_next(request)
         if response.status_code < 400:
-            await redis.eval(_DECR_IF_EXISTS, 1, key)  # type: ignore[misc]
+            # redis-py 5.x khai báo eval() trả về `Awaitable | str`, từ 6.x mới chỉ là Awaitable:
+            # gán qua Any để mypy đúng với cả hai, không cần type: ignore
+            pending: Any = redis.eval(_DECR_IF_EXISTS, 1, key)
+            await pending
         return response
