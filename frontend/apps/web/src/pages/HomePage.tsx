@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { CircleCheck, CircleX } from "lucide-react";
 import { api } from "../api";
 
 export function HomePage() {
@@ -8,7 +9,7 @@ export function HomePage() {
   return (
     <section>
       <h1>Tổng quan</h1>
-      <p>Backend: {health.isSuccess ? "✅ ok" : health.isError ? "❌ không kết nối được" : "…"}</p>
+      <p style={{ display: "flex", alignItems: "center", gap: 6 }}>Backend: {health.isSuccess ? <><CircleCheck size={16} color="#0f766e" aria-hidden /> ok</> : health.isError ? <><CircleX size={16} color="#dc2626" aria-hidden /> không kết nối được</> : "…"}</p>
       <h2>Ngôn ngữ</h2>
       <ul>
         {langs.data?.map((l) => (

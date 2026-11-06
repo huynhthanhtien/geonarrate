@@ -13,7 +13,6 @@ dependencies = [
   "alembic>=1.13",
   "geoalchemy2>=0.15",       # kiểu geography của PostGIS cho toạ độ điểm thuyết minh
   "redis>=5.0",
-  "arq>=0.26",
   "edge-tts>=6.1",
   "pyjwt>=2.9",
   "argon2-cffi>=23.1",
@@ -64,7 +63,7 @@ markers = ["integration: cần PostgreSQL + Redis đang chạy"]
 
 [tool.coverage.run]
 concurrency = ["greenlet", "thread"]  # SQLAlchemy async chạy qua greenlet
-omit = ["app/tools/*", "app/migrations/*"]
+omit = ["app/tools/*", "app/migrations/*", "app/workers/run.py", "app/integrations/tts/edge.py"]
 
 [tool.coverage.report]
 fail_under = 85

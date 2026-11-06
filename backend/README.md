@@ -18,7 +18,13 @@ Backend FastAPI kiến trúc 3 lớp cho **Thuyết Minh Tự Động Đa Ngôn 
   `Depends(require_permission(Permission.X))` (`core/deps.py`); rate limit đăng nhập sai 5 lần/phút/IP trên
   Redis (`core/rate_limit.py`); `AuditService.record(actor_id, action, AuditResource(type, id))` cho các
   story sau ghi nhật ký, xem qua `GET /api/v1/audit` (quyền `admin:manage`).
-- Chưa có: quản lý tài khoản (S-11), Unit of Work, worker Arq, deploy.
+- Nội dung (S-02): `/api/v1/attractions` (danh sách, thêm, xem, `PATCH` sửa), `PUT .../{id}/script`, `POST .../{id}/{submit,approve,reject}`.
+  Xem cần `attraction:read`, soạn và gửi duyệt cần `script:write`, duyệt và trả lại cần `admin:manage`.
+- Pipeline: duyệt nội dung tạo job cùng transaction (bảng `jobs`), worker `app/workers/run.py` lấy job bằng
+  `FOR UPDATE SKIP LOCKED`, lỗi thì thử lại tối đa 3 lần có giãn cách. Bản dịch dùng `TranslateProvider`; hiện chỉ có
+  `MockTranslate` để chạy thử (PRD Q-05). Chưa chấm COMET QE và ASR WER.
+- API cho app di động ở `/api/v1/public`, không cần đăng nhập, nhận diện bằng `device_id`.
+- Chưa có: Unit of Work cho nhật ký thao tác, nhà cung cấp dịch thật, deploy.
 
 ## Chạy dev
 
@@ -28,6 +34,7 @@ python3 -m venv .venv && .venv/bin/pip install -e '.[dev]'
 cp .env.example .env
 .venv/bin/alembic upgrade head                            # tạo/cập nhật schema
 .venv/bin/uvicorn app.main:app --reload --port 8000       # http://localhost:8000/docs
+.venv/bin/python -m app.workers.run                       # terminal khác: worker dịch, sinh audio, build pack
 ```
 
 ## Kiểm tra (giống CI)

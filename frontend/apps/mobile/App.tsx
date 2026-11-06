@@ -1,21 +1,57 @@
-import { GEOFENCE_RADIUS_DEFAULT_M, SUPPORTED_LANGS } from "@geonarrate/core";
-import { color, font, space } from "@geonarrate/tokens";
 import { StatusBar } from "expo-status-bar";
-import { StyleSheet, Text, View } from "react-native";
+import { useState } from "react";
+import type { PublicTour } from "./src/api";
+import { LanguageScreen, PlayerScreen, ScanScreen, ToursScreen, TourScreen } from "./src/screens";
+import { getPref, type InstalledPack } from "./src/store";
+
+type Route =
+  | { name: "language" }
+  | { name: "tours" }
+  | { name: "tour"; tour: PublicTour }
+  | { name: "scan"; tour: PublicTour }
+  | { name: "player"; pack: InstalledPack };
 
 export default function App() {
+  const [lang, setLang] = useState(getPref("lang"));
+  const [route, setRoute] = useState<Route>(lang ? { name: "tours" } : { name: "language" });
+  const toTours = () => setRoute({ name: "tours" });
+  const play = (pack: InstalledPack) => setRoute({ name: "player", pack });
+
+  let screen = null;
+  if (route.name === "language" || !lang) {
+    screen = <LanguageScreen onDone={(code) => { setLang(code); toTours(); }} />;
+  } else if (route.name === "tours") {
+    screen = (
+      <ToursScreen
+        lang={lang}
+        onOpen={(tour) => setRoute({ name: "tour", tour })}
+        onPlay={play}
+        onChangeLang={() => setRoute({ name: "language" })}
+      />
+    );
+  } else if (route.name === "tour") {
+    const { tour } = route;
+    screen = (
+      <TourScreen
+        key={`${tour.id}-${lang}`}
+        tour={tour}
+        lang={lang}
+        onBack={toTours}
+        onScan={() => setRoute({ name: "scan", tour })}
+        onPlay={play}
+      />
+    );
+  } else if (route.name === "scan") {
+    const { tour } = route;
+    const back = () => setRoute({ name: "tour", tour });
+    screen = <ScanScreen onBack={back} onActivated={back} />;
+  } else {
+    screen = <PlayerScreen pack={route.pack} onBack={toTours} />;
+  }
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>🎧 Thuyết Minh Đa Ngôn Ngữ</Text>
-      <Text style={styles.muted}>Ngôn ngữ: {SUPPORTED_LANGS.join(" · ")}</Text>
-      <Text style={styles.muted}>Bán kính geofence mặc định: {GEOFENCE_RADIUS_DEFAULT_M} m</Text>
+    <>
+      {screen}
       <StatusBar style="auto" />
-    </View>
+    </>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: color.surface, alignItems: "center", justifyContent: "center", gap: space.sm },
-  title: { fontSize: font.title, fontWeight: "600", color: color.primary },
-  muted: { fontSize: font.body, color: color.textMuted },
-});

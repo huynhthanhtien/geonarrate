@@ -1,6 +1,9 @@
 import { useState } from "react";
+import { Check, CheckCheck, Eye, FileText, Hourglass, Tag, Undo2 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router";
+import { sendJson } from "../api";
+import { LoadError } from "../components/LoadError";
 
 export function ReviewsPage() {
   const navigate = useNavigate();
@@ -8,33 +11,20 @@ export function ReviewsPage() {
   const [rejectNote, setRejectNote] = useState<Record<string, string>>({});
   const [rejectOpen, setRejectOpen] = useState<Record<string, boolean>>({});
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ["attractions", "", "in_review"],
-    queryFn: async () => {
-      const res = await fetch("/api/v1/attractions?status=in_review");
-      return res.json();
-    },
+    queryFn: () => sendJson<any[]>("/api/v1/attractions?status=in_review"),
+    retry: false,
   });
 
   const approveMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const res = await fetch(`/api/v1/attractions/${id}/approve`, { method: "POST" });
-      if (!res.ok) throw new Error((await res.json()).detail);
-      return res.json();
-    },
+    mutationFn: (id: string) => sendJson(`/api/v1/attractions/${id}/approve`, "POST"),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["attractions"] }),
   });
 
   const rejectMutation = useMutation({
-    mutationFn: async ({ id, note }: { id: string; note: string }) => {
-      const res = await fetch(`/api/v1/attractions/${id}/reject`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ review_note: note }),
-      });
-      if (!res.ok) throw new Error((await res.json()).detail);
-      return res.json();
-    },
+    mutationFn: ({ id, note }: { id: string; note: string }) =>
+      sendJson(`/api/v1/attractions/${id}/reject`, "POST", { review_note: note }),
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: ["attractions"] });
       setRejectOpen((prev) => ({ ...prev, [id]: false }));
@@ -46,8 +36,14 @@ export function ReviewsPage() {
     <div>
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-slate-800">Duyệt script</h1>
-        <p className="text-slate-500 text-sm mt-1">{data?.length ?? 0} script đang chờ duyệt</p>
+        {data && <p className="text-slate-500 text-sm mt-1">{data.length} script đang chờ duyệt</p>}
       </div>
+
+      {(approveMutation.error ?? rejectMutation.error) && (
+        <p role="alert" className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+          {(approveMutation.error ?? rejectMutation.error)?.message}
+        </p>
+      )}
 
       {isLoading ? (
         <div className="flex items-center justify-center py-20">
@@ -56,9 +52,11 @@ export function ReviewsPage() {
             Đang tải...
           </div>
         </div>
+      ) : error ? (
+        <LoadError error={error} />
       ) : data?.length === 0 ? (
         <div className="text-center py-20 bg-white border-2 border-dashed border-slate-200 rounded-xl">
-          <p className="text-4xl mb-3">🎉</p>
+          <CheckCheck size={36} className="mx-auto mb-3 text-teal-600" aria-hidden />
           <p className="text-slate-700 font-semibold">Không có script nào chờ duyệt!</p>
           <p className="text-slate-400 text-sm mt-1">Mọi thứ đã được xử lý.</p>
         </div>
@@ -70,22 +68,22 @@ export function ReviewsPage() {
               <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
                 <div className="flex items-center gap-3">
                   <div className="w-9 h-9 rounded-lg bg-amber-50 border border-amber-100 flex items-center justify-center text-lg">
-                    ⏳
+                    <Hourglass size={18} className="text-amber-600" aria-hidden />
                   </div>
                   <div>
                     <h3 className="font-semibold text-slate-800">{a.name}</h3>
                     <div className="flex gap-3 text-xs text-slate-400 mt-0.5">
-                      <span>🏷️ {a.category}</span>
-                      <span>📝 v{a.script_version}</span>
+                      <span className="inline-flex items-center gap-1"><Tag size={12} aria-hidden /> {a.category}</span>
+                      <span className="inline-flex items-center gap-1"><FileText size={12} aria-hidden /> v{a.script_version}</span>
                       <span>{a.script?.length ?? 0} ký tự</span>
                     </div>
                   </div>
                 </div>
                 <button
                   onClick={() => navigate(`/attractions/${a.id}/script`)}
-                  className="text-xs px-3 py-1.5 border border-slate-200 text-slate-500 hover:text-teal-700 hover:border-teal-300 rounded-lg transition-colors"
+                  className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 border border-slate-200 text-slate-500 hover:text-teal-700 hover:border-teal-300 rounded-lg transition-colors"
                 >
-                  👁️ Xem đầy đủ
+                  <Eye size={13} aria-hidden /> Xem đầy đủ
                 </button>
               </div>
 
@@ -103,7 +101,7 @@ export function ReviewsPage() {
                   disabled={approveMutation.isPending}
                   className="flex items-center gap-2 bg-green-600 hover:bg-green-700 disabled:opacity-60 text-white px-5 py-2 rounded-lg text-sm font-semibold transition-colors shadow-sm"
                 >
-                  ✅ Duyệt
+                  <Check size={15} aria-hidden /> Duyệt
                 </button>
                 <button
                   onClick={() => setRejectOpen((prev) => ({ ...prev, [a.id]: !prev[a.id] }))}
@@ -113,7 +111,7 @@ export function ReviewsPage() {
                       : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
                   }`}
                 >
-                  ↩️ Trả lại
+                  <Undo2 size={15} aria-hidden /> Trả lại
                 </button>
 
                 {rejectOpen[a.id] && (

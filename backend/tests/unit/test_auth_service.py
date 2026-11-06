@@ -1,5 +1,6 @@
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 import pytest
 
@@ -29,6 +30,14 @@ class FakeUserRepo:
 
     async def mark_login(self, user_id: str, now: datetime, password_hash: str | None) -> None:
         self.items[user_id] = replace(self.items[user_id], last_login_at=now)
+
+    async def find_all(self) -> list[User]:
+        return []
+
+    async def update_fields(
+        self, user_id: str, fields: dict[str, Any], now: datetime
+    ) -> User | None:
+        return None
 
 
 class FakeTokenRepo:

@@ -1,4 +1,5 @@
 import { color, radius, space } from "@geonarrate/tokens";
+import { Headphones } from "lucide-react";
 import { type FormEvent, useState } from "react";
 import { type Location, Navigate, useLocation } from "react-router";
 import { login, useSession } from "../auth/session";
@@ -26,7 +27,7 @@ export function LoginPage() {
         onSubmit={(e) => void onSubmit(e)}
         style={{ display: "flex", flexDirection: "column", gap: space.md, width: 320 }}
       >
-        <h1 style={{ color: color.primary, margin: 0 }}>🎧 GeoNarrate CMS</h1>
+        <h1 style={{ color: color.primary, margin: 0, display: "flex", alignItems: "center", gap: 8 }}><Headphones size={24} aria-hidden /> GeoNarrate CMS</h1>
         <input name="email" type="email" placeholder="Email" autoComplete="username" required style={input} />
         <input
           name="password"

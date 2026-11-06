@@ -1,4 +1,5 @@
 import { color, font, space } from "@geonarrate/tokens";
+import { Headphones } from "lucide-react";
 import { NavLink, Outlet } from "react-router";
 import { api } from "../api";
 import { logout, useCan, useSession } from "../auth/session";
@@ -22,8 +23,8 @@ export function AppShell() {
   return (
     <div style={{ display: "flex", minHeight: "100vh", fontFamily: "system-ui", color: color.text }}>
       <nav style={{ width: 220, background: color.surfaceMuted, padding: space.lg }}>
-        <div style={{ fontSize: font.title, fontWeight: 700, color: color.primary, marginBottom: space.xl }}>
-          🎧 GeoNarrate
+        <div style={{ fontSize: font.title, fontWeight: 700, color: color.primary, marginBottom: space.xl, display: "flex", alignItems: "center", gap: 8 }}>
+          <Headphones size={20} aria-hidden /> GeoNarrate
         </div>
         {NAV.filter((item) => !item.permission || can(item.permission)).map((item) => (
           <NavLink

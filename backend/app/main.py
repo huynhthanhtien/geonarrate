@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.v1.routers import audit, auth, languages
+from app.api.v1.routers import attractions, audit, auth, languages, public, studio
 from app.core import cache, database
 from app.core.config import get_settings
 from app.core.deps import get_auth_service, get_language_service, get_maintenance_service
@@ -43,6 +43,9 @@ install_handlers(app)
 app.include_router(auth.router, prefix="/api/v1")
 app.include_router(audit.router, prefix="/api/v1")
 app.include_router(languages.router, prefix="/api/v1")
+app.include_router(attractions.router, prefix="/api/v1")
+app.include_router(studio.router, prefix="/api/v1")
+app.include_router(public.router, prefix="/api/v1")
 
 
 @app.get("/healthz", tags=["ops"])

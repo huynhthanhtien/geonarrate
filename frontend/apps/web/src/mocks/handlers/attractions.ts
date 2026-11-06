@@ -23,6 +23,8 @@ export const attractionHandlers = [
       ...body,
       slug: body.name.toLowerCase().replace(/\s+/g, "-"),
       script: body.script ?? "",
+      summary: body.summary ?? null,
+      images: body.images ?? [],
       script_status: "draft",
       script_version: 1,
       created_by: "user-mock",
@@ -54,13 +56,19 @@ export const attractionHandlers = [
     const body = await request.json() as any;
     const attraction = findById(params.id as string);
     if (!attraction) return HttpResponse.json({ detail: "Không tìm thấy" }, { status: 404 });
-    if (attraction.script_status !== "draft") {
-      return HttpResponse.json({ detail: "Chỉ sửa được khi script ở trạng thái draft" }, { status: 409 });
+    if (attraction.script_status === "in_review") {
+      return HttpResponse.json({ detail: "Không sửa được script đang chờ duyệt" }, { status: 409 });
     }
     if (body.script?.length > 600) {
       return HttpResponse.json({ detail: "Script tối đa 600 ký tự/đoạn" }, { status: 422 });
     }
-    const updated = update(params.id as string, { script: body.script });
+    // Sửa script đã duyệt thì về nháp và tăng phiên bản, giống backend
+    const updated = update(
+      params.id as string,
+      attraction.script_status === "approved"
+        ? { script: body.script, script_status: "draft", script_version: attraction.script_version + 1 }
+        : { script: body.script },
+    );
     return HttpResponse.json(updated);
   }),
 
@@ -69,6 +77,9 @@ export const attractionHandlers = [
     if (!attraction) return HttpResponse.json({ detail: "Không tìm thấy" }, { status: 404 });
     if (attraction.script_status !== "draft") {
       return HttpResponse.json({ detail: "Chỉ submit từ draft" }, { status: 409 });
+    }
+    if (!attraction.script.trim()) {
+      return HttpResponse.json({ detail: "Kịch bản đang rỗng, chưa thể gửi duyệt" }, { status: 422 });
     }
     const updated = update(params.id as string, { script_status: "in_review", review_note: undefined });
     return HttpResponse.json(updated);
@@ -80,10 +91,18 @@ export const attractionHandlers = [
     if (attraction.script_status !== "in_review") {
       return HttpResponse.json({ detail: "Chỉ approve từ in_review" }, { status: 409 });
     }
-    const updated = update(params.id as string, {
-      script_status: "approved",
-      script_version: attraction.script_version + 1,
-    });
+    const updated = update(params.id as string, { script_status: "approved" });
+    return HttpResponse.json(updated);
+  }),
+
+  http.post(`${BASE}/:id/reject`, async ({ params, request }) => {
+    const body = await request.json() as any;
+    const attraction = findById(params.id as string);
+    if (!attraction) return HttpResponse.json({ detail: "Không tìm thấy" }, { status: 404 });
+    if (attraction.script_status !== "in_review") {
+      return HttpResponse.json({ detail: "Chỉ trả lại được script đang chờ duyệt" }, { status: 409 });
+    }
+    const updated = update(params.id as string, { script_status: "draft", review_note: body.review_note });
     return HttpResponse.json(updated);
   }),
 ];

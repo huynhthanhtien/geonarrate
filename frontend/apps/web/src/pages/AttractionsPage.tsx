@@ -1,7 +1,10 @@
 import { useState } from "react";
+import { Map as MapIcon } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router";
+import { sendJson } from "../api";
 import { AttractionCard } from "../components/AttractionCard";
+import { LoadError } from "../components/LoadError";
 
 const CATEGORIES = ["temple", "church", "museum", "park", "other"];
 
@@ -10,14 +13,13 @@ export function AttractionsPage() {
   const [category, setCategory] = useState("");
   const [status, setStatus] = useState("");
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ["attractions", category, status],
-    queryFn: async () => {
-      const res = await fetch(
+    queryFn: () =>
+      sendJson<any[]>(
         `/api/v1/attractions?${category ? `category=${category}&` : ""}${status ? `status=${status}` : ""}`
-      );
-      return res.json();
-    },
+      ),
+    retry: false,
   });
 
   return (
@@ -25,7 +27,7 @@ export function AttractionsPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">Điểm tham quan</h1>
-          <p className="text-slate-500 text-sm mt-1">{data?.length ?? 0} địa điểm trong hệ thống</p>
+          {data && <p className="text-slate-500 text-sm mt-1">{data.length} địa điểm trong hệ thống</p>}
         </div>
         <button
           onClick={() => navigate("/attractions/new")}
@@ -46,7 +48,7 @@ export function AttractionsPage() {
         <select value={status} onChange={(e) => setStatus(e.target.value)}
           className="bg-white border border-slate-200 text-slate-700 text-sm px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 shadow-sm">
           <option value="">Tất cả trạng thái</option>
-          <option value="draft">Draft</option>
+          <option value="draft">Nháp</option>
           <option value="in_review">Chờ duyệt</option>
           <option value="approved">Đã duyệt</option>
         </select>
@@ -59,9 +61,11 @@ export function AttractionsPage() {
             Đang tải...
           </div>
         </div>
+      ) : error ? (
+        <LoadError error={error} />
       ) : data?.length === 0 ? (
         <div className="text-center py-20 border-2 border-dashed border-slate-200 rounded-xl">
-          <p className="text-4xl mb-3">🗺️</p>
+          <MapIcon size={36} className="mx-auto mb-3 text-slate-300" aria-hidden />
           <p className="text-slate-400">Không có điểm nào.</p>
         </div>
       ) : (
