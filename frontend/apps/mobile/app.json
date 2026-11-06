@@ -24,7 +24,21 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-sqlite"
+      "expo-sqlite",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "GeoNarrate dùng vị trí để tự phát thuyết minh khi bạn đến gần một điểm."
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "GeoNarrate dùng camera để quét mã QR trên vé.",
+          "recordAudioAndroid": false
+        }
+      ],
+      "expo-audio"
     ],
     "scheme": "geonarrate"
   }

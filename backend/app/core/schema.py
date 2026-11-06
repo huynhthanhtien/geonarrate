@@ -274,6 +274,7 @@ jobs = Table(
     Column("progress", JSONB),
     Column("attempts", Integer, nullable=False, server_default=text("0")),
     Column("error", JSONB),
+    Column("run_after", DateTime(timezone=True)),  # chưa tới giờ thì worker chưa nhận lại
     _user_fk("created_by"),
     *_timestamps(),
     Index(

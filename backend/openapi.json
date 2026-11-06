@@ -289,6 +289,1911 @@
         }
       }
     },
+    "/api/v1/attractions": {
+      "get": {
+        "tags": [
+          "catalog"
+        ],
+        "summary": "List Attractions",
+        "description": "Lọc theo danh mục và trạng thái script (`draft`, `in_review`, `approved`).",
+        "operationId": "list_attractions_api_v1_attractions_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Category"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AttractionOut"
+                  },
+                  "title": "Response List Attractions Api V1 Attractions Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "catalog"
+        ],
+        "summary": "Create Attraction",
+        "operationId": "create_attraction_api_v1_attractions_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AttractionCreateIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttractionOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/attractions/{attraction_id}": {
+      "get": {
+        "tags": [
+          "catalog"
+        ],
+        "summary": "Get Attraction",
+        "operationId": "get_attraction_api_v1_attractions__attraction_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "attraction_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Attraction Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttractionOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "catalog"
+        ],
+        "summary": "Update Attraction",
+        "operationId": "update_attraction_api_v1_attractions__attraction_id__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "attraction_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Attraction Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AttractionUpdateIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttractionOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/attractions/{attraction_id}/script": {
+      "put": {
+        "tags": [
+          "catalog"
+        ],
+        "summary": "Save Script",
+        "operationId": "save_script_api_v1_attractions__attraction_id__script_put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "attraction_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Attraction Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScriptIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttractionOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/attractions/{attraction_id}/submit": {
+      "post": {
+        "tags": [
+          "catalog"
+        ],
+        "summary": "Submit Script",
+        "operationId": "submit_script_api_v1_attractions__attraction_id__submit_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "attraction_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Attraction Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttractionOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/attractions/{attraction_id}/approve": {
+      "post": {
+        "tags": [
+          "catalog"
+        ],
+        "summary": "Approve Script",
+        "operationId": "approve_script_api_v1_attractions__attraction_id__approve_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "attraction_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Attraction Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttractionOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/attractions/{attraction_id}/reject": {
+      "post": {
+        "tags": [
+          "catalog"
+        ],
+        "summary": "Reject Script",
+        "operationId": "reject_script_api_v1_attractions__attraction_id__reject_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "attraction_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Attraction Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RejectIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttractionOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/translations": {
+      "get": {
+        "tags": [
+          "studio"
+        ],
+        "summary": "List Translations",
+        "operationId": "list_translations_api_v1_translations_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "lang",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Lang"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TranslationOut"
+                  },
+                  "title": "Response List Translations Api V1 Translations Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/translations/{translation_id}": {
+      "put": {
+        "tags": [
+          "studio"
+        ],
+        "summary": "Edit Translation",
+        "operationId": "edit_translation_api_v1_translations__translation_id__put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "translation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Translation Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TranslationEditIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TranslationOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/translations/{translation_id}/approve": {
+      "post": {
+        "tags": [
+          "studio"
+        ],
+        "summary": "Approve Translation",
+        "operationId": "approve_translation_api_v1_translations__translation_id__approve_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "translation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Translation Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TranslationOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/translations/{translation_id}/reject": {
+      "post": {
+        "tags": [
+          "studio"
+        ],
+        "summary": "Reject Translation",
+        "operationId": "reject_translation_api_v1_translations__translation_id__reject_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "translation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Translation Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NoteIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TranslationOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/glossaries": {
+      "get": {
+        "tags": [
+          "studio"
+        ],
+        "summary": "List Glossary",
+        "operationId": "list_glossary_api_v1_glossaries_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "lang",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Lang"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/GlossaryOut"
+                  },
+                  "title": "Response List Glossary Api V1 Glossaries Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "studio"
+        ],
+        "summary": "Add Term",
+        "operationId": "add_term_api_v1_glossaries_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GlossaryIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GlossaryOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/glossaries/{glossary_id}": {
+      "delete": {
+        "tags": [
+          "studio"
+        ],
+        "summary": "Delete Term",
+        "operationId": "delete_term_api_v1_glossaries__glossary_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "glossary_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Glossary Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/audio/status": {
+      "get": {
+        "tags": [
+          "studio"
+        ],
+        "summary": "Audio Status",
+        "operationId": "audio_status_api_v1_audio_status_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AudioRow"
+                  },
+                  "type": "array",
+                  "title": "Response Audio Status Api V1 Audio Status Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/audio/retry": {
+      "post": {
+        "tags": [
+          "studio"
+        ],
+        "summary": "Retry Audio",
+        "operationId": "retry_audio_api_v1_audio_retry_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AudioRetryIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tours": {
+      "get": {
+        "tags": [
+          "studio"
+        ],
+        "summary": "List Tours",
+        "operationId": "list_tours_api_v1_tours_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TourOut"
+                  },
+                  "type": "array",
+                  "title": "Response List Tours Api V1 Tours Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "studio"
+        ],
+        "summary": "Create Tour",
+        "operationId": "create_tour_api_v1_tours_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TourCreateIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TourDetailOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tours/{tour_id}": {
+      "get": {
+        "tags": [
+          "studio"
+        ],
+        "summary": "Get Tour",
+        "operationId": "get_tour_api_v1_tours__tour_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tour_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tour Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TourDetailOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "studio"
+        ],
+        "summary": "Update Tour",
+        "operationId": "update_tour_api_v1_tours__tour_id__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tour_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tour Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TourUpdateIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TourDetailOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/packs": {
+      "get": {
+        "tags": [
+          "studio"
+        ],
+        "summary": "List Packs",
+        "operationId": "list_packs_api_v1_packs_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tour_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tour Id"
+            }
+          },
+          {
+            "name": "lang",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Lang"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PackOut"
+                  },
+                  "title": "Response List Packs Api V1 Packs Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/packs/build": {
+      "post": {
+        "tags": [
+          "studio"
+        ],
+        "summary": "Build Pack",
+        "operationId": "build_pack_api_v1_packs_build_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PackBuildIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PackOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/packs/{pack_id}/publish": {
+      "post": {
+        "tags": [
+          "studio"
+        ],
+        "summary": "Publish Pack",
+        "operationId": "publish_pack_api_v1_packs__pack_id__publish_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "pack_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Pack Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PackOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/packs/{pack_id}/rollback": {
+      "post": {
+        "tags": [
+          "studio"
+        ],
+        "summary": "Rollback Pack",
+        "operationId": "rollback_pack_api_v1_packs__pack_id__rollback_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "pack_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Pack Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RollbackIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PackOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/users": {
+      "get": {
+        "tags": [
+          "studio"
+        ],
+        "summary": "List Users",
+        "operationId": "list_users_api_v1_admin_users_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AccountOut"
+                  },
+                  "type": "array",
+                  "title": "Response List Users Api V1 Admin Users Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "studio"
+        ],
+        "summary": "Create Account",
+        "operationId": "create_account_api_v1_admin_users_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountCreateIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/users/{user_id}": {
+      "patch": {
+        "tags": [
+          "studio"
+        ],
+        "summary": "Update Account",
+        "operationId": "update_account_api_v1_admin_users__user_id__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "User Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountUpdateIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tickets": {
+      "post": {
+        "tags": [
+          "studio"
+        ],
+        "summary": "Issue Tickets",
+        "description": "Mã gốc chỉ trả về một lần này để in; CSDL chỉ lưu hash.",
+        "operationId": "issue_tickets_api_v1_tickets_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TicketIssueIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TicketIssueOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "studio"
+        ],
+        "summary": "Search Tickets",
+        "operationId": "search_tickets_api_v1_tickets_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TicketOut"
+                  },
+                  "title": "Response Search Tickets Api V1 Tickets Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tickets/revoke": {
+      "post": {
+        "tags": [
+          "studio"
+        ],
+        "summary": "Revoke Tickets",
+        "operationId": "revoke_tickets_api_v1_tickets_revoke_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RevokeIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevokeOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/analytics/summary": {
+      "get": {
+        "tags": [
+          "studio"
+        ],
+        "summary": "Analytics Summary",
+        "operationId": "analytics_summary_api_v1_analytics_summary_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "start",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Start"
+            }
+          },
+          {
+            "name": "end",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "End"
+            }
+          },
+          {
+            "name": "tour_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tour Id"
+            }
+          },
+          {
+            "name": "lang",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Lang"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/public/tours": {
+      "get": {
+        "tags": [
+          "public"
+        ],
+        "summary": "Tours",
+        "operationId": "tours_api_v1_public_tours_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PublicTourOut"
+                  },
+                  "type": "array",
+                  "title": "Response Tours Api V1 Public Tours Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/public/tickets/activate": {
+      "post": {
+        "tags": [
+          "public"
+        ],
+        "summary": "Activate",
+        "operationId": "activate_api_v1_public_tickets_activate_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ActivateIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActivateOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/public/tours/{tour_id}/packs/{lang}": {
+      "get": {
+        "tags": [
+          "public"
+        ],
+        "summary": "Manifest",
+        "operationId": "manifest_api_v1_public_tours__tour_id__packs__lang__get",
+        "parameters": [
+          {
+            "name": "tour_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tour Id"
+            }
+          },
+          {
+            "name": "lang",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Lang"
+            }
+          },
+          {
+            "name": "device_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 128,
+              "title": "Device Id"
+            }
+          },
+          {
+            "name": "preview",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Preview"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManifestOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/public/tours/{tour_id}/packs/{lang}/files/{attraction_id}": {
+      "get": {
+        "tags": [
+          "public"
+        ],
+        "summary": "Pack File",
+        "operationId": "pack_file_api_v1_public_tours__tour_id__packs__lang__files__attraction_id__get",
+        "parameters": [
+          {
+            "name": "tour_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tour Id"
+            }
+          },
+          {
+            "name": "lang",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Lang"
+            }
+          },
+          {
+            "name": "attraction_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Attraction Id"
+            }
+          },
+          {
+            "name": "device_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 128,
+              "title": "Device Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "audio/mpeg": {}
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/public/playback-events": {
+      "post": {
+        "tags": [
+          "public"
+        ],
+        "summary": "Playback Events",
+        "operationId": "playback_events_api_v1_public_playback_events_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EventsIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventsOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/healthz": {
       "get": {
         "tags": [
@@ -317,6 +2222,700 @@
   },
   "components": {
     "schemas": {
+      "AccountCreateIn": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "maxLength": 254,
+            "minLength": 3,
+            "title": "Email"
+          },
+          "password": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 8,
+            "title": "Password"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "admin",
+              "editor",
+              "translator"
+            ],
+            "title": "Role"
+          },
+          "full_name": {
+            "type": "string",
+            "maxLength": 200,
+            "title": "Full Name",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "email",
+          "password",
+          "role"
+        ],
+        "title": "AccountCreateIn"
+      },
+      "AccountOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "full_name": {
+            "type": "string",
+            "title": "Full Name"
+          },
+          "role": {
+            "type": "string",
+            "title": "Role"
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active"
+          },
+          "last_login_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Login At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "email",
+          "full_name",
+          "role",
+          "is_active",
+          "last_login_at"
+        ],
+        "title": "AccountOut"
+      },
+      "AccountUpdateIn": {
+        "properties": {
+          "role": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "admin",
+                  "editor",
+                  "translator"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role"
+          },
+          "is_active": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Active"
+          },
+          "full_name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Full Name"
+          }
+        },
+        "type": "object",
+        "title": "AccountUpdateIn"
+      },
+      "ActivateIn": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 4,
+            "title": "Code"
+          },
+          "device_id": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 8,
+            "title": "Device Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "device_id"
+        ],
+        "title": "ActivateIn"
+      },
+      "ActivateOut": {
+        "properties": {
+          "result": {
+            "type": "string",
+            "title": "Result"
+          },
+          "tour_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tour Ids"
+          },
+          "valid_until": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Valid Until"
+          }
+        },
+        "type": "object",
+        "required": [
+          "result",
+          "tour_ids",
+          "valid_until"
+        ],
+        "title": "ActivateOut"
+      },
+      "AnalyticsLang": {
+        "properties": {
+          "lang": {
+            "type": "string",
+            "title": "Lang"
+          },
+          "plays": {
+            "type": "integer",
+            "title": "Plays"
+          }
+        },
+        "type": "object",
+        "required": [
+          "lang",
+          "plays"
+        ],
+        "title": "AnalyticsLang"
+      },
+      "AnalyticsOut": {
+        "properties": {
+          "plays": {
+            "type": "integer",
+            "title": "Plays"
+          },
+          "completes": {
+            "type": "integer",
+            "title": "Completes"
+          },
+          "completion_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completion Rate"
+          },
+          "top_attractions": {
+            "items": {
+              "$ref": "#/components/schemas/AnalyticsTop"
+            },
+            "type": "array",
+            "title": "Top Attractions"
+          },
+          "by_lang": {
+            "items": {
+              "$ref": "#/components/schemas/AnalyticsLang"
+            },
+            "type": "array",
+            "title": "By Lang"
+          }
+        },
+        "type": "object",
+        "required": [
+          "plays",
+          "completes",
+          "completion_rate",
+          "top_attractions",
+          "by_lang"
+        ],
+        "title": "AnalyticsOut"
+      },
+      "AnalyticsTop": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "plays": {
+            "type": "integer",
+            "title": "Plays"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "plays"
+        ],
+        "title": "AnalyticsTop"
+      },
+      "AttractionCreateIn": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "temple",
+              "church",
+              "museum",
+              "park",
+              "other"
+            ],
+            "title": "Category"
+          },
+          "priority": {
+            "type": "integer",
+            "maximum": 1000.0,
+            "minimum": 0.0,
+            "title": "Priority",
+            "default": 1
+          },
+          "lat": {
+            "type": "number",
+            "maximum": 90.0,
+            "minimum": -90.0,
+            "title": "Lat"
+          },
+          "lng": {
+            "type": "number",
+            "maximum": 180.0,
+            "minimum": -180.0,
+            "title": "Lng"
+          },
+          "radius": {
+            "type": "integer",
+            "maximum": 200.0,
+            "minimum": 10.0,
+            "title": "Radius",
+            "description": "Bán kính kích hoạt (mét)"
+          },
+          "script": {
+            "type": "string",
+            "maxLength": 600,
+            "title": "Script",
+            "default": ""
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          },
+          "images": {
+            "items": {
+              "type": "string",
+              "maxLength": 2000,
+              "pattern": "^https?://\\S+$"
+            },
+            "type": "array",
+            "maxItems": 20,
+            "title": "Images",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "category",
+          "lat",
+          "lng",
+          "radius"
+        ],
+        "title": "AttractionCreateIn"
+      },
+      "AttractionOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "slug": {
+            "type": "string",
+            "title": "Slug"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          },
+          "images": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Images"
+          },
+          "lat": {
+            "type": "number",
+            "title": "Lat"
+          },
+          "lng": {
+            "type": "number",
+            "title": "Lng"
+          },
+          "radius": {
+            "type": "integer",
+            "title": "Radius"
+          },
+          "category": {
+            "type": "string",
+            "title": "Category"
+          },
+          "priority": {
+            "type": "integer",
+            "title": "Priority"
+          },
+          "script": {
+            "type": "string",
+            "title": "Script"
+          },
+          "script_status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "in_review",
+              "approved"
+            ],
+            "title": "Script Status"
+          },
+          "script_version": {
+            "type": "integer",
+            "title": "Script Version"
+          },
+          "review_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Note"
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By"
+          },
+          "updated_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated By"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "slug",
+          "summary",
+          "images",
+          "lat",
+          "lng",
+          "radius",
+          "category",
+          "priority",
+          "script",
+          "script_status",
+          "script_version",
+          "review_note",
+          "created_by",
+          "updated_by",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "AttractionOut"
+      },
+      "AttractionUpdateIn": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "temple",
+                  "church",
+                  "museum",
+                  "park",
+                  "other"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          },
+          "priority": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 1000.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Priority"
+          },
+          "lat": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 90.0,
+                "minimum": -90.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lat"
+          },
+          "lng": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 180.0,
+                "minimum": -180.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lng"
+          },
+          "radius": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 200.0,
+                "minimum": 10.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Radius"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          },
+          "images": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string",
+                  "maxLength": 2000,
+                  "pattern": "^https?://\\S+$"
+                },
+                "type": "array",
+                "maxItems": 20
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Images"
+          }
+        },
+        "type": "object",
+        "title": "AttractionUpdateIn",
+        "description": "Chỉ gửi trường cần đổi. Slug không đổi được; `lat` và `lng` phải đi cùng nhau."
+      },
+      "AudioCell": {
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": [
+              "none",
+              "queued",
+              "running",
+              "ready",
+              "failed",
+              "stale"
+            ],
+            "title": "State"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "duration_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Ms"
+          }
+        },
+        "type": "object",
+        "required": [
+          "state",
+          "error",
+          "duration_ms"
+        ],
+        "title": "AudioCell"
+      },
+      "AudioRetryIn": {
+        "properties": {
+          "attraction_id": {
+            "type": "string",
+            "title": "Attraction Id"
+          },
+          "lang": {
+            "type": "string",
+            "title": "Lang"
+          }
+        },
+        "type": "object",
+        "required": [
+          "attraction_id",
+          "lang"
+        ],
+        "title": "AudioRetryIn"
+      },
+      "AudioRow": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "langs": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/AudioCell"
+            },
+            "type": "object",
+            "title": "Langs"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "langs"
+        ],
+        "title": "AudioRow"
+      },
       "AuditLogOut": {
         "properties": {
           "id": {
@@ -379,6 +2978,199 @@
           "id"
         ],
         "title": "AuditResourceOut"
+      },
+      "EventIn": {
+        "properties": {
+          "event_id": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Event Id"
+          },
+          "attraction_id": {
+            "type": "string",
+            "title": "Attraction Id"
+          },
+          "lang": {
+            "type": "string",
+            "title": "Lang"
+          },
+          "event": {
+            "type": "string",
+            "enum": [
+              "play",
+              "complete",
+              "skip"
+            ],
+            "title": "Event"
+          },
+          "position_ms": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Position Ms"
+          },
+          "trigger": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "geofence",
+                  "manual"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trigger"
+          },
+          "ts": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Ts"
+          }
+        },
+        "type": "object",
+        "required": [
+          "event_id",
+          "attraction_id",
+          "lang",
+          "event",
+          "ts"
+        ],
+        "title": "EventIn"
+      },
+      "EventsIn": {
+        "properties": {
+          "device_id": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 8,
+            "title": "Device Id"
+          },
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/EventIn"
+            },
+            "type": "array",
+            "maxItems": 500,
+            "title": "Events"
+          }
+        },
+        "type": "object",
+        "required": [
+          "device_id",
+          "events"
+        ],
+        "title": "EventsIn"
+      },
+      "EventsOut": {
+        "properties": {
+          "accepted": {
+            "type": "integer",
+            "title": "Accepted"
+          }
+        },
+        "type": "object",
+        "required": [
+          "accepted"
+        ],
+        "title": "EventsOut"
+      },
+      "GlossaryIn": {
+        "properties": {
+          "term": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Term"
+          },
+          "target_lang": {
+            "type": "string",
+            "title": "Target Lang"
+          },
+          "translation": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Translation"
+          },
+          "is_required": {
+            "type": "boolean",
+            "title": "Is Required",
+            "default": false
+          },
+          "attraction_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attraction Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "term",
+          "target_lang",
+          "translation"
+        ],
+        "title": "GlossaryIn"
+      },
+      "GlossaryOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "term": {
+            "type": "string",
+            "title": "Term"
+          },
+          "target_lang": {
+            "type": "string",
+            "title": "Target Lang"
+          },
+          "translation": {
+            "type": "string",
+            "title": "Translation"
+          },
+          "is_required": {
+            "type": "boolean",
+            "title": "Is Required"
+          },
+          "attraction_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attraction Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "term",
+          "target_lang",
+          "translation",
+          "is_required",
+          "attraction_id"
+        ],
+        "title": "GlossaryOut"
       },
       "HTTPValidationError": {
         "properties": {
@@ -443,6 +3235,298 @@
         ],
         "title": "LoginIn"
       },
+      "ManifestFile": {
+        "properties": {
+          "attraction_id": {
+            "type": "string",
+            "title": "Attraction Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          },
+          "lat": {
+            "type": "number",
+            "title": "Lat"
+          },
+          "lng": {
+            "type": "number",
+            "title": "Lng"
+          },
+          "radius": {
+            "type": "integer",
+            "title": "Radius"
+          },
+          "priority": {
+            "type": "integer",
+            "title": "Priority"
+          },
+          "is_preview": {
+            "type": "boolean",
+            "title": "Is Preview"
+          },
+          "sha256": {
+            "type": "string",
+            "title": "Sha256"
+          },
+          "bytes": {
+            "type": "integer",
+            "title": "Bytes"
+          },
+          "duration_ms": {
+            "type": "integer",
+            "title": "Duration Ms"
+          }
+        },
+        "type": "object",
+        "required": [
+          "attraction_id",
+          "name",
+          "summary",
+          "lat",
+          "lng",
+          "radius",
+          "priority",
+          "is_preview",
+          "sha256",
+          "bytes",
+          "duration_ms"
+        ],
+        "title": "ManifestFile"
+      },
+      "ManifestOut": {
+        "properties": {
+          "pack_id": {
+            "type": "string",
+            "title": "Pack Id"
+          },
+          "tour_id": {
+            "type": "string",
+            "title": "Tour Id"
+          },
+          "lang": {
+            "type": "string",
+            "title": "Lang"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "access": {
+            "type": "string",
+            "enum": [
+              "full",
+              "preview"
+            ],
+            "title": "Access"
+          },
+          "files": {
+            "items": {
+              "$ref": "#/components/schemas/ManifestFile"
+            },
+            "type": "array",
+            "title": "Files"
+          }
+        },
+        "type": "object",
+        "required": [
+          "pack_id",
+          "tour_id",
+          "lang",
+          "version",
+          "access",
+          "files"
+        ],
+        "title": "ManifestOut"
+      },
+      "NoteIn": {
+        "properties": {
+          "review_note": {
+            "type": "string",
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Review Note"
+          }
+        },
+        "type": "object",
+        "required": [
+          "review_note"
+        ],
+        "title": "NoteIn"
+      },
+      "PackBuildIn": {
+        "properties": {
+          "tour_id": {
+            "type": "string",
+            "title": "Tour Id"
+          },
+          "lang": {
+            "type": "string",
+            "title": "Lang"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tour_id",
+          "lang"
+        ],
+        "title": "PackBuildIn"
+      },
+      "PackOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "tour_id": {
+            "type": "string",
+            "title": "Tour Id"
+          },
+          "lang": {
+            "type": "string",
+            "title": "Lang"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "sha256": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sha256"
+          },
+          "total_bytes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Bytes"
+          },
+          "file_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File Count"
+          },
+          "published_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published At"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "tour_id",
+          "lang",
+          "version",
+          "status",
+          "sha256",
+          "total_bytes",
+          "file_count",
+          "published_at",
+          "created_at"
+        ],
+        "title": "PackOut"
+      },
+      "PublicTourOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "slug": {
+            "type": "string",
+            "title": "Slug"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "access": {
+            "type": "string",
+            "title": "Access"
+          },
+          "bbox": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bbox"
+          },
+          "attraction_count": {
+            "type": "integer",
+            "title": "Attraction Count"
+          },
+          "langs": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Langs"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "slug",
+          "name",
+          "access",
+          "bbox",
+          "attraction_count",
+          "langs"
+        ],
+        "title": "PublicTourOut"
+      },
       "RefreshIn": {
         "properties": {
           "refresh_token": {
@@ -457,6 +3541,229 @@
           "refresh_token"
         ],
         "title": "RefreshIn"
+      },
+      "RejectIn": {
+        "properties": {
+          "review_note": {
+            "type": "string",
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Review Note"
+          }
+        },
+        "type": "object",
+        "required": [
+          "review_note"
+        ],
+        "title": "RejectIn"
+      },
+      "RevokeIn": {
+        "properties": {
+          "ticket_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ticket Id"
+          },
+          "batch": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Batch"
+          }
+        },
+        "type": "object",
+        "title": "RevokeIn"
+      },
+      "RevokeOut": {
+        "properties": {
+          "revoked": {
+            "type": "integer",
+            "title": "Revoked"
+          }
+        },
+        "type": "object",
+        "required": [
+          "revoked"
+        ],
+        "title": "RevokeOut"
+      },
+      "RollbackIn": {
+        "properties": {
+          "reason": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "reason"
+        ],
+        "title": "RollbackIn"
+      },
+      "ScriptIn": {
+        "properties": {
+          "script": {
+            "type": "string",
+            "maxLength": 600,
+            "title": "Script"
+          }
+        },
+        "type": "object",
+        "required": [
+          "script"
+        ],
+        "title": "ScriptIn"
+      },
+      "TicketIssueIn": {
+        "properties": {
+          "batch": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Batch"
+          },
+          "tour_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 50,
+            "minItems": 1,
+            "title": "Tour Ids"
+          },
+          "valid_until": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Valid Until"
+          },
+          "transfers_left": {
+            "type": "integer",
+            "maximum": 10.0,
+            "minimum": 0.0,
+            "title": "Transfers Left",
+            "default": 1
+          },
+          "count": {
+            "type": "integer",
+            "maximum": 1000.0,
+            "minimum": 1.0,
+            "title": "Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "batch",
+          "tour_ids",
+          "valid_until",
+          "count"
+        ],
+        "title": "TicketIssueIn"
+      },
+      "TicketIssueOut": {
+        "properties": {
+          "batch": {
+            "type": "string",
+            "title": "Batch"
+          },
+          "codes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Codes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "batch",
+          "codes"
+        ],
+        "title": "TicketIssueOut"
+      },
+      "TicketOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "code_hint": {
+            "type": "string",
+            "title": "Code Hint"
+          },
+          "batch": {
+            "type": "string",
+            "title": "Batch"
+          },
+          "valid_until": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Valid Until"
+          },
+          "device_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device Id"
+          },
+          "activated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activated At"
+          },
+          "transfers_left": {
+            "type": "integer",
+            "title": "Transfers Left"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "tour_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tour Ids"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "code_hint",
+          "batch",
+          "valid_until",
+          "device_id",
+          "activated_at",
+          "transfers_left",
+          "status",
+          "tour_ids"
+        ],
+        "title": "TicketOut"
       },
       "TokenOut": {
         "properties": {
@@ -491,6 +3798,414 @@
           "user"
         ],
         "title": "TokenOut"
+      },
+      "TourCreateIn": {
+        "properties": {
+          "slug": {
+            "type": "string",
+            "maxLength": 120,
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+            "title": "Slug"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "access": {
+            "type": "string",
+            "enum": [
+              "free",
+              "paid"
+            ],
+            "title": "Access",
+            "default": "free"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "published"
+            ],
+            "title": "Status",
+            "default": "draft"
+          },
+          "attractions": {
+            "items": {
+              "$ref": "#/components/schemas/TourPoint"
+            },
+            "type": "array",
+            "maxItems": 500,
+            "minItems": 1,
+            "title": "Attractions"
+          }
+        },
+        "type": "object",
+        "required": [
+          "slug",
+          "name",
+          "attractions"
+        ],
+        "title": "TourCreateIn"
+      },
+      "TourDetailOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "slug": {
+            "type": "string",
+            "title": "Slug"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "access": {
+            "type": "string",
+            "title": "Access"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "bbox": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bbox"
+          },
+          "attraction_count": {
+            "type": "integer",
+            "title": "Attraction Count"
+          },
+          "attractions": {
+            "items": {
+              "$ref": "#/components/schemas/TourPointOut"
+            },
+            "type": "array",
+            "title": "Attractions"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "slug",
+          "name",
+          "access",
+          "status",
+          "bbox",
+          "attraction_count",
+          "attractions"
+        ],
+        "title": "TourDetailOut"
+      },
+      "TourOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "slug": {
+            "type": "string",
+            "title": "Slug"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "access": {
+            "type": "string",
+            "title": "Access"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "bbox": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bbox"
+          },
+          "attraction_count": {
+            "type": "integer",
+            "title": "Attraction Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "slug",
+          "name",
+          "access",
+          "status",
+          "bbox",
+          "attraction_count"
+        ],
+        "title": "TourOut"
+      },
+      "TourPoint": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "is_preview": {
+            "type": "boolean",
+            "title": "Is Preview",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "TourPoint"
+      },
+      "TourPointOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "position": {
+            "type": "integer",
+            "title": "Position"
+          },
+          "is_preview": {
+            "type": "boolean",
+            "title": "Is Preview"
+          },
+          "lat": {
+            "type": "number",
+            "title": "Lat"
+          },
+          "lng": {
+            "type": "number",
+            "title": "Lng"
+          },
+          "radius": {
+            "type": "integer",
+            "title": "Radius"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "position",
+          "is_preview",
+          "lat",
+          "lng",
+          "radius"
+        ],
+        "title": "TourPointOut"
+      },
+      "TourUpdateIn": {
+        "properties": {
+          "slug": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120,
+                "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slug"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "access": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "free",
+                  "paid"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Access"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "draft",
+                  "published"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          },
+          "attractions": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/TourPoint"
+                },
+                "type": "array",
+                "maxItems": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attractions"
+          }
+        },
+        "type": "object",
+        "title": "TourUpdateIn"
+      },
+      "TranslationEditIn": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 5000,
+            "minLength": 1,
+            "title": "Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "TranslationEditIn"
+      },
+      "TranslationOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "attraction_id": {
+            "type": "string",
+            "title": "Attraction Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "target_lang": {
+            "type": "string",
+            "title": "Target Lang"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "source_text": {
+            "type": "string",
+            "title": "Source Text"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "provider": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider"
+          },
+          "qa_flags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Qa Flags"
+          },
+          "review_status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "approved",
+              "rejected"
+            ],
+            "title": "Review Status"
+          },
+          "review_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Note"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "attraction_id",
+          "title",
+          "target_lang",
+          "version",
+          "source_text",
+          "text",
+          "provider",
+          "qa_flags",
+          "review_status",
+          "review_note",
+          "updated_at"
+        ],
+        "title": "TranslationOut"
       },
       "UserOut": {
         "properties": {

@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     jwt_secret: str
     storage_dir: str = "./var/storage"
     tts_provider: str = "edge"
+    translate_provider: str = "mock"  # chỉ để chạy thử; nhà cung cấp thật chưa chốt (PRD Q-05)
     # Chỉ dùng khi APP_ENV=dev: seed sẵn 1 tài khoản admin để đăng nhập thử
     dev_admin_email: str | None = None
     dev_admin_password: str | None = None

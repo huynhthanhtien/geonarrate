@@ -29,6 +29,10 @@ class ForbiddenError(DomainError):
     status = 403
 
 
+class InvalidContentError(DomainError):
+    status = 422
+
+
 class RateLimitedError(DomainError):
     status = 429
 

@@ -17,6 +17,10 @@ class UserRepository(Protocol):
         self, email: str, password_hash: str, role: Role, full_name: str, now: datetime
     ) -> User: ...
     async def mark_login(self, user_id: str, now: datetime, password_hash: str | None) -> None: ...
+    async def find_all(self) -> list[User]: ...
+    async def update_fields(
+        self, user_id: str, fields: dict[str, Any], now: datetime
+    ) -> User | None: ...
 
 
 class SqlUserRepository:
@@ -73,6 +77,24 @@ class SqlUserRepository:
             values |= {"password_hash": password_hash, "updated_at": now}
         async with self._engine.begin() as conn:
             await conn.execute(update(users).where(users.c.id == uid).values(**values))
+
+    async def find_all(self) -> list[User]:
+        async with self._engine.connect() as conn:
+            rows = (await conn.execute(select(users).order_by(users.c.email))).mappings().all()
+        return [_to_entity(r) for r in rows]
+
+    async def update_fields(
+        self, user_id: str, fields: dict[str, Any], now: datetime
+    ) -> User | None:
+        uid = parse_uuid(user_id)
+        if uid is None:
+            return None
+        stmt = (
+            update(users).where(users.c.id == uid).values(**fields, updated_at=now).returning(users)
+        )
+        async with self._engine.begin() as conn:
+            row = (await conn.execute(stmt)).mappings().one_or_none()
+        return _to_entity(row) if row else None
 
 
 def _to_entity(row: RowMapping) -> User:

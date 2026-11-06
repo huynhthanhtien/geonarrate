@@ -115,6 +115,529 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/attractions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Attractions
+         * @description Lọc theo danh mục và trạng thái script (`draft`, `in_review`, `approved`).
+         */
+        get: operations["list_attractions_api_v1_attractions_get"];
+        put?: never;
+        /** Create Attraction */
+        post: operations["create_attraction_api_v1_attractions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/attractions/{attraction_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Attraction */
+        get: operations["get_attraction_api_v1_attractions__attraction_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Attraction */
+        patch: operations["update_attraction_api_v1_attractions__attraction_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/attractions/{attraction_id}/script": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Save Script */
+        put: operations["save_script_api_v1_attractions__attraction_id__script_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/attractions/{attraction_id}/submit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Submit Script */
+        post: operations["submit_script_api_v1_attractions__attraction_id__submit_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/attractions/{attraction_id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Approve Script */
+        post: operations["approve_script_api_v1_attractions__attraction_id__approve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/attractions/{attraction_id}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reject Script */
+        post: operations["reject_script_api_v1_attractions__attraction_id__reject_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/translations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Translations */
+        get: operations["list_translations_api_v1_translations_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/translations/{translation_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Edit Translation */
+        put: operations["edit_translation_api_v1_translations__translation_id__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/translations/{translation_id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Approve Translation */
+        post: operations["approve_translation_api_v1_translations__translation_id__approve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/translations/{translation_id}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reject Translation */
+        post: operations["reject_translation_api_v1_translations__translation_id__reject_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/glossaries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Glossary */
+        get: operations["list_glossary_api_v1_glossaries_get"];
+        put?: never;
+        /** Add Term */
+        post: operations["add_term_api_v1_glossaries_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/glossaries/{glossary_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Term */
+        delete: operations["delete_term_api_v1_glossaries__glossary_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/audio/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Audio Status */
+        get: operations["audio_status_api_v1_audio_status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/audio/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Retry Audio */
+        post: operations["retry_audio_api_v1_audio_retry_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tours": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Tours */
+        get: operations["list_tours_api_v1_tours_get"];
+        put?: never;
+        /** Create Tour */
+        post: operations["create_tour_api_v1_tours_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tours/{tour_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Tour */
+        get: operations["get_tour_api_v1_tours__tour_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Tour */
+        patch: operations["update_tour_api_v1_tours__tour_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/packs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Packs */
+        get: operations["list_packs_api_v1_packs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/packs/build": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Build Pack */
+        post: operations["build_pack_api_v1_packs_build_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/packs/{pack_id}/publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Publish Pack */
+        post: operations["publish_pack_api_v1_packs__pack_id__publish_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/packs/{pack_id}/rollback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Rollback Pack */
+        post: operations["rollback_pack_api_v1_packs__pack_id__rollback_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Users */
+        get: operations["list_users_api_v1_admin_users_get"];
+        put?: never;
+        /** Create Account */
+        post: operations["create_account_api_v1_admin_users_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/users/{user_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Account */
+        patch: operations["update_account_api_v1_admin_users__user_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/tickets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Search Tickets */
+        get: operations["search_tickets_api_v1_tickets_get"];
+        put?: never;
+        /**
+         * Issue Tickets
+         * @description Mã gốc chỉ trả về một lần này để in; CSDL chỉ lưu hash.
+         */
+        post: operations["issue_tickets_api_v1_tickets_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tickets/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Revoke Tickets */
+        post: operations["revoke_tickets_api_v1_tickets_revoke_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/analytics/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Analytics Summary */
+        get: operations["analytics_summary_api_v1_analytics_summary_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/public/tours": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Tours */
+        get: operations["tours_api_v1_public_tours_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/public/tickets/activate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Activate */
+        post: operations["activate_api_v1_public_tickets_activate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/public/tours/{tour_id}/packs/{lang}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Manifest */
+        get: operations["manifest_api_v1_public_tours__tour_id__packs__lang__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/public/tours/{tour_id}/packs/{lang}/files/{attraction_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Pack File */
+        get: operations["pack_file_api_v1_public_tours__tour_id__packs__lang__files__attraction_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/public/playback-events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Playback Events */
+        post: operations["playback_events_api_v1_public_playback_events_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/healthz": {
         parameters: {
             query?: never;
@@ -136,6 +659,231 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AccountCreateIn */
+        AccountCreateIn: {
+            /** Email */
+            email: string;
+            /** Password */
+            password: string;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "admin" | "editor" | "translator";
+            /**
+             * Full Name
+             * @default
+             */
+            full_name: string;
+        };
+        /** AccountOut */
+        AccountOut: {
+            /** Id */
+            id: string;
+            /** Email */
+            email: string;
+            /** Full Name */
+            full_name: string;
+            /** Role */
+            role: string;
+            /** Is Active */
+            is_active: boolean;
+            /** Last Login At */
+            last_login_at: string | null;
+        };
+        /** AccountUpdateIn */
+        AccountUpdateIn: {
+            /** Role */
+            role?: ("admin" | "editor" | "translator") | null;
+            /** Is Active */
+            is_active?: boolean | null;
+            /** Full Name */
+            full_name?: string | null;
+        };
+        /** ActivateIn */
+        ActivateIn: {
+            /** Code */
+            code: string;
+            /** Device Id */
+            device_id: string;
+        };
+        /** ActivateOut */
+        ActivateOut: {
+            /** Result */
+            result: string;
+            /** Tour Ids */
+            tour_ids: string[];
+            /**
+             * Valid Until
+             * Format: date-time
+             */
+            valid_until: string;
+        };
+        /** AnalyticsLang */
+        AnalyticsLang: {
+            /** Lang */
+            lang: string;
+            /** Plays */
+            plays: number;
+        };
+        /** AnalyticsOut */
+        AnalyticsOut: {
+            /** Plays */
+            plays: number;
+            /** Completes */
+            completes: number;
+            /** Completion Rate */
+            completion_rate: number | null;
+            /** Top Attractions */
+            top_attractions: components["schemas"]["AnalyticsTop"][];
+            /** By Lang */
+            by_lang: components["schemas"]["AnalyticsLang"][];
+        };
+        /** AnalyticsTop */
+        AnalyticsTop: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Plays */
+            plays: number;
+        };
+        /** AttractionCreateIn */
+        AttractionCreateIn: {
+            /** Name */
+            name: string;
+            /**
+             * Category
+             * @enum {string}
+             */
+            category: "temple" | "church" | "museum" | "park" | "other";
+            /**
+             * Priority
+             * @default 1
+             */
+            priority: number;
+            /** Lat */
+            lat: number;
+            /** Lng */
+            lng: number;
+            /**
+             * Radius
+             * @description Bán kính kích hoạt (mét)
+             */
+            radius: number;
+            /**
+             * Script
+             * @default
+             */
+            script: string;
+            /** Summary */
+            summary?: string | null;
+            /**
+             * Images
+             * @default []
+             */
+            images: string[];
+        };
+        /** AttractionOut */
+        AttractionOut: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Slug */
+            slug: string;
+            /** Summary */
+            summary: string | null;
+            /** Images */
+            images: string[];
+            /** Lat */
+            lat: number;
+            /** Lng */
+            lng: number;
+            /** Radius */
+            radius: number;
+            /** Category */
+            category: string;
+            /** Priority */
+            priority: number;
+            /** Script */
+            script: string;
+            /**
+             * Script Status
+             * @enum {string}
+             */
+            script_status: "draft" | "in_review" | "approved";
+            /** Script Version */
+            script_version: number;
+            /** Review Note */
+            review_note: string | null;
+            /** Created By */
+            created_by: string | null;
+            /** Updated By */
+            updated_by: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /**
+         * AttractionUpdateIn
+         * @description Chỉ gửi trường cần đổi. Slug không đổi được; `lat` và `lng` phải đi cùng nhau.
+         */
+        AttractionUpdateIn: {
+            /** Name */
+            name?: string | null;
+            /** Category */
+            category?: ("temple" | "church" | "museum" | "park" | "other") | null;
+            /** Priority */
+            priority?: number | null;
+            /** Lat */
+            lat?: number | null;
+            /** Lng */
+            lng?: number | null;
+            /** Radius */
+            radius?: number | null;
+            /** Summary */
+            summary?: string | null;
+            /** Images */
+            images?: string[] | null;
+        };
+        /** AudioCell */
+        AudioCell: {
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "none" | "queued" | "running" | "ready" | "failed" | "stale";
+            /** Error */
+            error: string | null;
+            /** Duration Ms */
+            duration_ms: number | null;
+        };
+        /** AudioRetryIn */
+        AudioRetryIn: {
+            /** Attraction Id */
+            attraction_id: string;
+            /** Lang */
+            lang: string;
+        };
+        /** AudioRow */
+        AudioRow: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Langs */
+            langs: {
+                [key: string]: components["schemas"]["AudioCell"];
+            };
+        };
         /** AuditLogOut */
         AuditLogOut: {
             /** Id */
@@ -160,6 +908,72 @@ export interface components {
             /** Id */
             id: string;
         };
+        /** EventIn */
+        EventIn: {
+            /** Event Id */
+            event_id: string;
+            /** Attraction Id */
+            attraction_id: string;
+            /** Lang */
+            lang: string;
+            /**
+             * Event
+             * @enum {string}
+             */
+            event: "play" | "complete" | "skip";
+            /** Position Ms */
+            position_ms?: number | null;
+            /** Trigger */
+            trigger?: ("geofence" | "manual") | null;
+            /**
+             * Ts
+             * Format: date-time
+             */
+            ts: string;
+        };
+        /** EventsIn */
+        EventsIn: {
+            /** Device Id */
+            device_id: string;
+            /** Events */
+            events: components["schemas"]["EventIn"][];
+        };
+        /** EventsOut */
+        EventsOut: {
+            /** Accepted */
+            accepted: number;
+        };
+        /** GlossaryIn */
+        GlossaryIn: {
+            /** Term */
+            term: string;
+            /** Target Lang */
+            target_lang: string;
+            /** Translation */
+            translation: string;
+            /**
+             * Is Required
+             * @default false
+             */
+            is_required: boolean;
+            /** Attraction Id */
+            attraction_id?: string | null;
+        };
+        /** GlossaryOut */
+        GlossaryOut: {
+            /** Id */
+            id: string;
+            /** Term */
+            term: string;
+            /** Target Lang */
+            target_lang: string;
+            /** Translation */
+            translation: string;
+            /** Is Required */
+            is_required: boolean;
+            /** Attraction Id */
+            attraction_id: string | null;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -183,10 +997,185 @@ export interface components {
             /** Password */
             password: string;
         };
+        /** ManifestFile */
+        ManifestFile: {
+            /** Attraction Id */
+            attraction_id: string;
+            /** Name */
+            name: string;
+            /** Summary */
+            summary: string | null;
+            /** Lat */
+            lat: number;
+            /** Lng */
+            lng: number;
+            /** Radius */
+            radius: number;
+            /** Priority */
+            priority: number;
+            /** Is Preview */
+            is_preview: boolean;
+            /** Sha256 */
+            sha256: string;
+            /** Bytes */
+            bytes: number;
+            /** Duration Ms */
+            duration_ms: number;
+        };
+        /** ManifestOut */
+        ManifestOut: {
+            /** Pack Id */
+            pack_id: string;
+            /** Tour Id */
+            tour_id: string;
+            /** Lang */
+            lang: string;
+            /** Version */
+            version: number;
+            /**
+             * Access
+             * @enum {string}
+             */
+            access: "full" | "preview";
+            /** Files */
+            files: components["schemas"]["ManifestFile"][];
+        };
+        /** NoteIn */
+        NoteIn: {
+            /** Review Note */
+            review_note: string;
+        };
+        /** PackBuildIn */
+        PackBuildIn: {
+            /** Tour Id */
+            tour_id: string;
+            /** Lang */
+            lang: string;
+        };
+        /** PackOut */
+        PackOut: {
+            /** Id */
+            id: string;
+            /** Tour Id */
+            tour_id: string;
+            /** Lang */
+            lang: string;
+            /** Version */
+            version: number;
+            /** Status */
+            status: string;
+            /** Sha256 */
+            sha256: string | null;
+            /** Total Bytes */
+            total_bytes: number | null;
+            /** File Count */
+            file_count: number | null;
+            /** Published At */
+            published_at: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** PublicTourOut */
+        PublicTourOut: {
+            /** Id */
+            id: string;
+            /** Slug */
+            slug: string;
+            /** Name */
+            name: string;
+            /** Access */
+            access: string;
+            /** Bbox */
+            bbox: number[] | null;
+            /** Attraction Count */
+            attraction_count: number;
+            /** Langs */
+            langs: string[];
+        };
         /** RefreshIn */
         RefreshIn: {
             /** Refresh Token */
             refresh_token: string;
+        };
+        /** RejectIn */
+        RejectIn: {
+            /** Review Note */
+            review_note: string;
+        };
+        /** RevokeIn */
+        RevokeIn: {
+            /** Ticket Id */
+            ticket_id?: string | null;
+            /** Batch */
+            batch?: string | null;
+        };
+        /** RevokeOut */
+        RevokeOut: {
+            /** Revoked */
+            revoked: number;
+        };
+        /** RollbackIn */
+        RollbackIn: {
+            /** Reason */
+            reason: string;
+        };
+        /** ScriptIn */
+        ScriptIn: {
+            /** Script */
+            script: string;
+        };
+        /** TicketIssueIn */
+        TicketIssueIn: {
+            /** Batch */
+            batch: string;
+            /** Tour Ids */
+            tour_ids: string[];
+            /**
+             * Valid Until
+             * Format: date-time
+             */
+            valid_until: string;
+            /**
+             * Transfers Left
+             * @default 1
+             */
+            transfers_left: number;
+            /** Count */
+            count: number;
+        };
+        /** TicketIssueOut */
+        TicketIssueOut: {
+            /** Batch */
+            batch: string;
+            /** Codes */
+            codes: string[];
+        };
+        /** TicketOut */
+        TicketOut: {
+            /** Id */
+            id: string;
+            /** Code Hint */
+            code_hint: string;
+            /** Batch */
+            batch: string;
+            /**
+             * Valid Until
+             * Format: date-time
+             */
+            valid_until: string;
+            /** Device Id */
+            device_id: string | null;
+            /** Activated At */
+            activated_at: string | null;
+            /** Transfers Left */
+            transfers_left: number;
+            /** Status */
+            status: string;
+            /** Tour Ids */
+            tour_ids: string[];
         };
         /** TokenOut */
         TokenOut: {
@@ -206,6 +1195,141 @@ export interface components {
              */
             expires_in: number;
             user: components["schemas"]["UserOut"];
+        };
+        /** TourCreateIn */
+        TourCreateIn: {
+            /** Slug */
+            slug: string;
+            /** Name */
+            name: string;
+            /**
+             * Access
+             * @default free
+             * @enum {string}
+             */
+            access: "free" | "paid";
+            /**
+             * Status
+             * @default draft
+             * @enum {string}
+             */
+            status: "draft" | "published";
+            /** Attractions */
+            attractions: components["schemas"]["TourPoint"][];
+        };
+        /** TourDetailOut */
+        TourDetailOut: {
+            /** Id */
+            id: string;
+            /** Slug */
+            slug: string;
+            /** Name */
+            name: string;
+            /** Access */
+            access: string;
+            /** Status */
+            status: string;
+            /** Bbox */
+            bbox: number[] | null;
+            /** Attraction Count */
+            attraction_count: number;
+            /** Attractions */
+            attractions: components["schemas"]["TourPointOut"][];
+        };
+        /** TourOut */
+        TourOut: {
+            /** Id */
+            id: string;
+            /** Slug */
+            slug: string;
+            /** Name */
+            name: string;
+            /** Access */
+            access: string;
+            /** Status */
+            status: string;
+            /** Bbox */
+            bbox: number[] | null;
+            /** Attraction Count */
+            attraction_count: number;
+        };
+        /** TourPoint */
+        TourPoint: {
+            /** Id */
+            id: string;
+            /**
+             * Is Preview
+             * @default false
+             */
+            is_preview: boolean;
+        };
+        /** TourPointOut */
+        TourPointOut: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Position */
+            position: number;
+            /** Is Preview */
+            is_preview: boolean;
+            /** Lat */
+            lat: number;
+            /** Lng */
+            lng: number;
+            /** Radius */
+            radius: number;
+        };
+        /** TourUpdateIn */
+        TourUpdateIn: {
+            /** Slug */
+            slug?: string | null;
+            /** Name */
+            name?: string | null;
+            /** Access */
+            access?: ("free" | "paid") | null;
+            /** Status */
+            status?: ("draft" | "published") | null;
+            /** Attractions */
+            attractions?: components["schemas"]["TourPoint"][] | null;
+        };
+        /** TranslationEditIn */
+        TranslationEditIn: {
+            /** Text */
+            text: string;
+        };
+        /** TranslationOut */
+        TranslationOut: {
+            /** Id */
+            id: string;
+            /** Attraction Id */
+            attraction_id: string;
+            /** Title */
+            title: string;
+            /** Target Lang */
+            target_lang: string;
+            /** Version */
+            version: number;
+            /** Source Text */
+            source_text: string;
+            /** Text */
+            text: string;
+            /** Provider */
+            provider: string | null;
+            /** Qa Flags */
+            qa_flags: string[];
+            /**
+             * Review Status
+             * @enum {string}
+             */
+            review_status: "pending" | "approved" | "rejected";
+            /** Review Note */
+            review_note: string | null;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
         };
         /** UserOut */
         UserOut: {
@@ -415,6 +1539,1171 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LanguageOut"][];
+                };
+            };
+        };
+    };
+    list_attractions_api_v1_attractions_get: {
+        parameters: {
+            query?: {
+                category?: string | null;
+                status?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttractionOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_attraction_api_v1_attractions_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AttractionCreateIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttractionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_attraction_api_v1_attractions__attraction_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                attraction_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttractionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_attraction_api_v1_attractions__attraction_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                attraction_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AttractionUpdateIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttractionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    save_script_api_v1_attractions__attraction_id__script_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                attraction_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScriptIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttractionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    submit_script_api_v1_attractions__attraction_id__submit_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                attraction_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttractionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    approve_script_api_v1_attractions__attraction_id__approve_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                attraction_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttractionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reject_script_api_v1_attractions__attraction_id__reject_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                attraction_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RejectIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttractionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_translations_api_v1_translations_get: {
+        parameters: {
+            query?: {
+                lang?: string | null;
+                status?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TranslationOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    edit_translation_api_v1_translations__translation_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                translation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TranslationEditIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TranslationOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    approve_translation_api_v1_translations__translation_id__approve_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                translation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TranslationOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reject_translation_api_v1_translations__translation_id__reject_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                translation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NoteIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TranslationOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_glossary_api_v1_glossaries_get: {
+        parameters: {
+            query?: {
+                lang?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GlossaryOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_term_api_v1_glossaries_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GlossaryIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GlossaryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_term_api_v1_glossaries__glossary_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                glossary_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    audio_status_api_v1_audio_status_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AudioRow"][];
+                };
+            };
+        };
+    };
+    retry_audio_api_v1_audio_retry_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AudioRetryIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_tours_api_v1_tours_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TourOut"][];
+                };
+            };
+        };
+    };
+    create_tour_api_v1_tours_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TourCreateIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TourDetailOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_tour_api_v1_tours__tour_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tour_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TourDetailOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_tour_api_v1_tours__tour_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tour_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TourUpdateIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TourDetailOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_packs_api_v1_packs_get: {
+        parameters: {
+            query?: {
+                tour_id?: string | null;
+                lang?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PackOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    build_pack_api_v1_packs_build_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PackBuildIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PackOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    publish_pack_api_v1_packs__pack_id__publish_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pack_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PackOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    rollback_pack_api_v1_packs__pack_id__rollback_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pack_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RollbackIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PackOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_users_api_v1_admin_users_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountOut"][];
+                };
+            };
+        };
+    };
+    create_account_api_v1_admin_users_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AccountCreateIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_account_api_v1_admin_users__user_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AccountUpdateIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    search_tickets_api_v1_tickets_get: {
+        parameters: {
+            query?: {
+                q?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TicketOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    issue_tickets_api_v1_tickets_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TicketIssueIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TicketIssueOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    revoke_tickets_api_v1_tickets_revoke_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RevokeIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RevokeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    analytics_summary_api_v1_analytics_summary_get: {
+        parameters: {
+            query?: {
+                start?: string | null;
+                end?: string | null;
+                tour_id?: string | null;
+                lang?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalyticsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    tours_api_v1_public_tours_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicTourOut"][];
+                };
+            };
+        };
+    };
+    activate_api_v1_public_tickets_activate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ActivateIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActivateOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    manifest_api_v1_public_tours__tour_id__packs__lang__get: {
+        parameters: {
+            query: {
+                device_id: string;
+                preview?: boolean;
+            };
+            header?: never;
+            path: {
+                tour_id: string;
+                lang: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManifestOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    pack_file_api_v1_public_tours__tour_id__packs__lang__files__attraction_id__get: {
+        parameters: {
+            query: {
+                device_id: string;
+            };
+            header?: never;
+            path: {
+                tour_id: string;
+                lang: string;
+                attraction_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "audio/mpeg": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    playback_events_api_v1_public_playback_events_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EventsIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

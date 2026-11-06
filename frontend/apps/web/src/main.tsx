@@ -6,10 +6,16 @@ import { refreshSession } from "./auth/session";
 import "./index.css";
 
 const queryClient = new QueryClient();
+/** Mặc định dùng backend thật; muốn chạy không cần backend thì đặt VITE_USE_MSW=true. */
 async function enableMocking() {
-  if (import.meta.env.DEV) {
+  if (import.meta.env.DEV && import.meta.env.VITE_USE_MSW === "true") {
     const { worker } = await import("./mocks/browser");
     return worker.start();
+  }
+  // Gỡ service worker MSW còn sót từ lần chạy mock trước
+  if ("serviceWorker" in navigator) {
+    const regs = await navigator.serviceWorker.getRegistrations();
+    await Promise.all(regs.filter((r) => r.active?.scriptURL.endsWith("mockServiceWorker.js")).map((r) => r.unregister()));
   }
 }
 

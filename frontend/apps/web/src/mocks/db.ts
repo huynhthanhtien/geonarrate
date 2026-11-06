@@ -4,6 +4,8 @@ export interface Attraction {
   id: string;
   name: string;
   slug: string;
+  summary: string | null;
+  images: string[];
   lat: number;
   lng: number;
   radius: number;
@@ -27,6 +29,8 @@ export const db: Attraction[] = [
     id: makeId(),
     name: "Chùa Ngọc Hoàng",
     slug: "chua-ngoc-hoang",
+    summary: null,
+    images: [],
     lat: 10.7881,
     lng: 106.6978,
     radius: 40,
@@ -44,6 +48,8 @@ export const db: Attraction[] = [
     id: makeId(),
     name: "Nhà thờ Đức Bà",
     slug: "nha-tho-duc-ba",
+    summary: null,
+    images: [],
     lat: 10.7797,
     lng: 106.6990,
     radius: 100,
@@ -74,6 +80,8 @@ export function findById(id: string) {
 export function create(data: {
   name: string;
   slug: string;
+  summary: string | null;
+  images: string[];
   lat: number;
   lng: number;
   radius: number;
