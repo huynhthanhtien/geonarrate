@@ -5,6 +5,7 @@ from sqlalchemy import delete, func, insert, literal_column, select, update
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 
 from app.core.schema import attractions, audio_packs, tour_attractions, tours
+from app.core.transaction import connection
 from app.repositories._ids import parse_uuid, record
 
 _COUNT = (
@@ -23,14 +24,14 @@ class SqlTourRepository:
         stmt = select(tours, _COUNT).order_by(tours.c.updated_at.desc())
         if status:
             stmt = stmt.where(tours.c.status == status)
-        async with self._engine.connect() as conn:
+        async with connection(self._engine) as conn:
             return [record(r) for r in (await conn.execute(stmt)).mappings().all()]
 
     async def get(self, tour_id: str) -> dict[str, Any] | None:
         uid = parse_uuid(tour_id)
         if uid is None:
             return None
-        async with self._engine.connect() as conn:
+        async with connection(self._engine) as conn:
             row = (
                 (await conn.execute(select(tours, _COUNT).where(tours.c.id == uid)))
                 .mappings()
@@ -72,13 +73,13 @@ class SqlTourRepository:
         stmt = select(tours.c.id).where(tours.c.slug == slug)
         if exclude_id:
             stmt = stmt.where(tours.c.id != parse_uuid(exclude_id))
-        async with self._engine.connect() as conn:
+        async with connection(self._engine) as conn:
             return (await conn.execute(stmt)).first() is not None
 
     async def count_existing(self, attraction_ids: list[str]) -> int:
         ids = [parse_uuid(i) for i in attraction_ids]
         stmt = select(func.count()).select_from(attractions).where(attractions.c.id.in_(ids))
-        async with self._engine.connect() as conn:
+        async with connection(self._engine) as conn:
             return int((await conn.execute(stmt)).scalar_one())
 
     async def save(
@@ -91,7 +92,7 @@ class SqlTourRepository:
     ) -> str:
         """Thêm hoặc sửa tour cùng danh sách điểm, rồi tính lại bbox trong một transaction."""
         values = {**fields, "updated_by": parse_uuid(actor_id), "updated_at": now}
-        async with self._engine.begin() as conn:
+        async with connection(self._engine, write=True) as conn:
             if tour_id is None:
                 uid = (
                     await conn.execute(
@@ -142,5 +143,5 @@ class SqlTourRepository:
         stmt = select(audio_packs.c.lang).where(
             audio_packs.c.tour_id == parse_uuid(tour_id), audio_packs.c.status == "published"
         )
-        async with self._engine.connect() as conn:
+        async with connection(self._engine) as conn:
             return list((await conn.execute(stmt)).scalars())

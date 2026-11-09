@@ -9,6 +9,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from app.core.exceptions import ConflictError, InvalidContentError, NotFoundError
+from app.integrations.quality import LocalQuality
 from app.integrations.storage.local import LocalStorage
 from app.integrations.translate.base import GlossaryTerm, TranslateProvider
 from app.integrations.tts.base import TTSProvider
@@ -31,7 +32,7 @@ VOICES = {
     "ko": "ko-KR-SunHiNeural",
 }
 SOURCE_LANG = "vi"
-MP3_BYTES_PER_SECOND = 6000  # Edge TTS xuất MP3 48 kbps; đủ để hiển thị thời lượng gần đúng
+MP3_BYTES_PER_SECOND = 6000  # Các provider xuất MP3 48 kbps.
 STALE_AFTER = timedelta(minutes=10)
 
 
@@ -58,6 +59,11 @@ class PipelineService:
         translator: TranslateProvider,
         tts: TTSProvider,
         clock: Callable[[], datetime] = _utcnow,
+        *,
+        tts_voice: str | None = None,
+        quality: LocalQuality | None = None,
+        comet_qe_min: float = 0.8,
+        asr_wer_max: float = 0.08,
     ) -> None:
         self._jobs = jobs
         self._attractions = attractions
@@ -70,6 +76,10 @@ class PipelineService:
         self._storage = storage
         self._translator = translator
         self._tts = tts
+        self._tts_voice = tts_voice
+        self._quality = quality or LocalQuality()
+        self._comet_qe_min = comet_qe_min
+        self._asr_wer_max = asr_wer_max
         self._clock = clock
 
     # --- worker
@@ -104,14 +114,19 @@ class PipelineService:
         rows = await self._glossary.for_translation(p["attraction_id"], p["lang"])
         terms = [GlossaryTerm(r["term"], r["translation"], r["is_required"]) for r in rows]
         text = await self._translator.translate(attraction.script, SOURCE_LANG, p["lang"], terms)
+        score = await self._quality.translation_score(attraction.script, text)
+        flags = qa_flags(attraction.script, text, rows, self._translator.name)
+        if score is not None and score < self._comet_qe_min:
+            flags.append("low_comet_qe")
         await self._translations.upsert_machine(
             p["attraction_id"],
             p["lang"],
             text,
             self._translator.name,
-            qa_flags(attraction.script, text, rows, self._translator.name),
+            flags,
             text_hash(text),
             self._clock(),
+            comet_qe=score,
         )
 
     async def _approved_text(self, attraction_id: str, lang: str) -> str | None:
@@ -130,10 +145,13 @@ class PipelineService:
         h = text_hash(text)
         if await self._audio.find_asset(aid, lang, h):
             return
-        voice = VOICES.get(lang, VOICES["en"])
-        data = await self._tts.synthesize(text, voice)
+        voice = self._tts_voice or VOICES.get(lang, VOICES["en"])
+        data = await self._tts.synthesize(text, voice, lang=lang)
         if not data:
             raise RuntimeError("TTS không trả về âm thanh")
+        wer = await self._quality.audio_wer(text, data, lang)
+        if wer is not None and wer > self._asr_wer_max:
+            raise RuntimeError(f"ASR WER {wer:.3f} vượt ngưỡng {self._asr_wer_max:.3f}")
         key = f"audio/{aid}/{lang}/{h}.mp3"
         self._storage.put(key, data)
         await self._audio.upsert_asset(
@@ -146,6 +164,7 @@ class PipelineService:
             len(data) * 1000 // MP3_BYTES_PER_SECOND,
             _sha(data),
             self._clock(),
+            asr_wer=wer,
         )
 
     async def _tour_assets(
@@ -281,6 +300,13 @@ class PipelineService:
             return {"state": "failed", "error": error, "duration_ms": None}
         state = "stale" if (aid, lang) in any_asset else "none"
         return {"state": state, "error": None, "duration_ms": None}
+
+    async def audio_preview_path(self, attraction_id: str, lang: str) -> str:
+        text = await self._approved_text(attraction_id, lang)
+        asset = await self._audio.find_asset(attraction_id, lang, text_hash(text)) if text else None
+        if asset is None or not self._storage.exists(asset["storage_key"]):
+            raise NotFoundError("audio_not_found", "Chưa có audio cho nội dung đã duyệt")
+        return self.file_path(asset["storage_key"])
 
     async def retry_audio(self, attraction_id: str, lang: str, actor_id: str) -> None:
         text = await self._approved_text(attraction_id, lang)

@@ -10,11 +10,16 @@ from app.core.database import get_engine
 from app.core.exceptions import ForbiddenError, UnauthorizedError
 from app.core.permissions import Permission, permissions_for
 from app.core.security import Principal
+from app.integrations.quality import LocalQuality
 from app.integrations.storage.local import LocalStorage
+from app.integrations.storage.s3 import S3Storage
 from app.integrations.translate.base import TranslateProvider
+from app.integrations.translate.libretranslate import LibreTranslate
 from app.integrations.translate.mock import MockTranslate
+from app.integrations.tts.azure import AzureTTS
 from app.integrations.tts.base import TTSProvider
 from app.integrations.tts.edge import EdgeTTS
+from app.integrations.tts.magpie import MagpieTTS
 from app.repositories.access_revocation_repo import RedisAccessRevocationRepository
 from app.repositories.analytics_repo import SqlAnalyticsRepository
 from app.repositories.attraction_repo import SqlAttractionRepository
@@ -74,17 +79,23 @@ def get_content_service() -> ContentService:
 
 
 def _translator() -> TranslateProvider:
-    provider = get_settings().translate_provider
-    if provider != "mock":
-        raise RuntimeError(f"Chưa có adapter dịch máy cho '{provider}' (PRD Q-05)")
+    settings = get_settings()
+    if settings.translate_provider == "libretranslate":
+        return LibreTranslate(settings.libretranslate_url, settings.libretranslate_api_key)
     return MockTranslate()
 
 
 def _tts() -> TTSProvider:
+    settings = get_settings()
+    # if settings.tts_provider == "azure":
+        # return AzureTTS(settings.azure_speech_key, settings.azure_speech_region)
+    if settings.tts_provider == "magpie":
+        return MagpieTTS(settings.magpie_tts_url)
     return EdgeTTS()
 
 
 def get_pipeline_service() -> PipelineService:
+    settings = get_settings()
     engine = get_engine()
     return PipelineService(
         SqlJobRepository(engine),
@@ -95,9 +106,15 @@ def get_pipeline_service() -> PipelineService:
         SqlTourRepository(engine),
         SqlLanguageRepository(engine),
         get_audit_service(),
-        LocalStorage(get_settings().storage_dir),
+        S3Storage(settings.storage_dir, settings.s3_bucket, settings.s3_endpoint_url)
+        if settings.storage_provider == "s3"
+        else LocalStorage(settings.storage_dir),
         _translator(),
         _tts(),
+        tts_voice=settings.magpie_tts_voice if settings.tts_provider == "magpie" else None,
+        quality=LocalQuality(settings.comet_model, settings.whisper_model),
+        comet_qe_min=settings.comet_qe_min,
+        asr_wer_max=settings.asr_wer_max,
     )
 
 

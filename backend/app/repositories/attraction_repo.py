@@ -7,6 +7,7 @@ from sqlalchemy.engine import RowMapping
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from app.core.schema import attractions
+from app.core.transaction import connection
 from app.models.attraction import Attraction, ScriptStatus
 from app.repositories._ids import parse_uuid
 from app.repositories.job_repo import add_jobs
@@ -68,7 +69,7 @@ class SqlAttractionRepository:
             stmt = stmt.where(_t.c.category == category)
         if script_status:
             stmt = stmt.where(_t.c.script["status"].astext == script_status)
-        async with self._engine.connect() as conn:
+        async with connection(self._engine) as conn:
             rows = (await conn.execute(stmt)).mappings().all()
         return [_to_entity(row) for row in rows]
 
@@ -76,7 +77,7 @@ class SqlAttractionRepository:
         uid = parse_uuid(attraction_id)
         if uid is None:
             return None
-        async with self._engine.connect() as conn:
+        async with connection(self._engine) as conn:
             row = (
                 (await conn.execute(select(*_COLUMNS).where(_t.c.id == uid)))
                 .mappings()
@@ -129,7 +130,7 @@ class SqlAttractionRepository:
             .on_conflict_do_nothing(index_elements=[_t.c.slug])
             .returning(*_COLUMNS)
         )
-        async with self._engine.begin() as conn:
+        async with connection(self._engine, write=True) as conn:
             row = (await conn.execute(stmt)).mappings().one_or_none()
         return _to_entity(row) if row else None
 
@@ -153,7 +154,7 @@ class SqlAttractionRepository:
             .values(**values, updated_by=parse_uuid(actor_id), updated_at=now)
             .returning(*_COLUMNS)
         )
-        async with self._engine.begin() as conn:
+        async with connection(self._engine, write=True) as conn:
             row = (await conn.execute(stmt)).mappings().one_or_none()
         return _to_entity(row) if row else None
 
@@ -183,7 +184,7 @@ class SqlAttractionRepository:
             )
             .returning(*_COLUMNS)
         )
-        async with self._engine.begin() as conn:
+        async with connection(self._engine, write=True) as conn:
             row = (await conn.execute(stmt)).mappings().one_or_none()
             if row and jobs:
                 await add_jobs(conn, jobs, actor_id, now)

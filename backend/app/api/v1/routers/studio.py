@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, status
+from fastapi.responses import FileResponse
 
 from app.api.v1.schemas.studio import (
     AccountCreateIn,
@@ -111,6 +112,18 @@ async def delete_term(glossary_id: str, svc: Content, _: Translator) -> None:
 @router.get("/audio/status", response_model=list[AudioRow])
 async def audio_status(svc: Pipeline, _: AudioBuilder) -> list[dict[str, Any]]:
     return await svc.audio_status()
+
+
+@router.get(
+    "/audio/{attraction_id}/{lang}/preview",
+    response_class=FileResponse,
+    responses={200: {"content": {"audio/mpeg": {}}}},
+)
+async def preview_audio(
+    attraction_id: str, lang: str, svc: Pipeline, _: AudioBuilder
+) -> FileResponse:
+    path = await svc.audio_preview_path(attraction_id, lang)
+    return FileResponse(path, media_type="audio/mpeg", headers={"Cache-Control": "no-store"})
 
 
 @router.post("/audio/retry", status_code=status.HTTP_204_NO_CONTENT)

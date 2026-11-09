@@ -7,6 +7,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 
 from app.core.schema import jobs
+from app.core.transaction import connection
 from app.repositories._ids import parse_uuid, record
 
 MAX_ATTEMPTS = 3
@@ -49,7 +50,7 @@ class SqlJobRepository:
     async def enqueue(
         self, specs: list[dict[str, Any]], actor_id: str | None, now: datetime
     ) -> None:
-        async with self._engine.begin() as conn:
+        async with connection(self._engine, write=True) as conn:
             await add_jobs(conn, specs, actor_id, now)
 
     async def claim_next(self, now: datetime) -> dict[str, Any] | None:
@@ -71,12 +72,12 @@ class SqlJobRepository:
             .values(status="running", attempts=jobs.c.attempts + 1, updated_at=now)
             .returning(jobs)
         )
-        async with self._engine.begin() as conn:
+        async with connection(self._engine, write=True) as conn:
             row = (await conn.execute(stmt)).mappings().one_or_none()
         return record(row) if row else None
 
     async def finish(self, job_id: str, now: datetime) -> None:
-        async with self._engine.begin() as conn:
+        async with connection(self._engine, write=True) as conn:
             await conn.execute(
                 update(jobs)
                 .where(jobs.c.id == parse_uuid(job_id))
@@ -86,7 +87,7 @@ class SqlJobRepository:
     async def fail(self, job_id: str, attempts: int, message: str, now: datetime) -> None:
         """Còn lượt thì đưa về hàng đợi, hết lượt thì `failed` để người dùng bấm thử lại."""
         status = "queued" if attempts < MAX_ATTEMPTS else "failed"
-        async with self._engine.begin() as conn:
+        async with connection(self._engine, write=True) as conn:
             await conn.execute(
                 update(jobs)
                 .where(jobs.c.id == parse_uuid(job_id))
@@ -100,7 +101,7 @@ class SqlJobRepository:
 
     async def requeue_stale(self, cutoff: datetime, now: datetime) -> int:
         """Worker chết giữa chừng để job kẹt ở running."""
-        async with self._engine.begin() as conn:
+        async with connection(self._engine, write=True) as conn:
             stale = (
                 await conn.execute(
                     update(jobs)
@@ -119,6 +120,6 @@ class SqlJobRepository:
             .where(jobs.c.dedupe_key.startswith(prefix, autoescape=True))
             .order_by(jobs.c.updated_at)
         )
-        async with self._engine.connect() as conn:
+        async with connection(self._engine) as conn:
             rows = (await conn.execute(stmt)).mappings().all()
         return {r["dedupe_key"]: dict(r) for r in rows}

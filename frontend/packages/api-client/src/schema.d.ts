@@ -87,7 +87,7 @@ export interface paths {
         };
         /**
          * List Audit Logs
-         * @description Nhật ký thao tác, mới nhất trước. Lọc tài nguyên cần đủ `resource_type` + `resource_id`.
+         * @description Lọc theo người, hành động, loại đối tượng, từ khoá và thời gian [since, until).
          */
         get: operations["list_audit_logs_api_v1_audit_get"];
         put?: never;
@@ -342,6 +342,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/audio/{attraction_id}/{lang}/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Preview Audio */
+        get: operations["preview_audio_api_v1_audio__attraction_id___lang__preview_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/audio/retry": {
         parameters: {
             query?: never;
@@ -547,6 +564,23 @@ export interface paths {
         get: operations["analytics_summary_api_v1_analytics_summary_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/public/devices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Register Device */
+        post: operations["register_device_api_v1_public_devices_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1318,6 +1352,8 @@ export interface components {
             provider: string | null;
             /** Qa Flags */
             qa_flags: string[];
+            /** Comet Qe */
+            comet_qe?: number | null;
             /**
              * Review Status
              * @enum {string}
@@ -1496,6 +1532,11 @@ export interface operations {
                 resource_id?: string | null;
                 /** @description ts của bản ghi cuối trang trước */
                 before?: string | null;
+                before_id?: string | null;
+                action?: string | null;
+                since?: string | null;
+                until?: string | null;
+                q?: string | null;
             };
             header?: never;
             path?: never;
@@ -2052,6 +2093,38 @@ export interface operations {
             };
         };
     };
+    preview_audio_api_v1_audio__attraction_id___lang__preview_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                attraction_id: string;
+                lang: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "audio/mpeg": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     retry_audio_api_v1_audio_retry_post: {
         parameters: {
             query?: never;
@@ -2552,6 +2625,28 @@ export interface operations {
             };
         };
     };
+    register_device_api_v1_public_devices_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string;
+                    };
+                };
+            };
+        };
+    };
     tours_api_v1_public_tours_get: {
         parameters: {
             query?: never;
@@ -2644,6 +2739,7 @@ export interface operations {
         parameters: {
             query: {
                 device_id: string;
+                pack_id?: string | null;
             };
             header?: never;
             path: {

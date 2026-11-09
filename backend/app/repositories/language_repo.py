@@ -6,6 +6,7 @@ from sqlalchemy.engine import RowMapping
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from app.core.schema import languages
+from app.core.transaction import connection
 from app.models.language import Language
 
 
@@ -20,7 +21,7 @@ class SqlLanguageRepository:
 
     async def list_active(self) -> list[Language]:
         stmt = select(languages).where(languages.c.is_active).order_by(languages.c.code)
-        async with self._engine.connect() as conn:
+        async with connection(self._engine) as conn:
             rows = (await conn.execute(stmt)).mappings().all()
         return [_to_entity(row) for row in rows]
 
@@ -36,7 +37,7 @@ class SqlLanguageRepository:
             .values(code=lang.code, **values)
             .on_conflict_do_update(index_elements=[languages.c.code], set_=values)
         )
-        async with self._engine.begin() as conn:
+        async with connection(self._engine, write=True) as conn:
             await conn.execute(stmt)
 
 

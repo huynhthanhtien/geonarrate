@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Backend FastAPI 3 lớp — Thuyết minh tự động đa ngôn ngữ"
 requires-python = ">=3.12"
 dependencies = [
-  "fastapi>=0.115",
+  "fastapi>=0.121",  # Depends(scope="function"): commit trước khi gửi response
   "uvicorn[standard]>=0.30",
   "pydantic>=2.8",
   "pydantic-settings>=2.4",
@@ -20,6 +20,8 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+cloud = ["boto3>=1.35"]
+quality = ["unbabel-comet>=2.2", "faster-whisper>=1.1"]
 dev = [
   "pytest>=8",
   "pytest-asyncio>=0.24",

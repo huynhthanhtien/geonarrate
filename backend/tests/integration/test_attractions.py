@@ -12,6 +12,8 @@ from app.core.config import get_settings
 from app.core.schema import attractions, audit_logs, users
 from app.core.security import hash_password
 from app.main import app
+from app.models.audit import AuditLog, AuditResource
+from app.services.audit_service import AuditService
 from tests.integration.conftest import run_sql
 
 pytestmark = pytest.mark.integration
@@ -54,6 +56,28 @@ def client() -> Iterator[TestClient]:
 def _headers(client: TestClient, creds: dict[str, str]) -> dict[str, str]:
     token = client.post("/api/v1/auth/login", json=creds).json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
+
+
+def test_audit_failure_rolls_back_business_change(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    headers = _headers(client, EDITOR)
+    created = client.post(BASE, json=NEW, headers=headers).json()
+
+    async def fail(
+        self: AuditService,
+        actor_id: str,
+        action: str,
+        resource: AuditResource,
+        note: str | None = None,
+    ) -> AuditLog:
+        raise RuntimeError("audit unavailable")
+
+    monkeypatch.setattr(AuditService, "record", fail)
+    with pytest.raises(RuntimeError, match="audit unavailable"):
+        client.patch(f"{BASE}/{created['id']}", json={"name": "Changed"}, headers=headers)
+    current = client.get(f"{BASE}/{created['id']}", headers=headers).json()
+    assert current["name"] == NEW["name"]
 
 
 def test_requires_login_and_permissions(client: TestClient) -> None:

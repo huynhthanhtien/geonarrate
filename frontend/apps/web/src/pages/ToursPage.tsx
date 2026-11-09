@@ -1,8 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Save } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { sendJson } from "../api";
 import { Badge, Empty, ErrorBox, Field, ghostBtn, inputClass, Page, primaryBtn, Table } from "../components/ui";
+import { AttractionsMap } from "../components/AttractionsMap";
 
 interface Form {
   id?: string;
@@ -19,6 +20,10 @@ export function ToursPage() {
   const [form, setForm] = useState<Form | null>(null);
   const tours = useQuery({ queryKey: ["tours"], queryFn: () => sendJson<any[]>("/api/v1/tours"), retry: false });
   const points = useQuery({ queryKey: ["attractions", "", ""], queryFn: () => sendJson<any[]>("/api/v1/attractions?"), retry: false });
+  const tourPoints = useMemo(() => form ? Object.keys(form.points).flatMap((id) => {
+    const point = points.data?.find((p) => p.id === id);
+    return point ? [point] : [];
+  }) : [], [form?.points, points.data]);
   const open = useMutation({
     mutationFn: (id: string) => sendJson<any>(`/api/v1/tours/${id}`),
     onSuccess: (t) =>
@@ -69,6 +74,8 @@ export function ToursPage() {
               </select>
             </Field>
           </div>
+          <ErrorBox error={points.error} />
+          {tourPoints.length > 0 ? <AttractionsMap points={tourPoints} connectPoints /> : <p className="rounded-lg bg-slate-50 p-4 text-sm text-slate-500">Chọn điểm bên dưới để xem vị trí và vùng kích hoạt trên bản đồ tour.</p>}
           <div>
             <p className="text-sm font-medium text-slate-600 mb-2">Điểm trong tour</p>
             <div className="grid md:grid-cols-2 gap-1.5">

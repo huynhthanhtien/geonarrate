@@ -1,6 +1,6 @@
 from datetime import UTC, datetime, timedelta
 
-from app.models.audit import AuditLog, AuditResource
+from app.models.audit import AuditFilters, AuditLog, AuditResource
 from app.services.audit_service import AuditService
 
 
@@ -26,6 +26,7 @@ class FakeAuditRepo:
         actor_id: str | None = None,
         resource: AuditResource | None = None,
         before: datetime | None = None,
+        filters: AuditFilters | None = None,
     ) -> list[AuditLog]:
         logs = [
             x

@@ -38,7 +38,10 @@
           "recordAudioAndroid": false
         }
       ],
-      "expo-audio"
+      "expo-audio",
+      "@maplibre/maplibre-react-native",
+      "./plugins/android-map-network",
+      "./plugins/android-dev-network"
     ],
     "scheme": "geonarrate"
   }

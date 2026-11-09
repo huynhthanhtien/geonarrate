@@ -13,7 +13,7 @@ export function Screen({ title, onBack, children }: { title: string; onBack?: ()
         )}
         <Text style={s.title} numberOfLines={1}>{title}</Text>
       </View>
-      <ScrollView contentContainerStyle={s.body}>{children}</ScrollView>
+      <ScrollView contentContainerStyle={s.body} keyboardShouldPersistTaps="handled">{children}</ScrollView>
     </View>
   );
 }

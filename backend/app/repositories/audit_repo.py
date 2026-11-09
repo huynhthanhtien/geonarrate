@@ -1,12 +1,13 @@
 from datetime import datetime
 from typing import Protocol
 
-from sqlalchemy import insert, select
+from sqlalchemy import and_, insert, or_, select
 from sqlalchemy.engine import RowMapping
 from sqlalchemy.ext.asyncio import AsyncEngine
 
-from app.core.schema import audit_logs
-from app.models.audit import AuditLog, AuditResource
+from app.core.schema import audit_logs, users
+from app.core.transaction import connection
+from app.models.audit import AuditFilters, AuditLog, AuditResource
 from app.repositories._ids import parse_uuid
 
 
@@ -25,6 +26,7 @@ class AuditLogRepository(Protocol):
         actor_id: str | None = None,
         resource: AuditResource | None = None,
         before: datetime | None = None,
+        filters: AuditFilters | None = None,
     ) -> list[AuditLog]: ...
 
 
@@ -53,7 +55,7 @@ class SqlAuditLogRepository:
             )
             .returning(audit_logs)
         )
-        async with self._engine.begin() as conn:
+        async with connection(self._engine, write=True) as conn:
             row = (await conn.execute(stmt)).mappings().one()
         return _to_entity(row)
 
@@ -63,9 +65,12 @@ class SqlAuditLogRepository:
         actor_id: str | None = None,
         resource: AuditResource | None = None,
         before: datetime | None = None,
+        filters: AuditFilters | None = None,
     ) -> list[AuditLog]:
         """Mới nhất trước; `before` là `ts` của bản ghi cuối trang trước."""
-        stmt = select(audit_logs).order_by(audit_logs.c.ts.desc()).limit(limit)
+        stmt = (
+            select(audit_logs).order_by(audit_logs.c.ts.desc(), audit_logs.c.id.desc()).limit(limit)
+        )
         if actor_id is not None:
             uid = parse_uuid(actor_id)
             if uid is None:
@@ -76,9 +81,36 @@ class SqlAuditLogRepository:
                 audit_logs.c.resource_type == resource.type,
                 audit_logs.c.resource_id == resource.id,
             )
+        f = filters or AuditFilters()
+        if f.action:
+            stmt = stmt.where(audit_logs.c.action == f.action)
+        if f.resource_type:
+            stmt = stmt.where(audit_logs.c.resource_type == f.resource_type)
+        if f.resource_id:
+            stmt = stmt.where(audit_logs.c.resource_id == f.resource_id)
+        if f.since is not None:
+            stmt = stmt.where(audit_logs.c.ts >= f.since)
+        if f.until is not None:
+            stmt = stmt.where(audit_logs.c.ts < f.until)
+        if f.q:
+            stmt = stmt.outerjoin(users, users.c.id == audit_logs.c.actor_id).where(
+                or_(
+                    users.c.full_name.icontains(f.q, autoescape=True),
+                    users.c.email.icontains(f.q, autoescape=True),
+                    audit_logs.c.note.icontains(f.q, autoescape=True),
+                    audit_logs.c.resource_id.icontains(f.q, autoescape=True),
+                    audit_logs.c.action.icontains(f.q, autoescape=True),
+                )
+            )
         if before is not None:
-            stmt = stmt.where(audit_logs.c.ts < before)
-        async with self._engine.connect() as conn:
+            condition = audit_logs.c.ts < before
+            if f.before_id:
+                condition = or_(
+                    condition,
+                    and_(audit_logs.c.ts == before, audit_logs.c.id < parse_uuid(f.before_id)),
+                )
+            stmt = stmt.where(condition)
+        async with connection(self._engine) as conn:
             rows = (await conn.execute(stmt)).mappings().all()
         return [_to_entity(row) for row in rows]
 

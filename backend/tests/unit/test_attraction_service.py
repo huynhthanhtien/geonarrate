@@ -6,7 +6,7 @@ import pytest
 
 from app.core.exceptions import ConflictError, InvalidContentError, NotFoundError
 from app.models.attraction import Attraction, ScriptStatus
-from app.models.audit import AuditLog, AuditResource
+from app.models.audit import AuditFilters, AuditLog, AuditResource
 from app.models.language import Language
 from app.services.attraction_service import AttractionService, slugify
 from app.services.audit_service import AuditService
@@ -31,6 +31,7 @@ class FakeAudit:
         actor_id: str | None = None,
         resource: AuditResource | None = None,
         before: datetime | None = None,
+        filters: AuditFilters | None = None,
     ) -> list[AuditLog]:
         return []
 

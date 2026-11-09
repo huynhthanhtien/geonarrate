@@ -6,6 +6,7 @@ from sqlalchemy.engine import RowMapping
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from app.core.schema import users
+from app.core.transaction import connection
 from app.models.user import Role, User
 from app.repositories._ids import parse_uuid
 
@@ -28,7 +29,7 @@ class SqlUserRepository:
         self._engine = engine
 
     async def get_by_email(self, email: str) -> User | None:
-        async with self._engine.connect() as conn:
+        async with connection(self._engine) as conn:
             row = (
                 (await conn.execute(select(users).where(users.c.email == email)))
                 .mappings()
@@ -40,7 +41,7 @@ class SqlUserRepository:
         uid = parse_uuid(user_id)
         if uid is None:
             return None
-        async with self._engine.connect() as conn:
+        async with connection(self._engine) as conn:
             row = (
                 (await conn.execute(select(users).where(users.c.id == uid)))
                 .mappings()
@@ -63,7 +64,7 @@ class SqlUserRepository:
             )
             .returning(users)
         )
-        async with self._engine.begin() as conn:
+        async with connection(self._engine, write=True) as conn:
             row = (await conn.execute(stmt)).mappings().one()
         return _to_entity(row)
 
@@ -75,11 +76,11 @@ class SqlUserRepository:
         values: dict[str, Any] = {"last_login_at": now}
         if password_hash:
             values |= {"password_hash": password_hash, "updated_at": now}
-        async with self._engine.begin() as conn:
+        async with connection(self._engine, write=True) as conn:
             await conn.execute(update(users).where(users.c.id == uid).values(**values))
 
     async def find_all(self) -> list[User]:
-        async with self._engine.connect() as conn:
+        async with connection(self._engine) as conn:
             rows = (await conn.execute(select(users).order_by(users.c.email))).mappings().all()
         return [_to_entity(r) for r in rows]
 
@@ -92,7 +93,7 @@ class SqlUserRepository:
         stmt = (
             update(users).where(users.c.id == uid).values(**fields, updated_at=now).returning(users)
         )
-        async with self._engine.begin() as conn:
+        async with connection(self._engine, write=True) as conn:
             row = (await conn.execute(stmt)).mappings().one_or_none()
         return _to_entity(row) if row else None
 

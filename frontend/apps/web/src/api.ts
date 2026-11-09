@@ -26,3 +26,10 @@ export async function sendJson<T>(url: string, method = "GET", body?: unknown): 
   if (!res.ok) throw new Error(await errorMessage(res));
   return (await res.json()) as T;
 }
+
+export async function getAudioPreview(attractionId: string, lang: string, signal: AbortSignal): Promise<Blob> {
+  const path = `/api/v1/audio/${encodeURIComponent(attractionId)}/${encodeURIComponent(lang)}/preview`;
+  const response = await authFetch(new Request(path, { signal }));
+  if (!response.ok) throw new Error(await errorMessage(response));
+  return response.blob();
+}

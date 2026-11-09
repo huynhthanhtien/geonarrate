@@ -6,6 +6,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from app.core.schema import attractions, languages, playback_events, tour_attractions
+from app.core.transaction import connection
 from app.repositories._ids import parse_uuid
 
 
@@ -19,7 +20,7 @@ class SqlAnalyticsRepository:
             return 0
         ids = {parse_uuid(e["attraction_id"]) for e in events} - {None}
         rows = []
-        async with self._engine.begin() as conn:
+        async with connection(self._engine, write=True) as conn:
             known = set(
                 (
                     await conn.execute(select(attractions.c.id).where(attractions.c.id.in_(ids)))
@@ -56,7 +57,7 @@ class SqlAnalyticsRepository:
             )
         plays = func.sum(case((p.c.event == "play", 1), else_=0))
         completes = func.sum(case((p.c.event == "complete", 1), else_=0))
-        async with self._engine.connect() as conn:
+        async with connection(self._engine) as conn:
             total = (await conn.execute(select(plays, completes).where(*conds))).one()
             top = (
                 await conn.execute(

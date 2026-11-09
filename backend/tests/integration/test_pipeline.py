@@ -13,7 +13,9 @@ from sqlalchemy.ext.asyncio import AsyncConnection
 
 from app.core import deps, schema
 from app.core.config import get_settings
+from app.core.device import issue_device_id
 from app.core.security import hash_password
+from app.integrations.quality import LocalQuality
 from app.main import app
 from app.repositories import job_repo
 from tests.integration.conftest import run_sql
@@ -23,14 +25,16 @@ pytestmark = pytest.mark.integration
 API = "/api/v1"
 ADMIN = {"email": "admin@geonarrate.test", "password": "admin-test-password"}
 TRANSLATOR = {"email": "translator@geonarrate.test", "password": "translator-test-password"}
-DEVICE = "device-00000001"
-OTHER = "device-00000002"
+DEVICE = issue_device_id()
+OTHER = issue_device_id()
 
 
 class FakeTTS:
     fail = False
 
-    async def synthesize(self, text: str, voice_id: str, rate: str = "+0%") -> bytes:
+    async def synthesize(
+        self, text: str, voice_id: str, rate: str = "+0%", *, lang: str = "en"
+    ) -> bytes:
         if FakeTTS.fail:
             raise RuntimeError("TTS sập")
         return f"{voice_id}:{text}".encode() * 100
@@ -73,7 +77,7 @@ def client(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Iterator[TestClie
 
     run_sql(reset)
     with Redis.from_url(get_settings().redis_url) as redis:
-        for key in redis.scan_iter("rl:login:*"):
+        for key in redis.scan_iter("rl:*"):
             redis.delete(key)
     with TestClient(app) as c:
         yield c
@@ -186,6 +190,8 @@ def test_audio_failure_retries_then_can_be_retried_by_admin(client: TestClient) 
     admin = _login(client, ADMIN)
     FakeTTS.fail = True
     point = _approved_point(client, admin, "Điểm lỗi", "Nội dung.")
+    preview = f"{API}/audio/{point}/vi/preview"
+    assert client.get(preview, headers=admin).status_code == 404
     _drain(client)
     cell = {x["id"]: x for x in client.get(f"{API}/audio/status", headers=admin).json()}[point]
     assert cell["langs"]["vi"]["state"] == "failed"
@@ -197,8 +203,37 @@ def test_audio_failure_retries_then_can_be_retried_by_admin(client: TestClient) 
     _drain(client)
     cell = {x["id"]: x for x in client.get(f"{API}/audio/status", headers=admin).json()}[point]
     assert cell["langs"]["vi"]["state"] == "ready"
+    assert client.get(preview).status_code == 401
+    translator = _login(client, TRANSLATOR)
+    assert client.get(preview, headers=translator).status_code == 403
+    audio = client.get(preview, headers=admin)
+    assert audio.status_code == 200
+    assert audio.headers["content-type"] == "audio/mpeg"
+    assert audio.headers["cache-control"] == "no-store"
+    assert "Nội dung".encode() in audio.content
     bad = {"attraction_id": point, "lang": "en"}
     assert client.post(f"{API}/audio/retry", json=bad, headers=admin).status_code == 422
+
+
+def test_quality_scores_flag_translation_and_block_bad_audio(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def score(self: LocalQuality, source: str, text: str) -> float:
+        return 0.4
+
+    async def wer(self: LocalQuality, text: str, audio: bytes, lang: str) -> float:
+        return 0.5
+
+    monkeypatch.setattr(LocalQuality, "translation_score", score)
+    monkeypatch.setattr(LocalQuality, "audio_wer", wer)
+    admin = _login(client, ADMIN)
+    point = _approved_point(client, admin, "Điểm QA", "Nội dung cần kiểm tra.")
+    _drain(client)
+    rows = client.get(f"{API}/translations", headers=admin).json()
+    assert all(row["comet_qe"] == 0.4 and "low_comet_qe" in row["qa_flags"] for row in rows)
+    cells = client.get(f"{API}/audio/status", headers=admin).json()
+    cell = next(row for row in cells if row["id"] == point)["langs"]["vi"]
+    assert cell["state"] == "failed" and "ASR WER" in cell["error"]
 
 
 def test_pack_publish_rollback_and_missing_audio(client: TestClient) -> None:
@@ -237,6 +272,12 @@ def test_pack_publish_rollback_and_missing_audio(client: TestClient) -> None:
     assert back.json()["status"] == "published"
     packs = client.get(f"{API}/packs", params={"tour_id": tour}, headers=admin).json()
     assert {p["version"]: p["status"] for p in packs} == {1: "published", 2: "superseded"}
+    file_url = f"{API}/public/tours/{tour}/packs/en/files/{p2}"
+    params = {"device_id": DEVICE}
+    assert client.get(file_url, params=params).status_code == 404
+    previous = client.get(file_url, params={**params, "pack_id": by_version[2]["id"]})
+    assert previous.status_code == 200
+    assert previous.headers["content-type"] == "audio/mpeg"
     wrong = client.post(
         f"{API}/packs/{by_version[1]['id']}/rollback", json={"reason": "x"}, headers=admin
     )
@@ -285,6 +326,9 @@ def test_ticket_mobile_flow_and_analytics(client: TestClient) -> None:
     assert "storage_key" not in preview["files"][0]
     assert client.get(f"{url}/files/{p1}", params={"device_id": DEVICE}).status_code == 200
     assert client.get(f"{url}/files/{p2}", params={"device_id": DEVICE}).status_code == 403
+    pinned = {"device_id": DEVICE, "pack_id": preview["pack_id"]}
+    assert client.get(f"{url}/files/{p1}", params=pinned).status_code == 200
+    assert client.get(f"{url}/files/{p2}", params=pinned).status_code == 403
 
     until = (datetime.now(UTC) + timedelta(days=30)).isoformat()
     body = {"batch": "QUAY-1", "tour_ids": [tour], "valid_until": until, "count": 2}

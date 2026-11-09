@@ -6,6 +6,7 @@ from sqlalchemy.engine import RowMapping
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from app.core.schema import refresh_tokens
+from app.core.transaction import connection
 from app.models.user import RefreshToken
 from app.repositories._ids import parse_uuid
 
@@ -38,13 +39,13 @@ class SqlRefreshTokenRepository:
             )
             .returning(refresh_tokens)
         )
-        async with self._engine.begin() as conn:
+        async with connection(self._engine, write=True) as conn:
             row = (await conn.execute(stmt)).mappings().one()
         return _to_entity(row)
 
     async def get_by_hash(self, token_hash: str) -> RefreshToken | None:
         stmt = select(refresh_tokens).where(refresh_tokens.c.token_hash == token_hash)
-        async with self._engine.connect() as conn:
+        async with connection(self._engine) as conn:
             row = (await conn.execute(stmt)).mappings().one_or_none()
         return _to_entity(row) if row else None
 
@@ -56,7 +57,7 @@ class SqlRefreshTokenRepository:
             .values(revoked_at=now)
             .returning(refresh_tokens)
         )
-        async with self._engine.begin() as conn:
+        async with connection(self._engine, write=True) as conn:
             row = (await conn.execute(stmt)).mappings().one_or_none()
         return _to_entity(row) if row else None
 
@@ -66,7 +67,7 @@ class SqlRefreshTokenRepository:
             .where(refresh_tokens.c.family_id == family_id, refresh_tokens.c.revoked_at.is_(None))
             .values(revoked_at=now)
         )
-        async with self._engine.begin() as conn:
+        async with connection(self._engine, write=True) as conn:
             await conn.execute(stmt)
 
     async def revoke_all_for_user(self, user_id: str, now: datetime) -> None:
@@ -78,7 +79,7 @@ class SqlRefreshTokenRepository:
             .where(refresh_tokens.c.user_id == uid, refresh_tokens.c.revoked_at.is_(None))
             .values(revoked_at=now)
         )
-        async with self._engine.begin() as conn:
+        async with connection(self._engine, write=True) as conn:
             await conn.execute(stmt)
 
 

@@ -5,6 +5,7 @@
   "dependencies": {
     "@geonarrate/core": "workspace:*",
     "@geonarrate/tokens": "workspace:*",
+    "@maplibre/maplibre-react-native": "^11.5.1",
     "expo": "~57.0.28",
     "expo-application": "~57.0.3",
     "expo-audio": "~57.0.5",

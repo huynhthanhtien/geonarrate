@@ -148,7 +148,7 @@
           "identity"
         ],
         "summary": "List Audit Logs",
-        "description": "Nhật ký thao tác, mới nhất trước. Lọc tài nguyên cần đủ `resource_type` + `resource_id`.",
+        "description": "Lọc theo người, hành động, loại đối tượng, từ khoá và thời gian [since, until).",
         "operationId": "list_audit_logs_api_v1_audit_get",
         "security": [
           {
@@ -234,6 +234,91 @@
               "title": "Before"
             },
             "description": "ts của bản ghi cuối trang trước"
+          },
+          {
+            "name": "before_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Before Id"
+            }
+          },
+          {
+            "name": "action",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 100
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Action"
+            }
+          },
+          {
+            "name": "since",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Since"
+            }
+          },
+          {
+            "name": "until",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Until"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 200
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
           }
         ],
         "responses": {
@@ -1125,6 +1210,58 @@
         ]
       }
     },
+    "/api/v1/audio/{attraction_id}/{lang}/preview": {
+      "get": {
+        "tags": [
+          "studio"
+        ],
+        "summary": "Preview Audio",
+        "operationId": "preview_audio_api_v1_audio__attraction_id___lang__preview_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "attraction_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Attraction Id"
+            }
+          },
+          {
+            "name": "lang",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Lang"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "audio/mpeg": {}
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/audio/retry": {
       "post": {
         "tags": [
@@ -1948,6 +2085,31 @@
         }
       }
     },
+    "/api/v1/public/devices": {
+      "post": {
+        "tags": [
+          "public"
+        ],
+        "summary": "Register Device",
+        "operationId": "register_device_api_v1_public_devices_post",
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Register Device Api V1 Public Devices Post"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/public/tours": {
       "get": {
         "tags": [
@@ -2130,6 +2292,22 @@
               "minLength": 8,
               "maxLength": 128,
               "title": "Device Id"
+            }
+          },
+          {
+            "name": "pack_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Pack Id"
             }
           }
         ],
@@ -4163,6 +4341,17 @@
             },
             "type": "array",
             "title": "Qa Flags"
+          },
+          "comet_qe": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comet Qe"
           },
           "review_status": {
             "type": "string",

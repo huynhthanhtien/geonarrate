@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { RotateCw } from "lucide-react";
-import { sendJson } from "../api";
+import { Play, RotateCw } from "lucide-react";
+import { useEffect, useState } from "react";
+import { getAudioPreview, sendJson } from "../api";
 import { ALL_LANGS, Badge, Empty, ErrorBox, ghostBtn, Page, Table } from "../components/ui";
 
 const STATE = {
@@ -12,8 +13,36 @@ const STATE = {
   stale: { label: "Đã cũ", tone: "amber" },
 } as const;
 
+type Preview = { attractionId: string; name: string; lang: string };
+
+function AudioPreview({ selection }: { selection: Preview }) {
+  const { attractionId, lang } = selection;
+  const [source, setSource] = useState<string>();
+  const [error, setError] = useState<unknown>();
+  useEffect(() => {
+    const controller = new AbortController();
+    let url: string | undefined;
+    getAudioPreview(attractionId, lang, controller.signal).then((audio) => {
+      if (controller.signal.aborted) return;
+      url = URL.createObjectURL(audio);
+      setSource(url);
+    }).catch((reason: unknown) => {
+      if (!controller.signal.aborted) setError(reason);
+    });
+    return () => {
+      controller.abort();
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, [attractionId, lang]);
+
+  if (error) return <ErrorBox error={error} />;
+  if (!source) return <p role="status" className="text-sm text-slate-500">Đang tải audio…</p>;
+  return <audio controls autoPlay src={source} aria-label={`Nghe thử ${selection.name} (${lang})`} />;
+}
+
 export function VoiceStudioPage() {
   const qc = useQueryClient();
+  const [preview, setPreview] = useState<Preview | null>(null);
   const { data, error } = useQuery({
     queryKey: ["audio-status"],
     queryFn: () => sendJson<any[]>("/api/v1/audio/status"),
@@ -30,8 +59,17 @@ export function VoiceStudioPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["audio-status"] }),
   });
   return (
-    <Page title="Voice Studio" subtitle="Audio tự sinh sau khi nội dung được duyệt; trang này để theo dõi và thử lại">
+    <Page title="Voice Studio" subtitle="Audio tự sinh sau khi nội dung được duyệt; nghe thử audio đã sẵn sàng ngay trên trang này">
       <ErrorBox error={error ?? retry.error} />
+      {preview && (
+        <div className="mb-4 rounded-lg border border-slate-200 p-3">
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <p className="text-sm font-medium">{preview.name} · {preview.lang}</p>
+            <button className={ghostBtn} onClick={() => setPreview(null)}>Đóng</button>
+          </div>
+          <AudioPreview key={`${preview.attractionId}:${preview.lang}`} selection={preview} />
+        </div>
+      )}
       {data?.length === 0 && <Empty>Chưa có điểm tham quan nào.</Empty>}
       {!!data?.length && (
         <Table head={["Điểm", ...ALL_LANGS]}>
@@ -45,6 +83,11 @@ export function VoiceStudioPage() {
                 return (
                   <td key={lang} className="px-4 py-2.5 align-top">
                     <Badge tone={s.tone}>{s.label}</Badge>
+                    {cell.state === "ready" && (
+                      <button className={`${ghostBtn} mt-1 !px-2 !py-0.5 !text-xs`} onClick={() => setPreview({ attractionId: row.id, name: row.name, lang })}>
+                        <Play size={12} aria-hidden /> Nghe thử
+                      </button>
+                    )}
                     {cell.error && <p className="text-xs text-red-600 mt-1 max-w-40 truncate" title={cell.error}>{cell.error}</p>}
                     {(cell.state === "failed" || cell.state === "stale") && (
                       <button className={`${ghostBtn} mt-1 !py-0.5 !px-2 !text-xs`} disabled={retry.isPending} onClick={() => retry.mutate({ attraction_id: row.id, lang })}>

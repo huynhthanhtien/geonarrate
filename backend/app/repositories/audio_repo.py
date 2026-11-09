@@ -6,6 +6,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from app.core.schema import audio_assets, audio_packs
+from app.core.transaction import connection
 from app.repositories._ids import parse_uuid, record
 from app.repositories.job_repo import add_jobs
 
@@ -21,13 +22,13 @@ class SqlAudioRepository:
             audio_assets.c.text_hash == hash_,
             audio_assets.c.status == "ready",
         )
-        async with self._engine.connect() as conn:
+        async with connection(self._engine) as conn:
             row = (await conn.execute(stmt)).mappings().one_or_none()
         return record(row) if row else None
 
     async def all_ready(self) -> list[dict[str, Any]]:
         stmt = select(audio_assets).where(audio_assets.c.status == "ready")
-        async with self._engine.connect() as conn:
+        async with connection(self._engine) as conn:
             return [record(r) for r in (await conn.execute(stmt)).mappings().all()]
 
     async def upsert_asset(
@@ -41,9 +42,11 @@ class SqlAudioRepository:
         duration_ms: int,
         sha256: str,
         now: datetime,
+        asr_wer: float | None = None,
     ) -> None:
         values = {
             "voice": voice,
+            "asr_wer": asr_wer,
             "storage_key": key,
             "bytes": size,
             "duration_ms": duration_ms,
@@ -62,7 +65,7 @@ class SqlAudioRepository:
             )
             .on_conflict_do_update(constraint="uq_audio_assets_attraction_lang", set_=values)
         )
-        async with self._engine.begin() as conn:
+        async with connection(self._engine, write=True) as conn:
             await conn.execute(stmt)
 
     # --- pack
@@ -72,14 +75,14 @@ class SqlAudioRepository:
             stmt = stmt.where(audio_packs.c.tour_id == parse_uuid(tour_id))
         if lang:
             stmt = stmt.where(audio_packs.c.lang == lang)
-        async with self._engine.connect() as conn:
+        async with connection(self._engine) as conn:
             return [record(r) for r in (await conn.execute(stmt)).mappings().all()]
 
     async def get_pack(self, pack_id: str) -> dict[str, Any] | None:
         uid = parse_uuid(pack_id)
         if uid is None:
             return None
-        async with self._engine.connect() as conn:
+        async with connection(self._engine) as conn:
             row = (
                 (await conn.execute(select(audio_packs).where(audio_packs.c.id == uid)))
                 .mappings()
@@ -93,14 +96,14 @@ class SqlAudioRepository:
             audio_packs.c.lang == lang,
             audio_packs.c.status == "published",
         )
-        async with self._engine.connect() as conn:
+        async with connection(self._engine) as conn:
             row = (await conn.execute(stmt)).mappings().one_or_none()
         return record(row) if row else None
 
     async def create_pack(self, tour_id: str, lang: str, actor_id: str, now: datetime) -> str:
         """Version và job tạo trong một transaction; khoá theo tour × ngôn ngữ để không trùng."""
         uid = parse_uuid(tour_id)
-        async with self._engine.begin() as conn:
+        async with connection(self._engine, write=True) as conn:
             await conn.execute(
                 select(func.pg_advisory_xact_lock(func.hashtext(f"pack:{tour_id}:{lang}")))
             )
@@ -139,7 +142,7 @@ class SqlAudioRepository:
         return str(pack_id)
 
     async def update_pack(self, pack_id: str, values: dict[str, Any], now: datetime) -> None:
-        async with self._engine.begin() as conn:
+        async with connection(self._engine, write=True) as conn:
             await conn.execute(
                 update(audio_packs)
                 .where(audio_packs.c.id == parse_uuid(pack_id))
@@ -151,7 +154,7 @@ class SqlAudioRepository:
     ) -> bool:
         """Bản đang phát hành thành superseded, bản này thành published, trong một transaction."""
         uid = parse_uuid(pack["id"])
-        async with self._engine.begin() as conn:
+        async with connection(self._engine, write=True) as conn:
             await conn.execute(
                 select(
                     func.pg_advisory_xact_lock(

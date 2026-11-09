@@ -1,12 +1,14 @@
 from datetime import datetime
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
+from pydantic import AwareDatetime
 
 from app.api.v1.schemas.audit import AuditLogOut, AuditResourceOut
 from app.core.deps import get_audit_service, require_permission
 from app.core.permissions import Permission
-from app.models.audit import AuditResource
+from app.models.audit import AuditFilters
 from app.services.audit_service import AuditService
 
 router = APIRouter(
@@ -24,10 +26,23 @@ async def list_audit_logs(
     resource_type: str | None = None,
     resource_id: str | None = None,
     before: Annotated[datetime | None, Query(description="ts của bản ghi cuối trang trước")] = None,
+    before_id: UUID | None = None,
+    action: Annotated[str | None, Query(max_length=100)] = None,
+    since: AwareDatetime | None = None,
+    until: AwareDatetime | None = None,
+    q: Annotated[str | None, Query(max_length=200)] = None,
 ) -> list[AuditLogOut]:
-    """Nhật ký thao tác, mới nhất trước. Lọc tài nguyên cần đủ `resource_type` + `resource_id`."""
-    resource = AuditResource(resource_type, resource_id) if resource_type and resource_id else None
-    logs = await svc.find(limit, actor_id=actor_id, resource=resource, before=before)
+    """Lọc theo người, hành động, loại đối tượng, từ khoá và thời gian [since, until)."""
+    filters = AuditFilters(
+        action=action,
+        resource_type=resource_type,
+        resource_id=resource_id,
+        since=since,
+        until=until,
+        q=q.strip() if q else None,
+        before_id=str(before_id) if before_id else None,
+    )
+    logs = await svc.find(limit, actor_id=actor_id, before=before, filters=filters)
     return [
         AuditLogOut(
             id=log.id,

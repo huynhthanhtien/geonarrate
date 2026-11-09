@@ -205,8 +205,15 @@ class CatalogService:
             f.pop("storage_key", None)
         return {**manifest, "files": files, "access": "full" if allowed else "preview"}
 
-    async def public_file(self, tour_id: str, lang: str, attraction_id: str, device_id: str) -> str:
-        pack, tour = await self._published(tour_id, lang)
+    async def public_file(
+        self,
+        tour_id: str,
+        lang: str,
+        attraction_id: str,
+        device_id: str,
+        pack_id: str | None = None,
+    ) -> str:
+        pack, tour = await self._published(tour_id, lang, pack_id)
         manifest = self._pipeline.read_manifest(pack)
         item = next((f for f in manifest["files"] if f["attraction_id"] == attraction_id), None)
         if item is None:
@@ -220,10 +227,17 @@ class CatalogService:
             raise ForbiddenError("ticket_required", "Tour này cần vé để tải")
         return self._pipeline.file_path(item["storage_key"])
 
-    async def _published(self, tour_id: str, lang: str) -> tuple[dict[str, Any], dict[str, Any]]:
+    async def _published(
+        self, tour_id: str, lang: str, pack_id: str | None = None
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
         tour = await self.get_tour(tour_id)
         packs = await self._pipeline.list_packs(tour_id, lang)
-        pack = next((p for p in packs if p["status"] == "published"), None)
+        pack = next(
+            (p for p in packs if p["status"] in {"published", "superseded"} and p["id"] == pack_id)
+            if pack_id is not None
+            else (p for p in packs if p["status"] == "published"),
+            None,
+        )
         if pack is None or tour["status"] != "published":
             raise NotFoundError("pack_not_published", "Tour chưa có pack ở ngôn ngữ này")
         return pack, tour

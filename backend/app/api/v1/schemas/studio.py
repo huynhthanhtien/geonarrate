@@ -18,6 +18,7 @@ class TranslationOut(BaseModel):
     text: str
     provider: str | None
     qa_flags: list[str]
+    comet_qe: float | None = None
     review_status: Literal["pending", "approved", "rejected"]
     review_note: str | None
     updated_at: datetime

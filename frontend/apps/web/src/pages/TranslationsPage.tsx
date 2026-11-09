@@ -12,6 +12,7 @@ const STATUS = {
 
 function flagText(flag: string) {
   if (flag === "mock_translation") return "Bản dịch giả để chạy thử, cần dịch thật";
+  if (flag === "low_comet_qe") return "Điểm chất lượng bản dịch thấp, cần kiểm tra kỹ trước khi duyệt";
   if (flag.startsWith("missing_term:")) return `Thiếu thuật ngữ: ${flag.slice(13)}`;
   return flag;
 }
@@ -46,6 +47,7 @@ function Row({ t }: { t: any }) {
         <Badge tone="blue">{t.target_lang}</Badge>
         <Badge tone={status.tone}>{status.label}</Badge>
         <span className="text-xs text-slate-400">v{t.version}</span>
+        {t.comet_qe != null && <span className="text-xs text-slate-500">COMET QE: {t.comet_qe.toFixed(3)}</span>}
       </div>
       <div className="grid md:grid-cols-2 gap-4">
         <div>

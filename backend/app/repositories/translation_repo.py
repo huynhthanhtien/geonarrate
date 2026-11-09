@@ -6,6 +6,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from app.core.schema import attractions, translations
+from app.core.transaction import connection
 from app.repositories._ids import parse_uuid, record
 from app.repositories.job_repo import add_jobs
 
@@ -24,7 +25,7 @@ class SqlTranslationRepository:
             stmt = stmt.where(_t.c.target_lang == lang)
         if status:
             stmt = stmt.where(_t.c.review_status == status)
-        async with self._engine.connect() as conn:
+        async with connection(self._engine) as conn:
             return [record(r) for r in (await conn.execute(stmt)).mappings().all()]
 
     async def get(self, translation_id: str) -> dict[str, Any] | None:
@@ -32,7 +33,7 @@ class SqlTranslationRepository:
         if uid is None:
             return None
         stmt = select(*_COLS).select_from(_JOIN).where(_t.c.id == uid)
-        async with self._engine.connect() as conn:
+        async with connection(self._engine) as conn:
             row = (await conn.execute(stmt)).mappings().one_or_none()
         return record(row) if row else None
 
@@ -42,7 +43,7 @@ class SqlTranslationRepository:
             _t.c.target_lang == lang,
             _t.c.review_status == "approved",
         )
-        async with self._engine.connect() as conn:
+        async with connection(self._engine) as conn:
             row = (await conn.execute(stmt)).mappings().one_or_none()
         return record(row) if row else None
 
@@ -50,7 +51,7 @@ class SqlTranslationRepository:
         stmt = select(_t.c.attraction_id, _t.c.target_lang, _t.c.text).where(
             _t.c.review_status == "approved"
         )
-        async with self._engine.connect() as conn:
+        async with connection(self._engine) as conn:
             return [record(r) for r in (await conn.execute(stmt)).mappings().all()]
 
     async def upsert_machine(
@@ -62,6 +63,7 @@ class SqlTranslationRepository:
         qa_flags: list[str],
         hash_: str,
         now: datetime,
+        comet_qe: float | None = None,
     ) -> None:
         """Kịch bản đổi thì bản dịch cũ về pending và tăng version."""
         stmt = insert(_t).values(
@@ -71,6 +73,7 @@ class SqlTranslationRepository:
             text=text,
             provider=provider,
             qa_flags=qa_flags,
+            comet_qe=comet_qe,
             review_status="pending",
             text_hash=hash_,
             created_at=now,
@@ -83,6 +86,7 @@ class SqlTranslationRepository:
                 "text": text,
                 "provider": provider,
                 "qa_flags": qa_flags,
+                "comet_qe": comet_qe,
                 "review_status": "pending",
                 "review_note": None,
                 "reviewed_by": None,
@@ -91,19 +95,20 @@ class SqlTranslationRepository:
                 "updated_at": now,
             },
         )
-        async with self._engine.begin() as conn:
+        async with connection(self._engine, write=True) as conn:
             await conn.execute(stmt)
 
     async def edit(
         self, translation_id: str, text: str, flags: list[str], hash_: str, now: datetime
     ) -> None:
-        async with self._engine.begin() as conn:
+        async with connection(self._engine, write=True) as conn:
             await conn.execute(
                 update(_t)
                 .where(_t.c.id == parse_uuid(translation_id))
                 .values(
                     text=text,
                     qa_flags=flags,
+                    comet_qe=None,
                     text_hash=hash_,
                     review_status="pending",
                     updated_at=now,
@@ -111,7 +116,7 @@ class SqlTranslationRepository:
             )
 
     async def set_flags(self, translation_id: str, flags: list[str], now: datetime) -> None:
-        async with self._engine.begin() as conn:
+        async with connection(self._engine, write=True) as conn:
             await conn.execute(
                 update(_t)
                 .where(_t.c.id == parse_uuid(translation_id))
@@ -139,7 +144,7 @@ class SqlTranslationRepository:
                 updated_at=now,
             )
         )
-        async with self._engine.begin() as conn:
+        async with connection(self._engine, write=True) as conn:
             changed = bool((await conn.execute(stmt)).rowcount)
             if changed and jobs_:
                 await add_jobs(conn, jobs_, actor_id, now)

@@ -5,6 +5,7 @@ from sqlalchemy import exists, func, insert, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from app.core.schema import ticket_tours, tickets
+from app.core.transaction import connection
 from app.repositories._ids import parse_uuid, record
 
 _TOURS = (
@@ -48,7 +49,7 @@ class SqlTicketRepository:
         now: datetime,
     ) -> None:
         tours = [parse_uuid(t) for t in tour_ids]
-        async with self._engine.begin() as conn:
+        async with connection(self._engine, write=True) as conn:
             for code_hash, hint in items:
                 tid = (
                     await conn.execute(
@@ -75,7 +76,7 @@ class SqlTicketRepository:
         stmt = select(*_COLS).order_by(tickets.c.created_at.desc()).limit(200)
         if q:
             stmt = stmt.where(or_(tickets.c.code_hint == q.upper(), tickets.c.batch == q))
-        async with self._engine.connect() as conn:
+        async with connection(self._engine) as conn:
             return [_out(r) for r in (await conn.execute(stmt)).mappings().all()]
 
     async def revoke(self, ticket_id: str | None, batch: str | None, now: datetime) -> int:
@@ -85,12 +86,12 @@ class SqlTicketRepository:
             if ticket_id
             else stmt.where(tickets.c.batch == batch)
         )
-        async with self._engine.begin() as conn:
+        async with connection(self._engine, write=True) as conn:
             return int((await conn.execute(stmt.values(status="revoked", updated_at=now))).rowcount)
 
     async def activate(self, code_hash: str, device_id: str, now: datetime) -> dict[str, Any]:
         """Khoá dòng vé để hai máy quét cùng lúc không cùng chiếm vé hoặc trừ lượt sai."""
-        async with self._engine.begin() as conn:
+        async with connection(self._engine, write=True) as conn:
             row = (
                 (
                     await conn.execute(
@@ -140,5 +141,5 @@ class SqlTicketRepository:
                 ticket_tours.c.tour_id == parse_uuid(tour_id),
             )
         )
-        async with self._engine.connect() as conn:
+        async with connection(self._engine) as conn:
             return bool((await conn.execute(stmt)).scalar_one())

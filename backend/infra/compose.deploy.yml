@@ -1,0 +1,98 @@
+name: geonarrate-deploy
+
+x-app: &app
+  image: geonarrate-api:local
+  build:
+    context: ..
+    args:
+      PYTHON_EXTRAS: ${PYTHON_EXTRAS:-}
+  env_file: ../.env
+  environment:
+    APP_ENV: production
+    DATABASE_URL: postgresql+asyncpg://geonarrate:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}@postgres:5432/geonarrate
+    REDIS_URL: redis://redis:6379/0
+    STORAGE_DIR: /app/var/storage
+    TTS_PROVIDER: ${TTS_PROVIDER:-magpie}
+    MAGPIE_TTS_URL: http://magpie:8080
+  restart: unless-stopped
+  volumes:
+    - storage:/app/var/storage
+    - models:/app/var/models
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    environment:
+      POSTGRES_USER: geonarrate
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+      POSTGRES_DB: geonarrate
+    restart: unless-stopped
+    volumes:
+      - postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U geonarrate -d geonarrate]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  redis:
+    image: redis:7-alpine
+    command: [redis-server, --appendonly, 'yes']
+    restart: unless-stopped
+    volumes:
+      - redis:/data
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  magpie:
+    build:
+      context: ./magpie
+    restart: unless-stopped
+    volumes:
+      - magpie-models:/var/lib/nemo/models
+    healthcheck:
+      test: [CMD, curl, --fail, --silent, --max-time, '4', http://127.0.0.1:8080/ready]
+      interval: 5s
+      timeout: 5s
+      start_period: 10m
+      retries: 12
+  migrate:
+    <<: *app
+    command: [alembic, upgrade, head]
+    restart: 'no'
+  api:
+    <<: *app
+    ports: ['127.0.0.1:8000:8000']
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+  worker:
+    <<: *app
+    command: [python, -m, app.workers.run]
+    depends_on:
+      magpie:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+
+volumes:
+  postgres:
+  redis:
+  storage:
+  models:
+  magpie-models:

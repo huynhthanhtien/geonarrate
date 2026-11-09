@@ -1,6 +1,5 @@
-import { useEffect, useRef } from "react";
-import * as maplibregl from "maplibre-gl";
-import "maplibre-gl/dist/maplibre-gl.css";
+import { useEffect, useRef, useState } from "react";
+import { createCircle, DEFAULT_CENTER, MAP_STYLE, maplibregl, observeMapSize, validCoordinates } from "./map";
 
 interface Props {
   lat: number;
@@ -10,105 +9,57 @@ interface Props {
 }
 
 export function MapPicker({ lat, lng, radius, onChange }: Props) {
-  const containerRef = useRef<HTMLDivElement>(null);
+  const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const markerRef = useRef<maplibregl.Marker | null>(null);
+  const latest = useRef({ lat, lng, radius, onChange });
+  latest.current = { lat, lng, radius, onChange };
+  const [error, setError] = useState(false);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    if (!containerRef.current) return;
-
-    const map = new maplibregl.Map({
-      container: containerRef.current,
-      style: {
-  version: 8,
-  sources: {
-    osm: {
-      type: "raster",
-      tiles: ["https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}.png"],
-      tileSize: 256,
-      attribution: "© OpenStreetMap contributors",
-    },
-  },
-  layers: [{ id: "osm", type: "raster", source: "osm" }],
-},
-      center: [lng, lat],
-      zoom: 15,
-    });
-
+    if (!container.current) return;
+    let map: maplibregl.Map;
+    try {
+      map = new maplibregl.Map({ container: container.current, style: MAP_STYLE,
+        center: validCoordinates(latest.current.lat, latest.current.lng) ? [latest.current.lng, latest.current.lat] : DEFAULT_CENTER, zoom: 15 });
+    } catch { setError(true); return; }
     mapRef.current = map;
-
-    const marker = new maplibregl.Marker({ draggable: true })
-      .setLngLat([lng, lat])
-      .addTo(map);
-
+    map.addControl(new maplibregl.NavigationControl(), "top-right");
+    const marker = new maplibregl.Marker({ draggable: true, color: "#0f766e" }).setLngLat(map.getCenter()).addTo(map);
     markerRef.current = marker;
-
     marker.on("dragend", () => {
-      const { lat: newLat, lng: newLng } = marker.getLngLat();
-      onChange(newLat, newLng);
+      const point = marker.getLngLat().wrap();
+      latest.current.onChange(point.lat, point.lng);
     });
-
-    map.on("click", (e) => {
-      marker.setLngLat(e.lngLat);
-      onChange(e.lngLat.lat, e.lngLat.lng);
+    map.on("click", (event) => {
+      const point = event.lngLat.wrap();
+      latest.current.onChange(point.lat, point.lng);
     });
-
-    return () => map.remove();
+    map.on("error", () => setError(true));
+    map.on("load", () => setReady(true));
+    const observer = observeMapSize(container.current, map);
+    return () => { observer.disconnect(); marker.remove(); map.remove(); mapRef.current = null; markerRef.current = null; };
   }, []);
 
-  // Cập nhật circle khi radius thay đổi
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !map.isStyleLoaded()) return;
+    if (!map || !validCoordinates(lat, lng)) return;
+    markerRef.current?.setLngLat([lng, lat]);
+    map.panTo([lng, lat], { duration: 250 });
+    if (!ready) return;
+    const data = createCircle([lng, lat], radius);
+    const source = map.getSource<maplibregl.GeoJSONSource>("radius");
+    if (source) source.setData(data);
+    else {
+      map.addSource("radius", { type: "geojson", data });
+      map.addLayer({ id: "radius-fill", type: "fill", source: "radius", paint: { "fill-color": "#0f766e", "fill-opacity": 0.15 } });
+      map.addLayer({ id: "radius-border", type: "line", source: "radius", paint: { "line-color": "#0f766e", "line-width": 2 } });
+    }
+  }, [lat, lng, radius, ready]);
 
-    const updateCircle = () => {
-      if (map.getLayer("radius-fill")) map.removeLayer("radius-fill");
-      if (map.getLayer("radius-border")) map.removeLayer("radius-border");
-      if (map.getSource("radius")) map.removeSource("radius");
-
-      map.addSource("radius", {
-        type: "geojson",
-        data: createCircle([lng, lat], radius),
-      });
-
-      map.addLayer({
-        id: "radius-fill",
-        type: "fill",
-        source: "radius",
-        paint: { "fill-color": "#0F766E", "fill-opacity": 0.15 },
-      });
-
-      map.addLayer({
-        id: "radius-border",
-        type: "line",
-        source: "radius",
-        paint: { "line-color": "#0F766E", "line-width": 2 },
-      });
-    };
-
-    if (map.isStyleLoaded()) updateCircle();
-    else map.on("load", updateCircle);
-  }, [radius, lat, lng]);
-
-  return (
-    <div
-      ref={containerRef}
-      style={{ width: "100%", height: 320, borderRadius: 10, overflow: "hidden" }}
-    />
-  );
-}
-
-function createCircle(center: [number, number], radiusMeters: number) {
-  const points = 64;
-  const coords = [];
-  const km = radiusMeters / 1000;
-  for (let i = 0; i < points; i++) {
-    const angle = (i * 360) / points;
-    const rad = (angle * Math.PI) / 180;
-    const dx = (km / 111.32) * Math.cos(rad);
-    const dy = (km / (111.32 * Math.cos((center[1] * Math.PI) / 180))) * Math.sin(rad);
-    coords.push([center[0] + dy, center[1] + dx]);
-  }
-  coords.push(coords[0]);
-  return { type: "Feature" as const, geometry: { type: "Polygon" as const, coordinates: [coords] }, properties: {} };
+  return <div>
+    {error && <p role="status" className="bg-amber-50 px-3 py-2 text-sm text-amber-800">Không tải được đầy đủ bản đồ. Bạn vẫn có thể nhập tọa độ ở trên.</p>}
+    <div ref={container} aria-label="Bản đồ chọn vị trí điểm tham quan" style={{ width: "100%", height: 360 }} />
+  </div>;
 }

@@ -1,4 +1,17 @@
 from pathlib import Path
+from tempfile import NamedTemporaryFile
+
+
+def atomic_write(path: Path, data: bytes) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with NamedTemporaryFile(dir=path.parent, delete=False) as temporary:
+        temporary_path = Path(temporary.name)
+        try:
+            temporary.write(data)
+            temporary.flush()
+            temporary_path.replace(path)
+        finally:
+            temporary_path.unlink(missing_ok=True)
 
 
 class LocalStorage:
@@ -15,8 +28,7 @@ class LocalStorage:
 
     def put(self, key: str, data: bytes) -> None:
         p = self.path(key)
-        p.parent.mkdir(parents=True, exist_ok=True)
-        p.write_bytes(data)
+        atomic_write(p, data)
 
     def read(self, key: str) -> bytes:
         return self.path(key).read_bytes()
