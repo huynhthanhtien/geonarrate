@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { sendJson } from "../api";
 import { Badge, Empty, ErrorBox, Field, ghostBtn, inputClass, Page, primaryBtn, Table } from "../components/ui";
 import { PoisMap } from "../components/PoisMap";
+import { Select } from "../components/Select";
 
 interface Form {
   id?: string;
@@ -58,16 +59,12 @@ export function ToursPage() {
           <div className="grid md:grid-cols-3 gap-3">
             <Field label="Tên"><input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className={inputClass} /></Field>
             <Field label="Truy cập">
-              <select value={form.access} onChange={(e) => setForm({ ...form, access: e.target.value })} className={inputClass}>
-                <option value="free">Miễn phí</option>
-                <option value="paid">Trả phí (cần vé)</option>
-              </select>
+              <Select ariaLabel="Truy cập" value={form.access} onChange={(v) => setForm({ ...form, access: v })}
+                options={[{ value: "free", label: "Miễn phí" }, { value: "paid", label: "Trả phí (cần vé)" }]} />
             </Field>
             <Field label="Trạng thái">
-              <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })} className={inputClass}>
-                <option value="draft">Nháp</option>
-                <option value="published">Hiện trên app</option>
-              </select>
+              <Select ariaLabel="Trạng thái" value={form.status} onChange={(v) => setForm({ ...form, status: v })}
+                options={[{ value: "draft", label: "Nháp" }, { value: "published", label: "Hiện trên app" }]} />
             </Field>
           </div>
           <ErrorBox error={points.error} />

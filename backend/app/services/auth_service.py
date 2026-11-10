@@ -5,7 +5,7 @@ from datetime import UTC, datetime, timedelta
 
 from app.core import security
 from app.core.config import get_settings
-from app.core.exceptions import ConflictError, UnauthorizedError
+from app.core.exceptions import ConflictError, InvalidContentError, UnauthorizedError
 from app.models.user import Role, User
 from app.repositories.access_revocation_repo import AccessRevocationRepository
 from app.repositories.token_repo import RefreshTokenRepository
@@ -103,6 +103,19 @@ class AuthService:
         now = self._clock()
         await self._tokens.revoke_all_for_user(user_id, now)
         await self._revocations.set_cutoff(user_id, now, get_settings().access_token_ttl_s)
+
+    async def change_password(self, user_id: str, current: str, new: str) -> None:
+        """Người dùng tự đổi mật khẩu; đổi xong thu hồi mọi phiên để đăng nhập lại."""
+        user = await self._users.get_by_id(user_id)
+        if user is None or not security.verify_password(user.password_hash, current):
+            # Không dùng 401: lỗi này là nhập sai, không phải phiên hết hạn
+            raise InvalidContentError("wrong_password", "Mật khẩu hiện tại không đúng")
+        if current == new:
+            raise InvalidContentError("same_password", "Mật khẩu mới phải khác mật khẩu hiện tại")
+        await self._users.update_fields(
+            user_id, {"password_hash": security.hash_password(new)}, self._clock()
+        )
+        await self.revoke_sessions(user_id)
 
     async def create_user(self, email: str, password: str, role: Role, full_name: str = "") -> User:
         email = normalize_email(email)

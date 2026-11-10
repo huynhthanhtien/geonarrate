@@ -16,24 +16,27 @@ class GroqTranslate:
         self._model = model
 
     async def translate(
-        self, text: str, source: str, target: str, terms: list[GlossaryTerm]
+        self,
+        text: str,
+        source: str,
+        target: str,
+        terms: list[GlossaryTerm],
+        *,
+        source_tag: str | None = None,
+        target_tag: str | None = None,
     ) -> str:
-        language_names = {
-            "vi": "Vietnamese",
-            "en": "English",
-            "zh": "Simplified Chinese",
-            "ja": "Japanese",
-            "ko": "Korean",
-        }
-        source_name = language_names.get(source, source)
-        target_name = language_names.get(target, target)
+        # Mã BCP 47 lấy từ bảng languages (do PipelineService truyền xuống), vd. vi-VN, zh-CN;
+        # thiếu thì dùng mã ngắn của ngôn ngữ.
+        source_name = source_tag or source
+        target_name = target_tag or target
         glossary = "\n".join(
             f"- {term.term} → {term.translation}"
             + (" (required; preserve this exact translation)" if term.is_required else "")
             for term in terms
         )
         system = (
-            f"Translate from {source_name} to {target_name}. Preserve meaning, names, "
+            f"Translate from {source_name} to {target_name} (BCP 47 language tags; "
+            "zh-CN means Simplified Chinese). Preserve meaning, names, "
             "paragraph breaks, numbers, and proper nouns. Use natural, concise language "
             "suitable for an audio guide. Return only the translation, with no notes, "
             "quotes, or preamble."

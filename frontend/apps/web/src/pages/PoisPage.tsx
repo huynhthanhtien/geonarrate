@@ -8,8 +8,9 @@ import { LoadError } from "../components/LoadError";
 import { PoisMap } from "../components/PoisMap";
 import { ghostBtn } from "../components/ui";
 import { useCan } from "../auth/session";
+import { CATEGORIES, categoryLabel } from "../labels";
+import { Select } from "../components/Select";
 
-const CATEGORIES = ["temple", "church", "museum", "park", "other"];
 
 export function PoisPage() {
   const navigate = useNavigate();
@@ -46,20 +47,12 @@ export function PoisPage() {
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3 mb-6">
-        <select aria-label="Lọc danh mục" value={category} onChange={(e) => setCategory(e.target.value)}
-          className="bg-white border border-slate-200 text-slate-700 text-sm px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 shadow-sm">
-          <option value="">Tất cả danh mục</option>
-          {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
-        </select>
+        <Select ariaLabel="Lọc danh mục" className="w-48" value={category} onChange={setCategory}
+          options={[{ value: "", label: "Tất cả danh mục" }, ...CATEGORIES.map((c) => ({ value: c, label: categoryLabel(c) }))]} />
 
 
-        <select aria-label="Lọc trạng thái" value={status} onChange={(e) => setStatus(e.target.value)}
-          className="bg-white border border-slate-200 text-slate-700 text-sm px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 shadow-sm">
-          <option value="">Tất cả trạng thái</option>
-          <option value="draft">Nháp</option>
-          <option value="in_review">Chờ duyệt</option>
-          <option value="approved">Đã duyệt</option>
-        </select>
+        <Select ariaLabel="Lọc trạng thái" className="w-48" value={status} onChange={setStatus}
+          options={[{ value: "", label: "Tất cả trạng thái" }, { value: "draft", label: "Nháp" }, { value: "in_review", label: "Chờ duyệt" }, { value: "approved", label: "Đã duyệt" }]} />
         <div className="ml-auto flex gap-1" role="group" aria-label="Chế độ xem điểm tham quan">
           <button className={`${ghostBtn} ${view === "map" ? "ring-2 ring-teal-600" : ""}`} aria-pressed={view === "map"} onClick={() => setView("map")}><MapIcon size={15} aria-hidden /> Bản đồ</button>
           <button className={`${ghostBtn} ${view === "list" ? "ring-2 ring-teal-600" : ""}`} aria-pressed={view === "list"} onClick={() => setView("list")}><List size={15} aria-hidden /> Danh sách</button>

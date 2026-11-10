@@ -15,5 +15,14 @@ class TranslateProvider(Protocol):
     name: str
 
     async def translate(
-        self, text: str, source: str, target: str, terms: list[GlossaryTerm]
-    ) -> str: ...
+        self,
+        text: str,
+        source: str,
+        target: str,
+        terms: list[GlossaryTerm],
+        *,
+        source_tag: str | None = None,
+        target_tag: str | None = None,
+    ) -> str:
+        """source/target là mã ngắn (vi, en); *_tag là mã BCP 47 trong bảng languages."""
+        ...

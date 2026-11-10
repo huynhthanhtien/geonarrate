@@ -280,3 +280,55 @@ def test_update_poi_keeps_id_and_moves_point(client: TestClient) -> None:
     assert client.patch(url, json={"summary": "x"}, headers=translator).status_code == 403
     missing = f"{BASE}/00000000-0000-0000-0000-000000000000"
     assert client.patch(missing, json={"summary": "x"}, headers=editor).status_code == 404
+
+
+# (method, path, quyền cần) — mọi API của CMS. Thêm API mới thì thêm vào đây.
+GHOST = "00000000-0000-0000-0000-000000000000"
+CMS_ENDPOINTS: list[tuple[str, str, set[str]]] = [
+    ("GET", "/api/v1/pois", {"poi:read"}),
+    ("POST", "/api/v1/pois", {"script:write"}),
+    ("PATCH", f"/api/v1/pois/{GHOST}", {"script:write"}),
+    ("PUT", f"/api/v1/pois/{GHOST}/script", {"script:write"}),
+    ("POST", f"/api/v1/pois/{GHOST}/submit", {"script:write"}),
+    ("POST", f"/api/v1/pois/{GHOST}/approve", {"admin:manage"}),
+    ("POST", f"/api/v1/pois/{GHOST}/reject", {"admin:manage"}),
+    ("GET", "/api/v1/translations", {"translation:review"}),
+    ("PUT", f"/api/v1/translations/{GHOST}", {"translation:review"}),
+    ("POST", f"/api/v1/translations/{GHOST}/approve", {"translation:review"}),
+    ("GET", "/api/v1/translation-jobs", {"translation:review"}),
+    ("POST", "/api/v1/translation-jobs/retry", {"translation:review"}),
+    ("GET", "/api/v1/glossaries", {"translation:review"}),
+    ("POST", "/api/v1/glossaries", {"translation:review"}),
+    ("GET", "/api/v1/audio/status", {"audio:build"}),
+    ("POST", "/api/v1/audio/retry", {"audio:build"}),
+    ("GET", f"/api/v1/audio/{GHOST}/vi/preview", {"audio:build"}),
+    ("GET", "/api/v1/tours", {"admin:manage", "pack:publish", "analytics:view"}),
+    ("POST", "/api/v1/tours", {"admin:manage"}),
+    ("GET", "/api/v1/packs", {"pack:publish"}),
+    ("GET", f"/api/v1/packs/status?tour_id={GHOST}", {"pack:publish"}),
+    ("POST", "/api/v1/packs/build", {"audio:build"}),
+    ("POST", f"/api/v1/packs/{GHOST}/publish", {"pack:publish"}),
+    ("POST", f"/api/v1/packs/{GHOST}/rollback", {"pack:publish"}),
+    ("GET", "/api/v1/tickets", {"admin:manage"}),
+    ("POST", "/api/v1/tickets/revoke", {"admin:manage"}),
+    ("GET", "/api/v1/admin/users", {"admin:manage"}),
+    ("POST", f"/api/v1/admin/users/{GHOST}/password", {"admin:manage"}),
+    ("GET", "/api/v1/audit", {"admin:manage"}),
+    ("GET", "/api/v1/analytics/summary", {"analytics:view"}),
+]
+
+
+@pytest.mark.parametrize("creds", [EDITOR, TRANSLATOR], ids=["editor", "translator"])
+def test_every_cms_endpoint_enforces_its_permission(
+    client: TestClient, creds: dict[str, str]
+) -> None:
+    login = client.post("/api/v1/auth/login", json=creds).json()
+    held = set(login["user"]["permissions"])
+    h = {"Authorization": f"Bearer {login['access_token']}"}
+    wrong = []
+    for method, path, needs in CMS_ENDPOINTS:
+        code = client.request(method, path, headers=h, json={}).status_code
+        allowed = bool(needs & held)
+        if (code == 403) == allowed or code == 401:
+            wrong.append(f"{method} {path}: {code} (được phép={allowed})")
+    assert wrong == []

@@ -7,7 +7,14 @@ class MockTranslate:
     name = "mock"
 
     async def translate(
-        self, text: str, source: str, target: str, terms: list[GlossaryTerm]
+        self,
+        text: str,
+        source: str,
+        target: str,
+        terms: list[GlossaryTerm],
+        *,
+        source_tag: str | None = None,
+        target_tag: str | None = None,
     ) -> str:
         for t in terms:
             text = text.replace(t.term, t.translation)

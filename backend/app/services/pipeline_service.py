@@ -33,6 +33,7 @@ VOICES = {
 SOURCE_LANG = "vi"
 MP3_BYTES_PER_SECOND = 6000  # Các provider xuất MP3 48 kbps.
 STALE_AFTER = timedelta(minutes=10)
+STATUS_ORDER = ("published", "qa", "building")
 
 
 def _utcnow() -> datetime:
@@ -130,7 +131,15 @@ class PipelineService:
             return
         rows = await self._glossary.for_translation(p["poi_id"], p["lang"])
         terms = [GlossaryTerm(r["term"], r["translation"], r["is_required"]) for r in rows]
-        text = await self._translator.translate(poi.script, SOURCE_LANG, p["lang"], terms)
+        tags = {lang.code: lang.bcp47 for lang in await self._languages.list_active()}
+        text = await self._translator.translate(
+            poi.script,
+            SOURCE_LANG,
+            p["lang"],
+            terms,
+            source_tag=tags.get(SOURCE_LANG),
+            target_tag=tags.get(p["lang"]),
+        )
         latest = await self._pois.get(p["poi_id"])
         if (
             latest is None
@@ -301,6 +310,14 @@ class PipelineService:
         by_key = {(a["poi_id"], a["lang"], a["text_hash"]): a for a in assets}
         any_asset = {(a["poi_id"], a["lang"]) for a in assets}
         jobs = await self._jobs.latest_by_prefix("audio:")
+        reviews = await self._translations.review_states()
+        # Job dịch mới nhất theo (điểm, ngôn ngữ); khoá có dạng translate:<poi>:<lang>:<hash>
+        translating: dict[tuple[str, str], dict[str, Any]] = {}
+        for key, job in (await self._jobs.latest_by_prefix("translate:")).items():
+            _, poi_id, lang_code, _ = key.split(":", 3)
+            prev = translating.get((poi_id, lang_code))
+            if prev is None or job["updated_at"] >= prev["updated_at"]:
+                translating[(poi_id, lang_code)] = job
         out = []
         for a in await self._pois.find_all(None, None):
             cells = {}
@@ -308,11 +325,41 @@ class PipelineService:
                 if lang == SOURCE_LANG:
                     is_ok = a.script_status.value == "approved"
                     text = a.script if is_ok else None
+                    # Lý do chưa có audio để CMS chỉ đúng chỗ cần xử lý
+                    hint = None if is_ok else f"script_{a.script_status.value}"
+                    cell_error = None
                 else:
                     text = texts.get((a.id, lang))
-                cells[lang] = self._cell(a.id, lang, text, by_key, any_asset, jobs)
+                    review = reviews.get((a.id, lang))
+                    cell_error = None
+                    if a.script_status.value != "approved" and review is None:
+                        hint = f"script_{a.script_status.value}"
+                    elif review is None:
+                        hint, cell_error = self._translate_hint(translating.get((a.id, lang)))
+                    else:
+                        hint = {"pending": "translation_pending"}.get(
+                            review, "translation_rejected"
+                        )
+                cell = self._cell(a.id, lang, text, by_key, any_asset, jobs)
+                if text is None:
+                    cell["hint"] = hint
+                    if hint == "translate_failed":
+                        cell["error"] = cell_error
+                else:
+                    # Đã có nội dung duyệt mà chưa từng có job audio (vd. dữ liệu nhập tay)
+                    cell["hint"] = "not_started" if cell["state"] == "none" else None
+                cells[lang] = cell
             out.append({"id": a.id, "name": a.name, "langs": cells})
         return out
+
+    @staticmethod
+    def _translate_hint(job: dict[str, Any] | None) -> tuple[str, str | None]:
+        """Chưa có bản dịch: đang dịch thật, dịch lỗi, hay chưa từng có job dịch."""
+        if job is None or job["status"] == "succeeded":
+            return "not_started", None
+        if job["status"] == "failed":
+            return "translate_failed", (job["error"] or {}).get("message")
+        return "translating", None
 
     @staticmethod
     def _cell(
@@ -347,39 +394,148 @@ class PipelineService:
         return self.file_path(asset["storage_key"])
 
     async def retry_audio(self, poi_id: str, lang: str, actor_id: str) -> None:
+        """Chạy tiếp bước còn thiếu: có nội dung duyệt thì sinh audio, chưa có bản dịch thì dịch."""
         text = await self._approved_text(poi_id, lang)
-        if text is None:
-            raise InvalidContentError("not_approved", "Nội dung ngôn ngữ này chưa được duyệt")
-        key = f"audio:{poi_id}:{lang}:{text_hash(text)}"
-        spec = job_spec("audio", key, {"poi_id": poi_id, "lang": lang})
+        if text is not None:
+            key = f"audio:{poi_id}:{lang}:{text_hash(text)}"
+            spec = job_spec("audio", key, {"poi_id": poi_id, "lang": lang})
+        else:
+            spec = await self._translate_spec(poi_id, lang)
         await self._jobs.enqueue([spec], actor_id, self._clock())
+
+    async def retry_translation(self, poi_id: str, lang: str, actor_id: str) -> None:
+        """Dịch máy lại cho điểm × ngôn ngữ chưa có bản dịch (job dịch lỗi hoặc chưa từng chạy)."""
+        await self._jobs.enqueue(
+            [await self._translate_spec(poi_id, lang)], actor_id, self._clock()
+        )
+
+    async def _translate_spec(self, poi_id: str, lang: str) -> dict[str, Any]:
+        poi = await self._pois.get(poi_id)
+        reviews = await self._translations.review_states()
+        if (
+            lang == SOURCE_LANG
+            or poi is None
+            or poi.script_status.value != "approved"
+            or (poi_id, lang) in reviews
+        ):
+            raise InvalidContentError("not_approved", "Nội dung ngôn ngữ này chưa được duyệt")
+        h = text_hash(poi.script)
+        return job_spec(
+            "translate",
+            f"translate:{poi_id}:{lang}:{h}",
+            {"poi_id": poi_id, "lang": lang, "source_hash": h},
+        )
 
     # --- UC-09, UC-10
     async def list_packs(self, tour_id: str | None, lang: str | None) -> list[dict[str, Any]]:
         return await self._audio.find_packs(tour_id, lang)
 
-    async def build_pack(self, tour_id: str, lang: str, actor_id: str) -> dict[str, Any]:
+    async def _tour(self, tour_id: str) -> dict[str, Any]:
         tour = await self._tours.get(tour_id)
         if tour is None:
             raise NotFoundError("tour_not_found", "Không tìm thấy tour")
+        return tour
+
+    def _same_content(
+        self, files: list[dict[str, Any]], packs: list[dict[str, Any]]
+    ) -> dict[str, Any] | None:
+        """Bản qa/published có đúng danh sách file này (điểm, toạ độ, sha256 audio...)."""
+        for p in packs:
+            if p["status"] in ("qa", "published") and p["manifest_key"]:
+                if self.read_manifest(p).get("files") == files:
+                    return p
+        return None
+
+    async def build_pack(self, tour_id: str, lang: str, actor_id: str) -> dict[str, Any]:
+        tour = await self._tour(tour_id)
         items, missing = await self._tour_assets(tour, lang)
         if missing or not tour["pois"]:
             detail = ", ".join(missing) or "tour chưa có điểm nào"
             raise InvalidContentError("audio_missing", f"Còn thiếu audio: {detail}")
-        files = self._manifest_files(items)
-        for p in await self._audio.find_packs(tour_id, lang):
-            if p["status"] in ("qa", "published") and p["manifest_key"]:
-                if self.read_manifest(p).get("files") == files:
-                    raise ConflictError(
-                        "pack_unchanged",
-                        f"Nội dung giống version {p['version']} ({p['status']}), không cần build",
-                    )
+        same = self._same_content(
+            self._manifest_files(items), await self._audio.find_packs(tour_id, lang)
+        )
+        if same is not None:
+            raise ConflictError(
+                "pack_unchanged",
+                f"Nội dung giống version {same['version']} ({same['status']}), không cần build",
+            )
         pack_id = await self._audio.create_pack(tour_id, lang, actor_id, self._clock())
         if pack_id is None:
             raise ConflictError("pack_building", "Đang có pack build cho tour và ngôn ngữ này")
         pack = await self._audio.get_pack(pack_id)
         assert pack is not None
         return pack
+
+    async def pack_status(self, tour_id: str) -> list[dict[str, Any]]:
+        """Tình trạng pack của tour theo từng ngôn ngữ đang bật, kèm lý do chưa build được.
+
+        Dùng cùng điều kiện với build_pack nên giao diện báo đúng điều nút Build sẽ làm.
+        """
+        tour = await self._tour(tour_id)
+        packs = await self._audio.find_packs(tour_id, None)
+        out = []
+        for language in await self._languages.list_active():
+            lang = language.code
+            mine = sorted((p for p in packs if p["lang"] == lang), key=lambda p: -p["version"])
+            first = {s: next((p for p in mine if p["status"] == s), None) for s in STATUS_ORDER}
+            items, missing = await self._tour_assets(tour, lang)
+            same = None
+            if not tour["pois"]:
+                blocker: tuple[str, str] | None = ("tour_empty", "Tour chưa có điểm nào")
+            elif missing:
+                blocker = ("audio_missing", f"Thiếu audio {len(missing)}/{len(tour['pois'])} điểm")
+            elif first["building"] is not None:
+                blocker = ("pack_building", f"Đang build version {first['building']['version']}")
+            elif (same := self._same_content(self._manifest_files(items), mine)) is not None:
+                blocker = ("pack_unchanged", f"Không đổi so với version {same['version']}")
+            else:
+                blocker = None
+            out.append(
+                {
+                    "lang": lang,
+                    "total_pois": len(tour["pois"]),
+                    "ready_pois": len(items),
+                    "missing": missing,
+                    "can_build": blocker is None,
+                    "blocker": blocker[0] if blocker else None,
+                    "reason": blocker[1] if blocker else None,
+                    "same_version": same["version"] if same else None,
+                    "published": first["published"],
+                    "pending": first["qa"],
+                    "building": first["building"],
+                    "history": [p for p in mine if p["status"] in ("superseded", "failed")],
+                }
+            )
+        return out
+
+    async def pack_diff(self, pack_id: str) -> dict[str, Any]:
+        """So nội dung pack với bản đang phát hành cùng tour × ngôn ngữ (theo manifest)."""
+        pack = await self._pack(pack_id)
+        if not pack["manifest_key"]:
+            raise ConflictError("pack_not_ready", "Pack chưa build xong")
+        base = await self._audio.published_pack(pack["tour_id"], pack["lang"])
+        files = {f["poi_id"]: f for f in self.read_manifest(pack).get("files", [])}
+        old: dict[str, Any] = {}
+        if base is not None and base["id"] != pack["id"] and base["manifest_key"]:
+            old = {f["poi_id"]: f for f in self.read_manifest(base).get("files", [])}
+        info = ("name", "summary", "lat", "lng", "radius", "priority", "is_preview")
+        changed = []
+        for poi_id in files.keys() & old.keys():
+            new, prev = files[poi_id], old[poi_id]
+            parts = (["audio"] if new["sha256"] != prev["sha256"] else []) + (
+                ["thông tin"] if any(new.get(k) != prev.get(k) for k in info) else []
+            )
+            if parts:
+                changed.append({"name": new["name"], "what": parts})
+        return {
+            "against_version": base["version"] if old and base else None,
+            "added": sorted(files[k]["name"] for k in files.keys() - old.keys()),
+            "removed": sorted(old[k]["name"] for k in old.keys() - files.keys()),
+            "changed": sorted(changed, key=lambda c: c["name"]),
+            "bytes_delta": sum(f["bytes"] for f in files.values())
+            - sum(f["bytes"] for f in old.values()),
+        }
 
     async def _pack(self, pack_id: str) -> dict[str, Any]:
         pack = await self._audio.get_pack(pack_id)

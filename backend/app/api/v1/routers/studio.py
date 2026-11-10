@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, status
 from fastapi.responses import FileResponse
 
 from app.api.v1.schemas.studio import (
@@ -15,7 +15,10 @@ from app.api.v1.schemas.studio import (
     GlossaryOut,
     NoteIn,
     PackBuildIn,
+    PackDiffOut,
     PackOut,
+    PackStatusOut,
+    PasswordSetIn,
     RevokeIn,
     RevokeOut,
     RollbackIn,
@@ -34,6 +37,7 @@ from app.core.deps import (
     get_catalog_service,
     get_content_service,
     get_pipeline_service,
+    require_any_permission,
     require_permission,
 )
 from app.core.permissions import Permission
@@ -53,12 +57,26 @@ AudioBuilder = Annotated[Principal, Depends(require_permission(Permission.AUDIO_
 Publisher = Annotated[Principal, Depends(require_permission(Permission.PACK_PUBLISH))]
 Admin = Annotated[Principal, Depends(require_permission(Permission.ADMIN_MANAGE))]
 Analyst = Annotated[Principal, Depends(require_permission(Permission.ANALYTICS_VIEW))]
+# Trang Pack, Analytics và Vé đều cần danh sách tour để chọn
+TourReader = Annotated[
+    Principal,
+    Depends(
+        require_any_permission(
+            Permission.ADMIN_MANAGE, Permission.PACK_PUBLISH, Permission.ANALYTICS_VIEW
+        )
+    ),
+]
 
 
 # --- UC-05
 @router.get("/translation-jobs", response_model=list[TranslationJobOut])
 async def translation_jobs(svc: Pipeline, _: Translator) -> list[dict[str, Any]]:
     return await svc.translation_progress()
+
+
+@router.post("/translation-jobs/retry", status_code=status.HTTP_204_NO_CONTENT)
+async def retry_translation(body: AudioRetryIn, svc: Pipeline, user: Translator) -> None:
+    await svc.retry_translation(body.poi_id, body.lang, user.user_id)
 
 
 @router.get("/translations", response_model=list[TranslationOut])
@@ -137,7 +155,7 @@ async def retry_audio(body: AudioRetryIn, svc: Pipeline, user: AudioBuilder) -> 
 
 # --- UC-08
 @router.get("/tours", response_model=list[TourOut])
-async def list_tours(svc: Catalog, _: Admin) -> list[dict[str, Any]]:
+async def list_tours(svc: Catalog, _: TourReader) -> list[dict[str, Any]]:
     return await svc.list_tours()
 
 
@@ -165,6 +183,16 @@ async def list_packs(
     svc: Pipeline, _: Publisher, tour_id: str | None = None, lang: str | None = None
 ) -> list[dict[str, Any]]:
     return await svc.list_packs(tour_id, lang)
+
+
+@router.get("/packs/status", response_model=list[PackStatusOut])
+async def pack_status(tour_id: str, svc: Pipeline, _: Publisher) -> list[dict[str, Any]]:
+    return await svc.pack_status(tour_id)
+
+
+@router.get("/packs/{pack_id}/diff", response_model=PackDiffOut)
+async def pack_diff(pack_id: str, svc: Pipeline, _: Publisher) -> dict[str, Any]:
+    return await svc.pack_diff(pack_id)
 
 
 @router.post("/packs/build", response_model=PackOut, status_code=status.HTTP_201_CREATED)
@@ -217,6 +245,11 @@ async def update_account(
     return _account(await svc.update_account(user_id, fields, user.user_id))
 
 
+@router.post("/admin/users/{user_id}/password", status_code=status.HTTP_204_NO_CONTENT)
+async def set_password(user_id: str, body: PasswordSetIn, svc: Catalog, user: Admin) -> None:
+    await svc.set_password(user_id, body.password, user.user_id)
+
+
 # --- UC-13
 @router.post("/tickets", response_model=TicketIssueOut, status_code=status.HTTP_201_CREATED)
 async def issue_tickets(body: TicketIssueIn, svc: Catalog, user: Admin) -> TicketIssueOut:
@@ -246,5 +279,6 @@ async def analytics_summary(
     end: datetime | None = None,
     tour_id: str | None = None,
     lang: str | None = None,
+    tz: Annotated[str, Query(max_length=64, description="Múi giờ IANA để chia ngày")] = "UTC",
 ) -> dict[str, Any]:
-    return await svc.analytics(start, end, tour_id, lang)
+    return await svc.analytics(start, end, tour_id, lang, tz)

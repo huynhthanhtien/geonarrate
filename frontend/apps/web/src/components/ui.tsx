@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 
 export const inputClass =
   "w-full bg-white border border-slate-200 text-slate-800 text-sm px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500";
@@ -82,5 +82,46 @@ export function Field({ label, children }: { label: string; children: ReactNode 
       <span className="block mb-1">{label}</span>
       {children}
     </label>
+  );
+}
+
+/** Hộp thoại gốc của trình duyệt (<dialog>): có sẵn focus trap, Esc để đóng. */
+export function Dialog({ open, title, onClose, children, size = "md" }: { open: boolean; title: string; onClose: () => void; children: ReactNode; size?: "md" | "lg" }) {
+  const ref = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (open && !el.open) el.showModal();
+    if (!open && el.open) el.close();
+  }, [open]);
+  return (
+    <dialog ref={ref} onClose={onClose} className={`m-auto ${size === "lg" ? "w-[min(44rem,calc(100vw-2rem))]" : "w-[min(32rem,calc(100vw-2rem))]"} rounded-xl border border-slate-200 p-0 shadow-xl backdrop:bg-slate-900/30`}>
+      <div className="p-5">
+        <h3 className="font-semibold text-slate-800">{title}</h3>
+        <div className="mt-3 text-sm text-slate-600">{children}</div>
+      </div>
+    </dialog>
+  );
+}
+
+/** Xác nhận thao tác khó hoàn tác; nút chính đỏ khi `danger`. */
+export function ConfirmDialog({ open, title, children, confirmLabel, danger, busy, onConfirm, onClose }: {
+  open: boolean;
+  title: string;
+  children: ReactNode;
+  confirmLabel: string;
+  danger?: boolean;
+  busy?: boolean;
+  onConfirm: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <Dialog open={open} title={title} onClose={onClose}>
+      {children}
+      <div className="mt-5 flex justify-end gap-2">
+        <button type="button" className={ghostBtn} onClick={onClose}>Huỷ</button>
+        <button type="button" className={danger ? dangerBtn : primaryBtn} disabled={busy} onClick={onConfirm}>{confirmLabel}</button>
+      </div>
+    </Dialog>
   );
 }

@@ -147,3 +147,14 @@ def require_permission(permission: Permission) -> Callable[[Principal], Principa
         return principal
 
     return _check
+
+
+def require_any_permission(*permissions: Permission) -> Callable[[Principal], Principal]:
+    """Cho qua nếu có ít nhất một quyền (vd. danh sách tour mà nhiều trang cần)."""
+
+    def _check(principal: Annotated[Principal, Depends(get_current_principal)]) -> Principal:
+        if not set(permissions) & permissions_for(principal.role):
+            raise ForbiddenError("forbidden", f"Cần một trong các quyền {', '.join(permissions)}")
+        return principal
+
+    return _check

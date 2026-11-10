@@ -5,6 +5,7 @@ import secrets
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from typing import Any
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from app.core.exceptions import (
     ConflictError,
@@ -12,6 +13,7 @@ from app.core.exceptions import (
     InvalidContentError,
     NotFoundError,
 )
+from app.core.security import hash_password
 from app.models.audit import AuditResource
 from app.models.user import Role, User
 from app.repositories.analytics_repo import SqlAnalyticsRepository
@@ -119,6 +121,17 @@ class CatalogService:
         action = "user.lock" if locked else "user.update"
         await self._audit.record(actor_id, action, AuditResource("user", user_id))
         return user
+
+    async def set_password(self, user_id: str, password: str, actor_id: str) -> None:
+        """Quản trị viên đặt mật khẩu mới; người khác phải đăng nhập lại bằng mật khẩu mới."""
+        user = await self._users.update_fields(
+            user_id, {"password_hash": hash_password(password)}, self._clock()
+        )
+        if user is None:
+            raise NotFoundError("user_not_found", "Không tìm thấy tài khoản")
+        if user_id != actor_id:
+            await self._auth.revoke_sessions(user_id)
+        await self._audit.record(actor_id, "user.password", AuditResource("user", user_id))
 
     # --- UC-13
     async def issue_tickets(
@@ -245,8 +258,17 @@ class CatalogService:
         return await self._analytics.insert_events(device_id, events)
 
     async def analytics(
-        self, start: datetime | None, end: datetime | None, tour_id: str | None, lang: str | None
+        self,
+        start: datetime | None,
+        end: datetime | None,
+        tour_id: str | None,
+        lang: str | None,
+        tz: str = "UTC",
     ) -> dict[str, Any]:
+        try:
+            ZoneInfo(tz)
+        except (ZoneInfoNotFoundError, ValueError):
+            raise InvalidContentError("invalid_timezone", "Múi giờ không hợp lệ") from None
         finish = end or self._clock()
         begin = start or finish - timedelta(days=30)
-        return await self._analytics.summary(begin, finish, tour_id, lang)
+        return await self._analytics.summary(begin, finish, tour_id, lang, tz)

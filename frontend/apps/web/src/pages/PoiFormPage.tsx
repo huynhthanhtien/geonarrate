@@ -5,8 +5,9 @@ import { useNavigate, useParams } from "react-router";
 import { sendJson } from "../api";
 import { LoadError } from "../components/LoadError";
 import { MapPicker } from "../components/MapPicker";
+import { CATEGORIES, categoryLabel } from "../labels";
+import { Select } from "../components/Select";
 
-const CATEGORIES = ["temple", "church", "museum", "park", "other"];
 const DECIMAL = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/;
 
 function coordinate(value: string, limit: number): number | null {
@@ -144,14 +145,14 @@ export function PoiFormPage() {
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className={labelClass}>Danh mục</label>
-            <select value={category} onChange={(e) => setCategory(e.target.value)} className={inputClass}>
-              {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
-            </select>
+            <Select ariaLabel="Danh mục" value={category} onChange={setCategory}
+              options={CATEGORIES.map((c) => ({ value: c, label: categoryLabel(c) }))} />
           </div>
           <div>
             <label className={labelClass}>Ưu tiên</label>
-            <input type="number" min={1} value={priority}
+            <input type="number" min={1} value={priority} aria-describedby="poi-priority-hint"
               onChange={(e) => setPriority(Number(e.target.value))} className={inputClass} />
+            <p id="poi-priority-hint" className="mt-1 text-xs text-slate-500">Khi đứng trong vùng của nhiều điểm, điểm có số lớn hơn được phát trước.</p>
           </div>
         </div>
 
@@ -172,9 +173,9 @@ export function PoiFormPage() {
         </div>
 
         <div>
-          <label htmlFor="poi-coordinate-pair" className={labelClass}>Dán tọa độ (kinh độ, vĩ độ)</label>
+          <label htmlFor="poi-coordinate-pair" className={labelClass}>Dán tọa độ (vd. chép từ Google Maps)</label>
           <input id="poi-coordinate-pair" type="text" value={pair}
-            placeholder="VD: 106.6978, 10.7881"
+            placeholder="VD: 10.7881, 106.6978"
             aria-describedby="poi-coordinate-hint"
             aria-invalid={pairTouched && invalidPair}
             onBlur={() => setPairTouched(true)}

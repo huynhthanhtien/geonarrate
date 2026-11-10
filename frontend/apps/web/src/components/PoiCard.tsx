@@ -1,5 +1,7 @@
 import { useNavigate } from "react-router";
 import { Church, Flower2, Landmark, MapPin, MessageSquare, PenLine, Radius, Settings2, Trees, type LucideIcon } from "lucide-react";
+import { useCan } from "../auth/session";
+import { categoryLabel } from "../labels";
 
 const STATUS_CONFIG = {
   draft: { label: "Nháp", className: "bg-slate-100 text-slate-600" },
@@ -12,6 +14,8 @@ const CATEGORY_ICON: Record<string, LucideIcon> = {
 };
 
 export function PoiCard({ poi }: { poi: any }) {
+  // Người chỉ có quyền xem (vd. biên dịch viên) không thấy nút sửa
+  const canWrite = useCan()("script:write");
   const navigate = useNavigate();
   const scriptStatus = poi.script_status as keyof typeof STATUS_CONFIG;
   const statusCfg = STATUS_CONFIG[scriptStatus] ?? STATUS_CONFIG.draft;
@@ -37,13 +41,14 @@ export function PoiCard({ poi }: { poi: any }) {
             <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-slate-400">
               <span className="inline-flex items-center gap-1"><MapPin size={12} aria-hidden /> {poi.lat.toFixed(4)}, {poi.lng.toFixed(4)}</span>
               <span className="inline-flex items-center gap-1"><Radius size={12} aria-hidden /> {poi.radius}m</span>
-              <span>ưu tiên #{poi.priority}</span>
-              <span>v{poi.script_version}</span>
+              <span title="Hai vùng chồng nhau thì điểm có số ưu tiên lớn hơn được phát trước">Ưu tiên {poi.priority}</span>
+              <span>{categoryLabel(poi.category)}</span>
+              <span title="Phiên bản script; tăng khi sửa script đã duyệt">Script v{poi.script_version}</span>
             </div>
           </div>
         </div>
 
-        <div
+        {canWrite && <div
           className="flex gap-2 shrink-0 transition-opacity"
           onClick={(e) => e.stopPropagation()}
         >
@@ -59,7 +64,7 @@ export function PoiCard({ poi }: { poi: any }) {
           >
             <Settings2 size={13} aria-hidden /> Sửa điểm
           </button>
-        </div>
+        </div>}
       </div>
 
       {poi.review_note && (

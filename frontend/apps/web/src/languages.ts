@@ -10,3 +10,12 @@ export function useLanguages() {
     retry: false,
   });
 }
+
+/** Tên hiển thị của ngôn ngữ, vd. "English (en)"; chưa tải xong thì trả mã. */
+export function useLangName() {
+  const { data } = useLanguages();
+  return (code: string, withCode = true) => {
+    const name = data?.find((l) => l.code === code)?.native_name;
+    return name ? (withCode ? `${name} (${code})` : name) : code;
+  };
+}

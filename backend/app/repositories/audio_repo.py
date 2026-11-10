@@ -5,7 +5,7 @@ from sqlalchemy import func, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncEngine
 
-from app.core.schema import audio_assets, audio_packs
+from app.core.schema import audio_assets, audio_packs, users
 from app.core.transaction import connection
 from app.repositories._ids import parse_uuid, record
 from app.repositories.job_repo import add_jobs
@@ -68,7 +68,12 @@ class SqlAudioRepository:
 
     # --- pack
     async def find_packs(self, tour_id: str | None, lang: str | None) -> list[dict[str, Any]]:
-        stmt = select(audio_packs).order_by(audio_packs.c.created_at.desc()).limit(200)
+        stmt = (
+            select(audio_packs, users.c.email.label("published_by_email"))
+            .select_from(audio_packs.outerjoin(users, users.c.id == audio_packs.c.published_by))
+            .order_by(audio_packs.c.created_at.desc())
+            .limit(200)
+        )
         if tour_id:
             stmt = stmt.where(audio_packs.c.tour_id == parse_uuid(tour_id))
         if lang:

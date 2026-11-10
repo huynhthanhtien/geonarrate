@@ -38,7 +38,7 @@ class SqlAnalyticsRepository:
         return int(result.rowcount)
 
     async def summary(
-        self, start: datetime, end: datetime, tour_id: str | None, lang: str | None
+        self, start: datetime, end: datetime, tour_id: str | None, lang: str | None, tz: str
     ) -> dict[str, Any]:
         p = playback_events
         conds = [p.c.ts >= start, p.c.ts < end]
@@ -69,6 +69,13 @@ class SqlAnalyticsRepository:
                     select(p.c.lang, plays.label("plays")).where(*conds).group_by(p.c.lang)
                 )
             ).all()
+            # Chia ngày theo múi giờ người xem: ts lưu UTC, ngày ở Việt Nam bắt đầu lúc 17h UTC
+            day = func.date(func.timezone(tz, p.c.ts)).label("day")
+            by_day = (
+                await conn.execute(
+                    select(day, plays, completes).where(*conds).group_by(day).order_by(day)
+                )
+            ).all()
         play_count = int(total[0] or 0)
         done = int(total[1] or 0)
         return {
@@ -77,4 +84,7 @@ class SqlAnalyticsRepository:
             "completion_rate": round(done / play_count, 4) if play_count else None,
             "top_pois": [{"id": str(r[0]), "name": r[1], "plays": int(r[2])} for r in top if r[2]],
             "by_lang": [{"lang": r[0], "plays": int(r[1])} for r in by_lang],
+            "by_day": [
+                {"day": r[0], "plays": int(r[1] or 0), "completes": int(r[2] or 0)} for r in by_day
+            ],
         }

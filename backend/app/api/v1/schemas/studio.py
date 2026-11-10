@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, Field, StringConstraints
@@ -63,6 +63,18 @@ class AudioCell(BaseModel):
     state: Literal["none", "queued", "running", "ready", "failed", "stale"]
     error: str | None
     duration_ms: int | None
+    hint: (
+        Literal[
+            "script_draft",
+            "script_in_review",
+            "translating",
+            "translation_pending",
+            "translation_rejected",
+            "translate_failed",
+            "not_started",
+        ]
+        | None
+    ) = None
 
 
 class AudioRow(BaseModel):
@@ -137,7 +149,37 @@ class PackOut(BaseModel):
     total_bytes: int | None
     file_count: int | None
     published_at: datetime | None
+    published_by_email: str | None = None
     created_at: datetime
+    updated_at: datetime
+
+
+class PackStatusOut(BaseModel):
+    lang: str
+    total_pois: int
+    ready_pois: int
+    missing: list[str]
+    can_build: bool
+    blocker: Literal["tour_empty", "audio_missing", "pack_building", "pack_unchanged"] | None
+    reason: str | None
+    same_version: int | None
+    published: PackOut | None
+    pending: PackOut | None
+    building: PackOut | None
+    history: list[PackOut]
+
+
+class PackChange(BaseModel):
+    name: str
+    what: list[str]
+
+
+class PackDiffOut(BaseModel):
+    against_version: int | None
+    added: list[str]
+    removed: list[str]
+    changed: list[PackChange]
+    bytes_delta: int
 
 
 class AccountCreateIn(BaseModel):
@@ -153,6 +195,10 @@ class AccountUpdateIn(BaseModel):
     full_name: Annotated[str, StringConstraints(strip_whitespace=True, max_length=200)] | None = (
         None
     )
+
+
+class PasswordSetIn(BaseModel):
+    password: str = Field(min_length=8, max_length=256)
 
 
 class AccountOut(BaseModel):
@@ -209,12 +255,19 @@ class AnalyticsLang(BaseModel):
     plays: int
 
 
+class AnalyticsDay(BaseModel):
+    day: date
+    plays: int
+    completes: int
+
+
 class AnalyticsOut(BaseModel):
     plays: int
     completes: int
     completion_rate: float | None
     top_pois: list[AnalyticsTop]
     by_lang: list[AnalyticsLang]
+    by_day: list[AnalyticsDay]
 
 
 class PublicTourOut(BaseModel):

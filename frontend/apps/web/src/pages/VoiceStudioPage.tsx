@@ -3,7 +3,8 @@ import { Play, RotateCw } from "lucide-react";
 import { useEffect, useState } from "react";
 import { getAudioPreview, sendJson } from "../api";
 import { Badge, Empty, ErrorBox, ghostBtn, Page, Table } from "../components/ui";
-import { useLanguages } from "../languages";
+import { Link } from "react-router";
+import { useLangName, useLanguages } from "../languages";
 
 const STATE = {
   none: { label: "Chưa có", tone: "gray" },
@@ -15,6 +16,17 @@ const STATE = {
 } as const;
 
 type Preview = { poiId: string; name: string; lang: string };
+
+/** Vì sao chưa có audio, và nơi xử lý (backend trả `hint` khi chưa có nội dung đã duyệt). */
+const HINTS: Record<string, { text: string; to?: (poiId: string) => string }> = {
+  script_draft: { text: "Script chưa gửi duyệt", to: (id) => `/pois/${id}/script` },
+  script_in_review: { text: "Script đang chờ duyệt", to: () => "/reviews" },
+  translating: { text: "Đang dịch máy" },
+  translate_failed: { text: "Dịch máy lỗi" },
+  not_started: { text: "Chưa chạy — bấm Chạy để bắt đầu" },
+  translation_pending: { text: "Bản dịch chờ duyệt", to: () => "/translations" },
+  translation_rejected: { text: "Bản dịch bị trả lại", to: () => "/translations" },
+};
 
 function AudioPreview({ selection }: { selection: Preview }) {
   const { poiId, lang } = selection;
@@ -43,6 +55,7 @@ function AudioPreview({ selection }: { selection: Preview }) {
 
 export function VoiceStudioPage() {
   const languages = useLanguages();
+  const langName = useLangName();
   const qc = useQueryClient();
   const [preview, setPreview] = useState<Preview | null>(null);
   const { data, error } = useQuery({
@@ -74,7 +87,10 @@ export function VoiceStudioPage() {
       )}
       {data?.length === 0 && <Empty>Chưa có điểm tham quan nào.</Empty>}
       {!!data?.length && (
-        <Table head={["Điểm", ...(languages.data ?? []).map((l) => l.code)]}>
+        <Table head={["Điểm", ...(languages.data ?? []).map((l) => {
+          const ready = data.filter((r) => r.langs[l.code]?.state === "ready").length;
+          return `${langName(l.code)} · ${ready}/${data.length}`;
+        })]}>
           {data.map((row) => (
             <tr key={row.id}>
               <td className="px-4 py-2.5 font-medium whitespace-nowrap">{row.name}</td>
@@ -82,6 +98,7 @@ export function VoiceStudioPage() {
                 const cell = row.langs[lang];
                 if (!cell) return <td key={lang} className="px-4 py-2.5">-</td>;
                 const s = STATE[cell.state as keyof typeof STATE];
+                const hint = cell.hint ? HINTS[cell.hint] : undefined;
                 return (
                   <td key={lang} className="px-4 py-2.5 align-top">
                     <Badge tone={s.tone}>{s.label}</Badge>
@@ -91,9 +108,17 @@ export function VoiceStudioPage() {
                       </button>
                     )}
                     {cell.error && <p className="text-xs text-red-600 mt-1 max-w-40 truncate" title={cell.error}>{cell.error}</p>}
-                    {(cell.state === "failed" || cell.state === "stale") && (
+                    {hint && (
+                      <p className="mt-1 text-xs text-slate-500">
+                        {hint.to
+                          ? <Link className="text-teal-700 hover:underline" to={hint.to(row.id)}>{hint.text}</Link>
+                          : hint.text}
+                      </p>
+                    )}
+                    {(cell.state === "failed" || (cell.state === "stale" && !cell.hint)
+                      || cell.hint === "not_started" || cell.hint === "translate_failed") && (
                       <button className={`${ghostBtn} mt-1 !py-0.5 !px-2 !text-xs`} disabled={retry.isPending} onClick={() => retry.mutate({ poi_id: row.id, lang })}>
-                        <RotateCw size={12} aria-hidden /> Thử lại
+                        <RotateCw size={12} aria-hidden /> {cell.hint === "not_started" ? "Chạy" : "Thử lại"}
                       </button>
                     )}
                   </td>

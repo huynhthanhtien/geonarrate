@@ -3,12 +3,14 @@ import { Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { sendJson } from "../api";
 import { Badge, dangerBtn, Empty, ErrorBox, Field, inputClass, Page, primaryBtn, Table } from "../components/ui";
-import { useLanguages } from "../languages";
+import { useLangName, useLanguages } from "../languages";
+import { Select } from "../components/Select";
 
 export function GlossaryPage() {
   const qc = useQueryClient();
   const [form, setForm] = useState({ term: "", target_lang: "", translation: "", is_required: true, poi_id: "" });
   const languages = useLanguages();
+  const langName = useLangName();
   const { data, error } = useQuery({
     queryKey: ["glossaries"],
     queryFn: () => sendJson<any[]>("/api/v1/glossaries"),
@@ -33,17 +35,13 @@ export function GlossaryPage() {
       >
         <Field label="Từ gốc"><input required value={form.term} onChange={(e) => setForm({ ...form, term: e.target.value })} className={inputClass} /></Field>
         <Field label="Ngôn ngữ">
-          <select required value={form.target_lang} onChange={(e) => setForm({ ...form, target_lang: e.target.value })} className={inputClass}>
-            <option value="">Chọn ngôn ngữ</option>
-            {languages.data?.filter((l) => !l.is_source).map((l) => <option key={l.code} value={l.code}>{l.native_name} ({l.code})</option>)}
-          </select>
+          <Select required ariaLabel="Ngôn ngữ" placeholder="Chọn ngôn ngữ" value={form.target_lang} onChange={(v) => setForm({ ...form, target_lang: v })}
+            options={(languages.data ?? []).filter((l) => !l.is_source).map((l) => ({ value: l.code, label: `${l.native_name} (${l.code})` }))} />
         </Field>
         <Field label="Cách dịch"><input required value={form.translation} onChange={(e) => setForm({ ...form, translation: e.target.value })} className={inputClass} /></Field>
         <Field label="Áp dụng cho">
-          <select value={form.poi_id} onChange={(e) => setForm({ ...form, poi_id: e.target.value })} className={inputClass}>
-            <option value="">Toàn hệ thống</option>
-            {points.data?.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-          </select>
+          <Select ariaLabel="Áp dụng cho" value={form.poi_id} onChange={(v) => setForm({ ...form, poi_id: v })}
+            options={[{ value: "", label: "Toàn hệ thống" }, ...(points.data ?? []).map((p) => ({ value: p.id, label: p.name }))]} />
         </Field>
         <div className="flex items-center gap-3">
           <label className="text-sm text-slate-600 flex items-center gap-1.5">
@@ -59,7 +57,7 @@ export function GlossaryPage() {
           {data.map((g) => (
             <tr key={g.id}>
               <td className="px-4 py-2.5 font-medium">{g.term}</td>
-              <td className="px-4 py-2.5">{g.target_lang}</td>
+              <td className="px-4 py-2.5">{langName(g.target_lang)}</td>
               <td className="px-4 py-2.5">{g.translation}</td>
               <td className="px-4 py-2.5">{name(g.poi_id)}</td>
               <td className="px-4 py-2.5"><Badge tone={g.is_required ? "amber" : "gray"}>{g.is_required ? "Bắt buộc" : "Gợi ý"}</Badge></td>

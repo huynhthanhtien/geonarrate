@@ -6,6 +6,8 @@ import wave
 import httpx
 import pytest
 
+from app.integrations.translate.base import GlossaryTerm
+from app.integrations.translate.groq import GroqTranslate
 from app.integrations.translate.libretranslate import LibreTranslate
 from app.integrations.tts.magpie import MagpieTTS, _encode_mp3
 
@@ -52,6 +54,33 @@ async def test_provider_http_errors_propagate(monkeypatch: pytest.MonkeyPatch) -
     mock_http(monkeypatch, httpx.Response(429))
     with pytest.raises(httpx.HTTPStatusError):
         await LibreTranslate("http://translator").translate("x", "vi", "en", [])
+
+
+async def test_groq_prompt_uses_bcp47_tags_and_glossary(monkeypatch: pytest.MonkeyPatch) -> None:
+    reply = {"choices": [{"message": {"content": "  你好  "}}]}
+    requests = mock_http(monkeypatch, httpx.Response(200, json=reply))
+    term = GlossaryTerm("Chùa", "寺", is_required=True)
+    result = await GroqTranslate("key", "model-x").translate(
+        "Chùa cổ", "vi", "zh", [term], source_tag="vi-VN", target_tag="zh-CN"
+    )
+    assert result == "你好"
+    body = json.loads(requests[0].content)
+    system = body["messages"][0]["content"]
+    assert "from vi-VN to zh-CN" in system
+    assert "Chùa → 寺 (required" in system
+    assert body["model"] == "model-x" and body["messages"][1]["content"] == "Chùa cổ"
+    assert requests[0].headers["Authorization"] == "Bearer key"
+
+
+async def test_groq_falls_back_to_short_codes_and_rejects_empty(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    requests = mock_http(monkeypatch, httpx.Response(200, json={"choices": [{"message": {}}]}))
+    with pytest.raises(RuntimeError):
+        await GroqTranslate("key", "m").translate("x", "vi", "ko", [])
+    assert "from vi to ko" in json.loads(requests[0].content)["messages"][0]["content"]
+    with pytest.raises(ValueError):
+        GroqTranslate(" ", "m")
 
 
 async def test_magpie_rejects_non_wav_and_custom_rate() -> None:
