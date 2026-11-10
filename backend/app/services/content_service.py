@@ -3,6 +3,7 @@
 from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Any
+from unicodedata import normalize
 
 from app.core.exceptions import ConflictError, InvalidContentError, NotFoundError
 from app.models.audit import AuditResource
@@ -16,6 +17,17 @@ def _utcnow() -> datetime:
     return datetime.now(UTC)
 
 
+def _normalize_term(value: str) -> str:
+    value = normalize("NFKC", value).casefold()
+    value = value.translate(dict.fromkeys(map(ord, "\u200b\ufeff")))
+    return " ".join(value.split())
+
+
+def _contains_term(text: str, term: str) -> bool:
+    normalized_term = _normalize_term(term)
+    return bool(normalized_term) and normalized_term in _normalize_term(text)
+
+
 def qa_flags(
     source: str, text: str, terms: list[dict[str, Any]], provider: str | None
 ) -> list[str]:
@@ -23,7 +35,7 @@ def qa_flags(
     flags = [
         f"missing_term:{t['term']}"
         for t in terms
-        if t["term"] in source and t["translation"] not in text
+        if _contains_term(source, t["term"]) and not _contains_term(text, t["translation"])
     ]
     if provider == "mock":
         flags.append("mock_translation")
@@ -44,7 +56,12 @@ class ContentService:
         self._clock = clock
 
     async def list_translations(self, lang: str | None, status: str | None) -> list[dict[str, Any]]:
-        return await self._translations.find(lang, status)
+        rows = await self._translations.find(lang, status)
+        for row in rows:
+            terms = await self._glossary.for_translation(row["poi_id"], row["target_lang"])
+            extras = [f for f in row["qa_flags"] if not f.startswith("missing_term:")]
+            row["qa_flags"] = qa_flags(row["source_text"] or "", row["text"], terms, None) + extras
+        return rows
 
     async def _get(self, translation_id: str) -> dict[str, Any]:
         row = await self._translations.get(translation_id)
@@ -54,30 +71,30 @@ class ContentService:
 
     async def edit_translation(self, translation_id: str, text: str) -> dict[str, Any]:
         row = await self._get(translation_id)
-        terms = await self._glossary.for_translation(row["attraction_id"], row["target_lang"])
+        terms = await self._glossary.for_translation(row["poi_id"], row["target_lang"])
         flags = qa_flags(row["source_text"], text, terms, None)
         await self._translations.edit(translation_id, text, flags, text_hash(text), self._clock())
         return await self._get(translation_id)
 
     async def approve_translation(self, translation_id: str, actor_id: str) -> dict[str, Any]:
         row = await self._get(translation_id)
-        terms = await self._glossary.for_translation(row["attraction_id"], row["target_lang"])
+        terms = await self._glossary.for_translation(row["poi_id"], row["target_lang"])
         missing = [
             t["term"]
             for t in terms
             if t["is_required"]
-            and t["term"] in row["source_text"]
-            and t["translation"] not in row["text"]
+            and _contains_term(row["source_text"] or "", t["term"])
+            and not _contains_term(row["text"], t["translation"])
         ]
         if missing:
             raise InvalidContentError(
                 "missing_required_terms", f"Bản dịch thiếu thuật ngữ bắt buộc: {', '.join(missing)}"
             )
-        lang, aid = row["target_lang"], row["attraction_id"]
+        lang, aid = row["target_lang"], row["poi_id"]
         job = job_spec(
             "audio",
             f"audio:{aid}:{lang}:{text_hash(row['text'])}",
-            {"attraction_id": aid, "lang": lang},
+            {"poi_id": aid, "lang": lang},
         )
         now = self._clock()
         if not await self._translations.review(
@@ -110,11 +127,11 @@ class ContentService:
         lang: str,
         translation: str,
         is_required: bool,
-        attraction_id: str | None,
+        poi_id: str | None,
         actor_id: str,
     ) -> dict[str, Any]:
         created = await self._glossary.insert(
-            term, lang, translation, is_required, attraction_id, actor_id, self._clock()
+            term, lang, translation, is_required, poi_id, actor_id, self._clock()
         )
         if created is None:
             raise ConflictError("term_exists", f"Thuật ngữ '{term}' đã có cho ngôn ngữ {lang}")
@@ -131,7 +148,7 @@ class ContentService:
         for row in await self._translations.find(lang, None):
             if row["review_status"] == "approved":
                 continue
-            terms = await self._glossary.for_translation(row["attraction_id"], lang)
+            terms = await self._glossary.for_translation(row["poi_id"], lang)
             extras = [f for f in row["qa_flags"] if not f.startswith("missing_term:")]
             flags = qa_flags(row["source_text"], row["text"], terms, None) + extras
             await self._translations.set_flags(row["id"], flags, now)

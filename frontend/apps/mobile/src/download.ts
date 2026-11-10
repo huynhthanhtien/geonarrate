@@ -1,15 +1,15 @@
 import { DEVICE_STORAGE_BUDGET_BYTES, DOWNLOAD_CONCURRENCY, PACK_MAX_INSTALLED } from "@geonarrate/core";
 import * as Crypto from "expo-crypto";
 import { Directory, File, Paths } from "expo-file-system";
-import { fileUrl, type Manifest, type PackFile } from "./api";
+import { fileUrl, getBackend, type Manifest, type PackFile } from "./api";
 import { getDeviceId, installedPacks, removePack, savePack } from "./store";
 
 function packDir(tourId: string, lang: string): Directory {
   return new Directory(Paths.document, "packs", tourId, lang);
 }
 
-export function audioFile(tourId: string, lang: string, f: { attraction_id: string; sha256: string }): File {
-  return new File(packDir(tourId, lang), `${f.attraction_id}-${f.sha256.slice(0, 12)}.mp3`);
+export function audioFile(tourId: string, lang: string, f: { poi_id: string; sha256: string }): File {
+  return new File(packDir(tourId, lang), `${f.poi_id}-${f.sha256.slice(0, 12)}.mp3`);
 }
 
 async function matches(file: File, sha256: string): Promise<boolean> {
@@ -28,13 +28,13 @@ export function limitProblem(m: Manifest): string | null {
   return null;
 }
 
-async function fetchOne(m: Manifest, f: PackFile, device: string): Promise<void> {
+async function fetchOne(m: Manifest, f: PackFile, device: string, server: string): Promise<void> {
   const dest = audioFile(m.tour_id, m.lang, f);
   // File đã tải đúng thì bỏ qua: mất mạng giữa chừng không phải tải lại từ đầu
   if (dest.exists && (await matches(dest, f.sha256))) return;
   for (let attempt = 0; attempt < 2; attempt++) {
     if (dest.exists) dest.delete();
-    await File.downloadFileAsync(fileUrl(m.tour_id, m.lang, f.attraction_id, device), dest);
+    await File.downloadFileAsync(fileUrl(m, f.poi_id, device, server), dest);
     if (await matches(dest, f.sha256)) return;
   }
   if (dest.exists) dest.delete();
@@ -42,17 +42,20 @@ async function fetchOne(m: Manifest, f: PackFile, device: string): Promise<void>
 }
 
 export async function downloadPack(m: Manifest, tourName: string, onProgress: (done: number) => void): Promise<void> {
-  const device = await getDeviceId();
+  const server = getBackend();
+  const device = await getDeviceId(server);
   packDir(m.tour_id, m.lang).create({ intermediates: true, idempotent: true });
   const queue = [...m.files];
   let done = 0;
   const worker = async () => {
     for (let f = queue.shift(); f; f = queue.shift()) {
-      await fetchOne(m, f, device);
+      await fetchOne(m, f, device, server);
       onProgress(++done);
     }
   };
-  await Promise.all(Array.from({ length: DOWNLOAD_CONCURRENCY }, worker));
+  const results = await Promise.allSettled(Array.from({ length: DOWNLOAD_CONCURRENCY }, worker));
+  const failure = results.find((result) => result.status === "rejected");
+  if (failure) throw failure.reason;
   savePack(m, tourName);
 }
 

@@ -1,5 +1,6 @@
 """Chạy nguyên chuỗi UC-02 đến UC-18 qua HTTP, với worker thật và TTS giả."""
 
+import json
 from collections.abc import Callable, Iterator
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -9,28 +10,33 @@ import pytest
 from fastapi.testclient import TestClient
 from redis import Redis
 from sqlalchemy import delete, insert
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncConnection
 
 from app.core import deps, schema
 from app.core.config import get_settings
+from app.core.device import issue_device_id
 from app.core.security import hash_password
 from app.main import app
 from app.repositories import job_repo
-from tests.integration.conftest import run_sql
+from app.services.language_service import DEFAULT_LANGUAGES
+from tests.integration.conftest import clear_test_pois, run_sql
 
 pytestmark = pytest.mark.integration
 
 API = "/api/v1"
 ADMIN = {"email": "admin@geonarrate.test", "password": "admin-test-password"}
 TRANSLATOR = {"email": "translator@geonarrate.test", "password": "translator-test-password"}
-DEVICE = "device-00000001"
-OTHER = "device-00000002"
+DEVICE = issue_device_id()
+OTHER = issue_device_id()
 
 
 class FakeTTS:
     fail = False
 
-    async def synthesize(self, text: str, voice_id: str, rate: str = "+0%") -> bytes:
+    async def synthesize(
+        self, text: str, voice_id: str, rate: str = "+0%", *, lang: str = "en"
+    ) -> bytes:
         if FakeTTS.fail:
             raise RuntimeError("TTS sập")
         return f"{voice_id}:{text}".encode() * 100
@@ -57,13 +63,26 @@ def client(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Iterator[TestClie
             schema.audio_assets,
             schema.translations,
             schema.glossaries,
-            schema.tour_attractions,
+            schema.tour_pois,
             schema.tours,
-            schema.attractions,
             schema.refresh_tokens,
             schema.audit_logs,
         ):
             await conn.execute(delete(t))
+        await clear_test_pois(conn)
+        for lang in DEFAULT_LANGUAGES:
+            values = {
+                "code": lang.code,
+                "bcp47": lang.bcp47,
+                "native_name": lang.native_name,
+                "is_source": lang.is_source,
+                "is_active": lang.is_active,
+            }
+            await conn.execute(
+                pg_insert(schema.languages)
+                .values(**values)
+                .on_conflict_do_update(index_elements=[schema.languages.c.code], set_=values)
+            )
         await conn.execute(delete(schema.users).where(schema.users.c.email != ADMIN["email"]))
         await conn.execute(
             insert(schema.users).values(
@@ -73,7 +92,7 @@ def client(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Iterator[TestClie
 
     run_sql(reset)
     with Redis.from_url(get_settings().redis_url) as redis:
-        for key in redis.scan_iter("rl:login:*"):
+        for key in redis.scan_iter("rl:*"):
             redis.delete(key)
     with TestClient(app) as c:
         yield c
@@ -95,9 +114,9 @@ def _drain(c: TestClient) -> int:
 
 def _approved_point(c: TestClient, admin: dict[str, str], name: str, script: str) -> str:
     body = {"name": name, "category": "museum", "lat": 10.77, "lng": 106.69, "radius": 40}
-    a = c.post(f"{API}/attractions", json={**body, "script": script}, headers=admin).json()
-    assert c.post(f"{API}/attractions/{a['id']}/submit", headers=admin).status_code == 200
-    assert c.post(f"{API}/attractions/{a['id']}/approve", headers=admin).status_code == 200
+    a = c.post(f"{API}/pois", json={**body, "script": script}, headers=admin).json()
+    assert c.post(f"{API}/pois/{a['id']}/submit", headers=admin).status_code == 200
+    assert c.post(f"{API}/pois/{a['id']}/approve", headers=admin).status_code == 200
     return str(a["id"])
 
 
@@ -112,11 +131,10 @@ def _published_tour(c: TestClient, admin: dict[str, str], access: str, points: l
     _approve_all(c, admin)
     _drain(c)
     body = {
-        "slug": f"tour-{access}",
         "name": f"Tour {access}",
         "access": access,
         "status": "published",
-        "attractions": [{"id": p, "is_preview": i == 0} for i, p in enumerate(points)],
+        "pois": [{"id": p, "is_preview": i == 0} for i, p in enumerate(points)],
     }
     r = c.post(f"{API}/tours", json=body, headers=admin)
     assert r.status_code == 201, r.text
@@ -186,19 +204,53 @@ def test_audio_failure_retries_then_can_be_retried_by_admin(client: TestClient) 
     admin = _login(client, ADMIN)
     FakeTTS.fail = True
     point = _approved_point(client, admin, "Điểm lỗi", "Nội dung.")
+    preview = f"{API}/audio/{point}/vi/preview"
+    assert client.get(preview, headers=admin).status_code == 404
     _drain(client)
     cell = {x["id"]: x for x in client.get(f"{API}/audio/status", headers=admin).json()}[point]
     assert cell["langs"]["vi"]["state"] == "failed"
     assert "TTS sập" in cell["langs"]["vi"]["error"]
 
     FakeTTS.fail = False
-    body = {"attraction_id": point, "lang": "vi"}
+    body = {"poi_id": point, "lang": "vi"}
     assert client.post(f"{API}/audio/retry", json=body, headers=admin).status_code == 204
     _drain(client)
     cell = {x["id"]: x for x in client.get(f"{API}/audio/status", headers=admin).json()}[point]
     assert cell["langs"]["vi"]["state"] == "ready"
-    bad = {"attraction_id": point, "lang": "en"}
+    assert client.get(preview).status_code == 401
+    translator = _login(client, TRANSLATOR)
+    assert client.get(preview, headers=translator).status_code == 403
+    audio = client.get(preview, headers=admin)
+    assert audio.status_code == 200
+    assert audio.headers["content-type"] == "audio/mpeg"
+    assert audio.headers["cache-control"] == "no-store"
+    assert "Nội dung".encode() in audio.content
+    bad = {"poi_id": point, "lang": "en"}
     assert client.post(f"{API}/audio/retry", json=bad, headers=admin).status_code == 422
+
+
+def test_pack_cannot_publish_until_checks_pass(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    admin = _login(client, ADMIN)
+    poi = _approved_point(client, admin, "Điểm kiểm tra pack", "Nội dung kiểm tra.")
+    tour = _published_tour(client, admin, "free", [poi])
+    moved = client.patch(f"{API}/pois/{poi}", json={"radius": 55}, headers=admin)
+    assert moved.status_code == 200  # nội dung khác bản đang phát hành thì mới build được
+    pack = client.post(f"{API}/packs/build", json={"tour_id": tour, "lang": "en"}, headers=admin)
+    assert pack.status_code == 201
+    pack_id = pack.json()["id"]
+    worker = deps.get_pipeline_service()
+    monkeypatch.setattr(worker, "_verify_pack_files", lambda files: False)
+    assert client.portal is not None
+    assert client.portal.call(worker.run_once)
+    rows = client.get(f"{API}/packs", headers=admin).json()
+    assert next(row for row in rows if row["id"] == pack_id)["status"] == "building"
+    assert client.post(f"{API}/packs/{pack_id}/publish", headers=admin).status_code == 409
+    assert client.portal.call(worker.run_once)
+    assert client.portal.call(worker.run_once)
+    rows = client.get(f"{API}/packs", headers=admin).json()
+    assert next(row for row in rows if row["id"] == pack_id)["status"] == "failed"
 
 
 def test_pack_publish_rollback_and_missing_audio(client: TestClient) -> None:
@@ -207,10 +259,8 @@ def test_pack_publish_rollback_and_missing_audio(client: TestClient) -> None:
     tour = _published_tour(client, admin, "free", [p1])
 
     p2 = _approved_point(client, admin, "Điểm B", "Bài B.")
-    r = client.patch(
-        f"{API}/tours/{tour}", json={"attractions": [{"id": p1}, {"id": p2}]}, headers=admin
-    )
-    assert r.json()["attraction_count"] == 2
+    r = client.patch(f"{API}/tours/{tour}", json={"pois": [{"id": p1}, {"id": p2}]}, headers=admin)
+    assert r.json()["poi_count"] == 2
     missing = client.post(f"{API}/packs/build", json={"tour_id": tour, "lang": "en"}, headers=admin)
     assert missing.status_code == 422
     assert "Điểm B" in missing.json()["detail"]
@@ -237,6 +287,12 @@ def test_pack_publish_rollback_and_missing_audio(client: TestClient) -> None:
     assert back.json()["status"] == "published"
     packs = client.get(f"{API}/packs", params={"tour_id": tour}, headers=admin).json()
     assert {p["version"]: p["status"] for p in packs} == {1: "published", 2: "superseded"}
+    file_url = f"{API}/public/tours/{tour}/packs/en/files/{p2}"
+    params = {"device_id": DEVICE}
+    assert client.get(file_url, params=params).status_code == 404
+    previous = client.get(file_url, params={**params, "pack_id": by_version[2]["id"]})
+    assert previous.status_code == 200
+    assert previous.headers["content-type"] == "audio/mpeg"
     wrong = client.post(
         f"{API}/packs/{by_version[1]['id']}/rollback", json={"reason": "x"}, headers=admin
     )
@@ -246,22 +302,90 @@ def test_pack_publish_rollback_and_missing_audio(client: TestClient) -> None:
     assert "pack.publish" in actions
 
 
+def test_pack_build_dedupe_rerun_outdated_publish_and_corrupt_audio(client: TestClient) -> None:
+    admin = _login(client, ADMIN)
+    p1 = _approved_point(client, admin, "Điểm R", "Bài R.")
+    tour = _published_tour(client, admin, "free", [p1])
+    body = {"tour_id": tour, "lang": "en"}
+
+    def build() -> Any:
+        return client.post(f"{API}/packs/build", json=body, headers=admin)
+
+    def move(radius: int) -> None:
+        r = client.patch(f"{API}/pois/{p1}", json={"radius": radius}, headers=admin)
+        assert r.status_code == 200, r.text
+
+    # Nội dung giống bản đang phát hành: bấm build không sinh version mới
+    same = build()
+    assert same.status_code == 409
+    assert same.json()["title"] == "pack_unchanged"
+
+    move(60)
+    v2 = build().json()
+    spam = build()  # v2 còn building
+    assert spam.status_code == 409
+    assert spam.json()["title"] == "pack_building"
+    _drain(client)
+    assert build().json()["title"] == "pack_unchanged"  # giống v2 đang qa
+
+    move(70)
+    v3 = build().json()
+    _drain(client)
+    assert client.post(f"{API}/packs/{v3['id']}/publish", headers=admin).status_code == 200
+    packs = client.get(f"{API}/packs", params={"tour_id": tour, "lang": "en"}, headers=admin).json()
+    assert [p["version"] for p in packs] == [3, 2, 1]
+
+    # Bản QA cũ hơn bản đang phát hành: phải dùng rollback, không phát hành đè
+    older = client.post(f"{API}/packs/{v2['id']}/publish", headers=admin)
+    assert older.status_code == 409
+    assert older.json()["title"] == "pack_outdated"
+
+    # Job build chạy lại (worker kẹt bị đưa về hàng đợi) không được kéo bản published về qa
+    assert client.portal is not None
+    svc = deps.get_pipeline_service()
+    spec = job_repo.job_spec("pack_build", f"pack:{v3['id']}", {"pack_id": v3["id"]})
+    client.portal.call(svc._jobs.enqueue, [spec], None, datetime.now(UTC))
+    _drain(client)
+    packs = client.get(f"{API}/packs", params={"tour_id": tour, "lang": "en"}, headers=admin).json()
+    assert {p["version"]: p["status"] for p in packs}[3] == "published"
+
+    # File audio app tải bị hỏng: không phát hành, không rollback
+    move(80)
+    v4 = build().json()
+    _drain(client)
+    root = Path(get_settings().storage_dir)
+    manifest = json.loads((root / f"packs/{tour}/en/4/manifest.json").read_text())
+    audio = root / manifest["files"][0]["storage_key"]
+    original = audio.read_bytes()
+    audio.write_bytes(b"broken")
+    bad = client.post(f"{API}/packs/{v4['id']}/publish", headers=admin)
+    assert bad.status_code == 422
+    assert bad.json()["title"] == "pack_files_invalid"
+    v1 = next(p for p in packs if p["version"] == 1)
+    back = client.post(f"{API}/packs/{v1['id']}/rollback", json={"reason": "x"}, headers=admin)
+    assert back.status_code == 422
+    audio.write_bytes(original)
+    assert client.post(f"{API}/packs/{v4['id']}/publish", headers=admin).status_code == 200
+
+
 def test_tour_validation(client: TestClient) -> None:
     admin = _login(client, ADMIN)
     p1 = _approved_point(client, admin, "Điểm C", "Bài.")
-    body: dict[str, Any] = {"slug": "t1", "name": "T", "attractions": [{"id": p1}]}
+    body: dict[str, Any] = {"name": "T", "pois": [{"id": p1}]}
     created = client.post(f"{API}/tours", json=body, headers=admin).json()
     assert created["bbox"] == [106.69, 10.77, 106.69, 10.77]
-    assert client.post(f"{API}/tours", json=body, headers=admin).status_code == 409
-    bad = {**body, "slug": "t2", "attractions": [{"id": p1}, {"id": p1}]}
+    same_name = client.post(f"{API}/tours", json=body, headers=admin)
+    assert same_name.status_code == 201
+    assert same_name.json()["id"] != created["id"]
+    bad = {**body, "pois": [{"id": p1}, {"id": p1}]}
     assert client.post(f"{API}/tours", json=bad, headers=admin).status_code == 422
-    empty = {**body, "slug": "t3", "attractions": []}
+    empty = {**body, "pois": []}
     assert client.post(f"{API}/tours", json=empty, headers=admin).status_code == 422
-    ghost = {**body, "slug": "t4", "attractions": [{"id": "00000000-0000-0000-0000-000000000000"}]}
+    ghost = {**body, "pois": [{"id": "00000000-0000-0000-0000-000000000000"}]}
     assert client.post(f"{API}/tours", json=ghost, headers=admin).status_code == 422
     assert client.get(f"{API}/tours/{created['id']}", headers=admin).status_code == 200
     assert client.get(f"{API}/tours/khong-co", headers=admin).status_code == 404
-    assert len(client.get(f"{API}/tours", headers=admin).json()) == 1
+    assert len(client.get(f"{API}/tours", headers=admin).json()) == 2
     tr = _login(client, TRANSLATOR)
     assert client.get(f"{API}/tours", headers=tr).status_code == 403
 
@@ -281,10 +405,13 @@ def test_ticket_mobile_flow_and_analytics(client: TestClient) -> None:
     assert blocked.json()["title"] == "ticket_required"
     preview = client.get(url, params={"device_id": DEVICE, "preview": True}).json()
     assert preview["access"] == "preview"
-    assert [f["attraction_id"] for f in preview["files"]] == [p1]
+    assert [f["poi_id"] for f in preview["files"]] == [p1]
     assert "storage_key" not in preview["files"][0]
     assert client.get(f"{url}/files/{p1}", params={"device_id": DEVICE}).status_code == 200
     assert client.get(f"{url}/files/{p2}", params={"device_id": DEVICE}).status_code == 403
+    pinned = {"device_id": DEVICE, "pack_id": preview["pack_id"]}
+    assert client.get(f"{url}/files/{p1}", params=pinned).status_code == 200
+    assert client.get(f"{url}/files/{p2}", params=pinned).status_code == 403
 
     until = (datetime.now(UTC) + timedelta(days=30)).isoformat()
     body = {"batch": "QUAY-1", "tour_ids": [tour], "valid_until": until, "count": 2}
@@ -332,10 +459,10 @@ def test_ticket_mobile_flow_and_analytics(client: TestClient) -> None:
 
     now = datetime.now(UTC).isoformat()
     events = [
-        {"event_id": "e1", "attraction_id": p1, "lang": "en", "event": "play", "ts": now},
-        {"event_id": "e2", "attraction_id": p1, "lang": "en", "event": "complete", "ts": now},
-        {"event_id": "e3", "attraction_id": p2, "lang": "en", "event": "play", "ts": now},
-        {"event_id": "e4", "attraction_id": "khong-co", "lang": "en", "event": "play", "ts": now},
+        {"event_id": "e1", "poi_id": p1, "lang": "en", "event": "play", "ts": now},
+        {"event_id": "e2", "poi_id": p1, "lang": "en", "event": "complete", "ts": now},
+        {"event_id": "e3", "poi_id": p2, "lang": "en", "event": "play", "ts": now},
+        {"event_id": "e4", "poi_id": "khong-co", "lang": "en", "event": "play", "ts": now},
     ]
     sent = client.post(
         f"{API}/public/playback-events", json={"device_id": DEVICE, "events": events}
@@ -347,7 +474,7 @@ def test_ticket_mobile_flow_and_analytics(client: TestClient) -> None:
         f"{API}/analytics/summary", params={"tour_id": tour, "lang": "en"}, headers=admin
     ).json()
     assert (summary["plays"], summary["completes"], summary["completion_rate"]) == (2, 1, 0.5)
-    assert len(summary["top_attractions"]) == 2
+    assert len(summary["top_pois"]) == 2
     assert summary["by_lang"] == [{"lang": "en", "plays": 2}]
 
 
@@ -363,12 +490,12 @@ def test_accounts(client: TestClient) -> None:
     creds = {"email": "new@test.vn", "password": "mat-khau-moi"}
     token = client.post(f"{API}/auth/login", json=creds).json()
     h = {"Authorization": f"Bearer {token['access_token']}"}
-    assert client.get(f"{API}/attractions", headers=h).status_code == 200
+    assert client.get(f"{API}/pois", headers=h).status_code == 200
 
     role = client.patch(f"{API}/admin/users/{uid}", json={"role": "translator"}, headers=admin)
     assert role.json()["role"] == "translator"
     # đổi vai trò thu hồi phiên ngay
-    assert client.get(f"{API}/attractions", headers=h).status_code == 401
+    assert client.get(f"{API}/pois", headers=h).status_code == 401
     refreshed = client.post(f"{API}/auth/refresh", json={"refresh_token": token["refresh_token"]})
     assert refreshed.status_code == 401
 

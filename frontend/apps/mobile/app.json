@@ -11,6 +11,7 @@
       "bundleIdentifier": "app.geonarrate.mobile"
     },
     "android": {
+      "permissions": ["android.permission.RECEIVE_BOOT_COMPLETED"],
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -28,7 +29,8 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "GeoNarrate dùng vị trí để tự phát thuyết minh khi bạn đến gần một điểm."
+          "locationWhenInUsePermission": "GeoNarrate dùng vị trí để tự phát thuyết minh khi bạn đến gần một điểm.",
+          "isAndroidForegroundServiceEnabled": true
         }
       ],
       [
@@ -38,7 +40,10 @@
           "recordAudioAndroid": false
         }
       ],
-      "expo-audio"
+      ["expo-audio", { "enableBackgroundPlayback": true, "recordAudioAndroid": false }],
+      "@maplibre/maplibre-react-native",
+      "./plugins/android-map-network",
+      "./plugins/android-dev-network"
     ],
     "scheme": "geonarrate"
   }

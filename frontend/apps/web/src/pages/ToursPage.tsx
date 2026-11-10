@@ -1,44 +1,46 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Save } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { sendJson } from "../api";
 import { Badge, Empty, ErrorBox, Field, ghostBtn, inputClass, Page, primaryBtn, Table } from "../components/ui";
+import { PoisMap } from "../components/PoisMap";
 
 interface Form {
   id?: string;
-  slug: string;
   name: string;
   access: string;
   status: string;
   points: Record<string, boolean>; // id điểm -> nghe thử
 }
-const EMPTY: Form = { slug: "", name: "", access: "free", status: "draft", points: {} };
+const EMPTY: Form = { name: "", access: "free", status: "draft", points: {} };
 
 export function ToursPage() {
   const qc = useQueryClient();
   const [form, setForm] = useState<Form | null>(null);
   const tours = useQuery({ queryKey: ["tours"], queryFn: () => sendJson<any[]>("/api/v1/tours"), retry: false });
-  const points = useQuery({ queryKey: ["attractions", "", ""], queryFn: () => sendJson<any[]>("/api/v1/attractions?"), retry: false });
+  const points = useQuery({ queryKey: ["pois", "", ""], queryFn: () => sendJson<any[]>("/api/v1/pois?"), retry: false });
+  const tourPoints = useMemo(() => form ? Object.keys(form.points).flatMap((id) => {
+    const point = points.data?.find((p) => p.id === id);
+    return point ? [point] : [];
+  }) : [], [form?.points, points.data]);
   const open = useMutation({
     mutationFn: (id: string) => sendJson<any>(`/api/v1/tours/${id}`),
     onSuccess: (t) =>
       setForm({
         id: t.id,
-        slug: t.slug,
         name: t.name,
         access: t.access,
         status: t.status,
-        points: Object.fromEntries(t.attractions.map((p: any) => [p.id, p.is_preview])),
+        points: Object.fromEntries(t.pois.map((p: any) => [p.id, p.is_preview])),
       }),
   });
   const save = useMutation({
     mutationFn: (f: Form) => {
       const body = {
-        slug: f.slug,
         name: f.name,
         access: f.access,
         status: f.status,
-        attractions: Object.entries(f.points).map(([id, is_preview]) => ({ id, is_preview })),
+        pois: Object.entries(f.points).map(([id, is_preview]) => ({ id, is_preview })),
       };
       return f.id ? sendJson(`/api/v1/tours/${f.id}`, "PATCH", body) : sendJson("/api/v1/tours", "POST", body);
     },
@@ -53,9 +55,8 @@ export function ToursPage() {
       <ErrorBox error={tours.error ?? open.error ?? save.error} />
       {form && (
         <form className="bg-white border border-slate-200 rounded-xl p-5 mb-5 space-y-4" onSubmit={(e) => { e.preventDefault(); save.mutate(form); }}>
-          <div className="grid md:grid-cols-4 gap-3">
+          <div className="grid md:grid-cols-3 gap-3">
             <Field label="Tên"><input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className={inputClass} /></Field>
-            <Field label="Slug"><input required pattern="[a-z0-9]+(-[a-z0-9]+)*" placeholder="vd: dai-hoc-sai-gon" value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value })} className={inputClass} /></Field>
             <Field label="Truy cập">
               <select value={form.access} onChange={(e) => setForm({ ...form, access: e.target.value })} className={inputClass}>
                 <option value="free">Miễn phí</option>
@@ -69,6 +70,8 @@ export function ToursPage() {
               </select>
             </Field>
           </div>
+          <ErrorBox error={points.error} />
+          {tourPoints.length > 0 ? <PoisMap points={tourPoints} connectPoints /> : <p className="rounded-lg bg-slate-50 p-4 text-sm text-slate-500">Chọn điểm bên dưới để xem vị trí và vùng kích hoạt trên bản đồ tour.</p>}
           <div>
             <p className="text-sm font-medium text-slate-600 mb-2">Điểm trong tour</p>
             <div className="grid md:grid-cols-2 gap-1.5">
@@ -107,12 +110,11 @@ export function ToursPage() {
       )}
       {tours.data?.length === 0 && !form && <Empty>Chưa có tour nào.</Empty>}
       {!!tours.data?.length && (
-        <Table head={["Tên", "Slug", "Điểm", "Truy cập", "Trạng thái", ""]}>
+        <Table head={["Tên", "Điểm", "Truy cập", "Trạng thái", ""]}>
           {tours.data.map((t) => (
             <tr key={t.id}>
               <td className="px-4 py-2.5 font-medium">{t.name}</td>
-              <td className="px-4 py-2.5 text-slate-500">{t.slug}</td>
-              <td className="px-4 py-2.5">{t.attraction_count}</td>
+              <td className="px-4 py-2.5">{t.poi_count}</td>
               <td className="px-4 py-2.5"><Badge tone={t.access === "paid" ? "amber" : "green"}>{t.access === "paid" ? "Trả phí" : "Miễn phí"}</Badge></td>
               <td className="px-4 py-2.5"><Badge tone={t.status === "published" ? "green" : "gray"}>{t.status === "published" ? "Hiện trên app" : "Nháp"}</Badge></td>
               <td className="px-4 py-2.5 text-right"><button className={ghostBtn} onClick={() => open.mutate(t.id)}>Sửa</button></td>

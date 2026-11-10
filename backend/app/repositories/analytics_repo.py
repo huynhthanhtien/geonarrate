@@ -5,7 +5,8 @@ from sqlalchemy import case, func, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncEngine
 
-from app.core.schema import attractions, languages, playback_events, tour_attractions
+from app.core.schema import languages, playback_events, pois, tour_pois
+from app.core.transaction import connection
 from app.repositories._ids import parse_uuid
 
 
@@ -17,19 +18,16 @@ class SqlAnalyticsRepository:
         """event_id trùng thì bỏ qua; sự kiện trỏ tới điểm hoặc ngôn ngữ không có cũng bỏ qua."""
         if not events:
             return 0
-        ids = {parse_uuid(e["attraction_id"]) for e in events} - {None}
+        ids = {parse_uuid(e["poi_id"]) for e in events} - {None}
         rows = []
-        async with self._engine.begin() as conn:
-            known = set(
-                (
-                    await conn.execute(select(attractions.c.id).where(attractions.c.id.in_(ids)))
-                ).scalars()
-            )
+        async with connection(self._engine, write=True) as conn:
+            known = set((await conn.execute(select(pois.c.id).where(pois.c.id.in_(ids)))).scalars())
             langs = set((await conn.execute(select(languages.c.code))).scalars())
             for e in events:
-                uid = parse_uuid(e["attraction_id"])
+                uid = parse_uuid(e["poi_id"])
                 if uid in known and e["lang"] in langs:
-                    rows.append({**e, "attraction_id": uid, "device_id": device_id})
+                    row = {k: v for k, v in e.items() if k != "poi_id"}
+                    rows.append({**row, "poi_id": uid, "device_id": device_id})
             if not rows:
                 return 0
             result = await conn.execute(
@@ -48,22 +46,20 @@ class SqlAnalyticsRepository:
             conds.append(p.c.lang == lang)
         if tour_id:
             conds.append(
-                p.c.attraction_id.in_(
-                    select(tour_attractions.c.attraction_id).where(
-                        tour_attractions.c.tour_id == parse_uuid(tour_id)
-                    )
+                p.c.poi_id.in_(
+                    select(tour_pois.c.poi_id).where(tour_pois.c.tour_id == parse_uuid(tour_id))
                 )
             )
         plays = func.sum(case((p.c.event == "play", 1), else_=0))
         completes = func.sum(case((p.c.event == "complete", 1), else_=0))
-        async with self._engine.connect() as conn:
+        async with connection(self._engine) as conn:
             total = (await conn.execute(select(plays, completes).where(*conds))).one()
             top = (
                 await conn.execute(
-                    select(attractions.c.id, attractions.c.title, plays.label("plays"))
-                    .select_from(p.join(attractions, p.c.attraction_id == attractions.c.id))
+                    select(pois.c.id, pois.c.title, plays.label("plays"))
+                    .select_from(p.join(pois, p.c.poi_id == pois.c.id))
                     .where(*conds)
-                    .group_by(attractions.c.id, attractions.c.title)
+                    .group_by(pois.c.id, pois.c.title)
                     .order_by(plays.desc())
                     .limit(10)
                 )
@@ -79,8 +75,6 @@ class SqlAnalyticsRepository:
             "plays": play_count,
             "completes": done,
             "completion_rate": round(done / play_count, 4) if play_count else None,
-            "top_attractions": [
-                {"id": str(r[0]), "name": r[1], "plays": int(r[2])} for r in top if r[2]
-            ],
+            "top_pois": [{"id": str(r[0]), "name": r[1], "plays": int(r[2])} for r in top if r[2]],
             "by_lang": [{"lang": r[0], "plays": int(r[1])} for r in by_lang],
         }

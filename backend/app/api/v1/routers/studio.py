@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, status
+from fastapi.responses import FileResponse
 
 from app.api.v1.schemas.studio import (
     AccountCreateIn,
@@ -26,6 +27,7 @@ from app.api.v1.schemas.studio import (
     TourOut,
     TourUpdateIn,
     TranslationEditIn,
+    TranslationJobOut,
     TranslationOut,
 )
 from app.core.deps import (
@@ -54,6 +56,11 @@ Analyst = Annotated[Principal, Depends(require_permission(Permission.ANALYTICS_V
 
 
 # --- UC-05
+@router.get("/translation-jobs", response_model=list[TranslationJobOut])
+async def translation_jobs(svc: Pipeline, _: Translator) -> list[dict[str, Any]]:
+    return await svc.translation_progress()
+
+
 @router.get("/translations", response_model=list[TranslationOut])
 async def list_translations(
     svc: Content, _: Translator, lang: str | None = None, status: str | None = None
@@ -97,7 +104,7 @@ async def add_term(body: GlossaryIn, svc: Content, user: Translator) -> dict[str
         body.target_lang,
         body.translation,
         body.is_required,
-        body.attraction_id,
+        body.poi_id,
         user.user_id,
     )
 
@@ -113,9 +120,19 @@ async def audio_status(svc: Pipeline, _: AudioBuilder) -> list[dict[str, Any]]:
     return await svc.audio_status()
 
 
+@router.get(
+    "/audio/{poi_id}/{lang}/preview",
+    response_class=FileResponse,
+    responses={200: {"content": {"audio/mpeg": {}}}},
+)
+async def preview_audio(poi_id: str, lang: str, svc: Pipeline, _: AudioBuilder) -> FileResponse:
+    path = await svc.audio_preview_path(poi_id, lang)
+    return FileResponse(path, media_type="audio/mpeg", headers={"Cache-Control": "no-store"})
+
+
 @router.post("/audio/retry", status_code=status.HTTP_204_NO_CONTENT)
 async def retry_audio(body: AudioRetryIn, svc: Pipeline, user: AudioBuilder) -> None:
-    await svc.retry_audio(body.attraction_id, body.lang, user.user_id)
+    await svc.retry_audio(body.poi_id, body.lang, user.user_id)
 
 
 # --- UC-08

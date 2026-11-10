@@ -3,7 +3,7 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
 
-SCRIPT_MAX_CHARS = 600
+SCRIPT_MAX_CHARS = 1000
 
 Name = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)]
 ScriptBody = Annotated[str, StringConstraints(max_length=SCRIPT_MAX_CHARS)]
@@ -16,7 +16,7 @@ Images = Annotated[list[ImageUrl], Field(max_length=20)]
 Category = Literal["temple", "church", "museum", "park", "other"]
 
 
-class AttractionCreateIn(BaseModel):
+class PoiCreateIn(BaseModel):
     name: Name
     category: Category
     priority: int = Field(default=1, ge=0, le=1000)
@@ -28,8 +28,8 @@ class AttractionCreateIn(BaseModel):
     images: Images = []
 
 
-class AttractionUpdateIn(BaseModel):
-    """Chỉ gửi trường cần đổi. Slug không đổi được; `lat` và `lng` phải đi cùng nhau."""
+class PoiUpdateIn(BaseModel):
+    """Chỉ gửi trường cần đổi. `lat` và `lng` phải đi cùng nhau."""
 
     name: Name | None = None
     category: Category | None = None
@@ -41,7 +41,7 @@ class AttractionUpdateIn(BaseModel):
     images: Images | None = None
 
     @model_validator(mode="after")
-    def _check(self) -> "AttractionUpdateIn":
+    def _check(self) -> "PoiUpdateIn":
         if (self.lat is None) != (self.lng is None):
             raise ValueError("lat và lng phải đi cùng nhau")
         required = {"name", "category", "priority", "lat", "lng", "radius", "images"}
@@ -59,12 +59,11 @@ class RejectIn(BaseModel):
     review_note: ReviewNote
 
 
-class AttractionOut(BaseModel):
+class PoiOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: str
     name: str
-    slug: str
     summary: str | None
     images: list[str]
     lat: float

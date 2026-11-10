@@ -11,6 +11,33 @@ from app.core.exceptions import RateLimitedError, problem_response
 
 LOGIN_PATH = "/api/v1/auth/login"
 
+
+class PublicRateLimitMiddleware(BaseHTTPMiddleware):
+    """Giới hạn theo IP, với cửa sổ riêng cho thao tác kích hoạt vé."""
+
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
+        if not request.url.path.startswith("/api/v1/public/") or request.method == "OPTIONS":
+            return await call_next(request)
+        settings = get_settings()
+        activation = request.url.path.rstrip("/") == "/api/v1/public/tickets/activate"
+        bucket = "activate" if activation else "all"
+        limit = settings.public_activate_rate_limit if activation else settings.public_rate_limit
+        key = f"rl:public:{bucket}:{request.client.host if request.client else 'unknown'}"
+        redis = get_redis()
+        async with redis.pipeline(transaction=True) as pipe:
+            pipe.incr(key)
+            pipe.expire(key, settings.public_rate_window_s, nx=True)
+            count, _ = await pipe.execute()
+        if count > limit:
+            retry_after = max(await redis.ttl(key), 1)
+            return problem_response(
+                request,
+                RateLimitedError("rate_limited", "Quá nhiều yêu cầu, vui lòng thử lại sau"),
+                {"Retry-After": str(retry_after)},
+            )
+        return await call_next(request)
+
+
 # Không DECR khi key đã hết hạn — nếu không sẽ tạo key -1 không có TTL
 _DECR_IF_EXISTS = """
 if redis.call('EXISTS', KEYS[1]) == 1 then

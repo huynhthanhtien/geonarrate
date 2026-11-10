@@ -1,11 +1,12 @@
 from collections.abc import Iterator
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
 from redis import Redis
-from sqlalchemy import delete, insert
+from sqlalchemy import delete
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncConnection
 
 from app.core.config import get_settings
@@ -35,13 +36,22 @@ def client() -> Iterator[TestClient]:
     async def reset(conn: AsyncConnection) -> None:
         await conn.execute(delete(refresh_tokens))
         await conn.execute(delete(audit_logs))
-        await conn.execute(delete(users).where(users.c.email == EDITOR["email"]))
         await conn.execute(
-            insert(users).values(
+            pg_insert(users)
+            .values(
                 email=EDITOR["email"],
                 password_hash=editor_hash,
                 full_name="Editor",
                 role="editor",
+            )
+            .on_conflict_do_update(
+                index_elements=[users.c.email],
+                set_={
+                    "password_hash": editor_hash,
+                    "full_name": "Editor",
+                    "role": "editor",
+                    "is_active": True,
+                },
             )
         )
 
@@ -130,7 +140,7 @@ def test_permissions_in_token_response(client: TestClient) -> None:
     editor = client.post("/api/v1/auth/login", json=EDITOR).json()["user"]
     assert "admin:manage" in admin["permissions"]
     assert editor["role"] == "editor"
-    assert editor["permissions"] == ["attraction:read", "script:write"]
+    assert editor["permissions"] == ["poi:read", "script:write"]
 
 
 def test_audit_requires_admin_manage(client: TestClient) -> None:
@@ -179,3 +189,58 @@ def test_foreign_id_formats_do_not_crash(client: TestClient) -> None:
     assert r.status_code == 204
     # không có user nào mang id ngẫu nhiên này
     assert portal.call(svc._users.get_by_id, str(uuid4())) is None
+
+
+def test_audit_independent_filters_search_and_stable_pagination(client: TestClient) -> None:
+    admin = client.post("/api/v1/auth/login", json=ADMIN).json()
+    editor = client.post("/api/v1/auth/login", json=EDITOR).json()
+    headers = {"Authorization": f"Bearer {admin['access_token']}"}
+    svc = get_audit_service()
+    stamp = datetime(2026, 10, 1, 12, tzinfo=UTC)
+    svc._clock = lambda: stamp
+    portal = client.portal
+    assert portal is not None
+    portal.call(svc.record, admin["user"]["id"], "tour.update", AuditResource("tour", "tour-1"))
+    portal.call(svc.record, admin["user"]["id"], "tour.create", AuditResource("tour", "tour-2"))
+    portal.call(svc.record, editor["user"]["id"], "script.submit", AuditResource("poi", "a-1"))
+    portal.call(
+        svc.record,
+        editor["user"]["id"],
+        "script.reject",
+        AuditResource("poi", "a-2"),
+        "Sai 10%",
+    )
+
+    def query(**params: str | int) -> list[dict[str, object]]:
+        response = client.get("/api/v1/audit", headers=headers, params=params)
+        assert response.status_code == 200, response.text
+        result: list[dict[str, object]] = response.json()
+        return result
+
+    assert len(query(resource_type="tour")) == 2  # không cần mã đối tượng
+    assert len(query(resource_id="a-1")) == 1
+    assert len(query(action="tour.update")) == 1
+    assert len(query(q="EDITOR@geonarrate.test")) == 2
+    assert len(query(q="Editor")) == 2
+    assert len(query(q="%")) == 1  # ký tự đặc biệt được tìm như văn bản, không phải wildcard
+    assert len(query(q="tour-2", resource_type="tour")) == 1
+    assert len(query(since=stamp.isoformat(), until=(stamp + timedelta(hours=1)).isoformat())) == 4
+    assert query(until=stamp.isoformat()) == []
+    seen: list[object] = []
+    params: dict[str, str | int] = {"limit": 1}
+    while page := query(**params):
+        seen.append(page[0]["id"])
+        params.update(before=str(page[0]["ts"]), before_id=str(page[0]["id"]))
+    assert len(seen) == len(set(seen)) == 4  # cùng timestamp vẫn không bị mất bản ghi
+    invalid = {"since": stamp.isoformat(), "until": (stamp - timedelta(days=1)).isoformat()}
+    assert client.get("/api/v1/audit", headers=headers, params=invalid).status_code == 422
+    assert (
+        client.get(
+            "/api/v1/audit", headers=headers, params={"since": "2026-10-01T00:00:00"}
+        ).status_code
+        == 422
+    )
+    assert (
+        client.get("/api/v1/audit", headers=headers, params={"before_id": str(uuid4())}).status_code
+        == 422
+    )

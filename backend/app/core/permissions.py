@@ -6,7 +6,7 @@ from app.models.user import Role
 
 
 class Permission(StrEnum):
-    ATTRACTION_READ = "attraction:read"
+    POI_READ = "poi:read"
     SCRIPT_WRITE = "script:write"
     TRANSLATION_REVIEW = "translation:review"
     AUDIO_BUILD = "audio:build"
@@ -19,8 +19,8 @@ class Permission(StrEnum):
 # admin gộp cả quản trị nội dung (build, publish, rollback) lẫn quản trị hệ thống
 ROLE_PERMISSIONS: dict[Role, frozenset[Permission]] = {
     Role.ADMIN: frozenset(Permission),
-    Role.EDITOR: frozenset({Permission.ATTRACTION_READ, Permission.SCRIPT_WRITE}),
-    Role.TRANSLATOR: frozenset({Permission.ATTRACTION_READ, Permission.TRANSLATION_REVIEW}),
+    Role.EDITOR: frozenset({Permission.POI_READ, Permission.SCRIPT_WRITE}),
+    Role.TRANSLATOR: frozenset({Permission.POI_READ, Permission.TRANSLATION_REVIEW}),
 }
 
 

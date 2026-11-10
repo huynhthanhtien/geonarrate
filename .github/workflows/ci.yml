@@ -1,6 +1,7 @@
 name: ci
 on:
   pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
   push:
     branches: [main]
 concurrency:
@@ -68,8 +69,11 @@ jobs:
       - run: pytest -q --cov=app --cov-report=term --cov-fail-under=85
       - name: Contract — openapi.json đã commit phải khớp code
         run: ./scripts/check_openapi.sh
+      # Đổi API có chủ đích (vd. attraction → poi, bỏ slug): gắn nhãn `breaking-change` cho PR để bỏ qua bước này
       - name: Contract — không có breaking change so với nhánh đích
-        if: github.event_name == 'pull_request'
+        if: >-
+          github.event_name == 'pull_request'
+          && !contains(github.event.pull_request.labels.*.name, 'breaking-change')
         run: |
           git show origin/${{ github.base_ref }}:backend/openapi.json > /tmp/base.json 2>/dev/null || { echo "nhánh đích chưa có backend/openapi.json — bỏ qua"; exit 0; }
           docker run --rm -v /tmp:/base -v "$PWD":/head tufin/oasdiff breaking /base/base.json /head/openapi.json --fail-on ERR

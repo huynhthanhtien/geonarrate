@@ -4,8 +4,8 @@ import { RequireAuth, RequirePermission } from "./auth/guards";
 import { AppShell } from "./layout/AppShell";
 import { AccountsPage } from "./pages/AccountsPage";
 import { AnalyticsPage } from "./pages/AnalyticsPage";
-import { AttractionFormPage } from "./pages/AttractionFormPage";
-import { AttractionsPage } from "./pages/AttractionsPage";
+import { PoiFormPage } from "./pages/PoiFormPage";
+import { PoisPage } from "./pages/PoisPage";
 import { AuditPage } from "./pages/AuditPage";
 import { GlossaryPage } from "./pages/GlossaryPage";
 import { HomePage } from "./pages/HomePage";
@@ -21,7 +21,7 @@ import { VoiceStudioPage } from "./pages/VoiceStudioPage";
 import { NAV } from "./routes";
 
 const PAGES: Record<string, ReactNode> = {
-  "/attractions": <AttractionsPage />,
+  "/pois": <PoisPage />,
   "/reviews": <ReviewsPage />,
   "/translations": <TranslationsPage />,
   "/glossaries": <GlossaryPage />,
@@ -51,23 +51,23 @@ const router = createBrowserRouter([
             ),
           })),
           {
-            path: "/attractions/new",
+            path: "/pois/new",
             element: (
               <RequirePermission permission="script:write">
-                <AttractionFormPage />
+                <PoiFormPage />
               </RequirePermission>
             ),
           },
           {
-            path: "/attractions/:id/edit",
+            path: "/pois/:id/edit",
             element: (
               <RequirePermission permission="script:write">
-                <AttractionFormPage />
+                <PoiFormPage />
               </RequirePermission>
             ),
           },
           {
-            path: "/attractions/:id/script",
+            path: "/pois/:id/script",
             element: (
               <RequirePermission permission="script:write">
                 <ScriptEditorPage />

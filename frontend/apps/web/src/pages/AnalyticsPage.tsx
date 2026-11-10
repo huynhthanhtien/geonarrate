@@ -1,11 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { sendJson } from "../api";
-import { ALL_LANGS, Empty, ErrorBox, Field, inputClass, Page, Table } from "../components/ui";
+import { Empty, ErrorBox, Field, inputClass, Page, Table } from "../components/ui";
+import { useLanguages } from "../languages";
 
 const dateStr = (d: Date) => d.toISOString().slice(0, 10);
 
 export function AnalyticsPage() {
+  const languages = useLanguages();
   const [start, setStart] = useState(dateStr(new Date(Date.now() - 30 * 86400000)));
   const [end, setEnd] = useState(dateStr(new Date()));
   const [tour, setTour] = useState("");
@@ -41,11 +43,11 @@ export function AnalyticsPage() {
         <Field label="Ngôn ngữ">
           <select value={lang} onChange={(e) => setLang(e.target.value)} className={inputClass}>
             <option value="">Mọi ngôn ngữ</option>
-            {ALL_LANGS.map((l) => <option key={l}>{l}</option>)}
+            {languages.data?.map((l) => <option key={l.code} value={l.code}>{l.native_name} ({l.code})</option>)}
           </select>
         </Field>
       </div>
-      <ErrorBox error={error} />
+      <ErrorBox error={languages.error ?? error} />
       <div className="grid grid-cols-3 gap-4 mb-5">
         {stats.map(([label, value]) => (
           <div key={label} className="bg-white border border-slate-200 rounded-xl p-5">
@@ -55,9 +57,9 @@ export function AnalyticsPage() {
         ))}
       </div>
       {data?.plays === 0 && <Empty>Chưa có dữ liệu trong khoảng đã chọn.</Empty>}
-      {!!data?.top_attractions?.length && (
+      {!!data?.top_pois?.length && (
         <Table head={["Điểm được nghe nhiều nhất", "Lượt nghe"]}>
-          {data.top_attractions.map((a: any) => (
+          {data.top_pois.map((a: any) => (
             <tr key={a.id}><td className="px-4 py-2.5">{a.name}</td><td className="px-4 py-2.5">{a.plays}</td></tr>
           ))}
         </Table>

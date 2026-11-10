@@ -1,8 +1,6 @@
-import * as Application from "expo-application";
 import { randomUUID } from "expo-crypto";
 import * as SQLite from "expo-sqlite";
-import { Platform } from "react-native";
-import { sendEvents, type Manifest } from "./api";
+import { ApiError, DEFAULT_BACKEND, getBackend, registerDevice, sendEvents, type Manifest } from "./api";
 
 const db = SQLite.openDatabaseSync("geonarrate.db");
 db.execSync(`
@@ -21,16 +19,42 @@ export function setPref(key: string, value: string): void {
   db.runSync("INSERT OR REPLACE INTO prefs (key, value) VALUES (?, ?)", key, value);
 }
 
-/** Android dùng ANDROID_ID; iOS dùng id theo nhà phát triển. Không lấy được thì sinh UUID và lưu lại. */
-export async function getDeviceId(): Promise<string> {
-  const saved = getPref("device_id");
+const registrations = new Map<string, Promise<string>>();
+const deviceKey = (server: string) => `signed_device_id:${server}`;
+
+export async function getDeviceId(server = getBackend()): Promise<string> {
+  const key = deviceKey(server);
+  const saved = getPref(key);
   if (saved) return saved;
-  let id: string | null = null;
-  if (Platform.OS === "android") id = Application.getAndroidId();
-  if (Platform.OS === "ios") id = await Application.getIosIdForVendorAsync();
-  const value = id && id.length >= 8 ? id : randomUUID();
-  setPref("device_id", value);
-  return value;
+  if (server === DEFAULT_BACKEND) {
+    const legacy = getPref("signed_device_id");
+    if (legacy) {
+      setPref(key, legacy);
+      db.runSync("DELETE FROM prefs WHERE key = ?", "signed_device_id");
+      return legacy;
+    }
+  }
+  let pending = registrations.get(server);
+  if (!pending) {
+    pending = registerDevice(server).then(({ device_id }) => {
+      setPref(key, device_id);
+      return device_id;
+    }).finally(() => { registrations.delete(server); });
+    registrations.set(server, pending);
+  }
+  return pending;
+}
+
+export async function withDevice<T>(operation: (device: string, server: string) => Promise<T>): Promise<T> {
+  const server = getBackend();
+  const device = await getDeviceId(server);
+  try {
+    return await operation(device, server);
+  } catch (error) {
+    if (!(error instanceof ApiError && error.code === "invalid_device")) throw error;
+    db.runSync("DELETE FROM prefs WHERE key = ? AND value = ?", deviceKey(server), device);
+    return operation(await getDeviceId(server), server);
+  }
 }
 
 export interface InstalledPack {
@@ -52,8 +76,15 @@ const toPack = (r: PackRow): InstalledPack => ({
   lang: r.lang,
   tourName: r.tour_name,
   bytes: r.bytes,
-  manifest: JSON.parse(r.manifest) as Manifest,
+  manifest: normalizeManifest(JSON.parse(r.manifest)),
 });
+
+function normalizeManifest(manifest: Manifest): Manifest {
+  return { ...manifest, files: manifest.files.map((file) => {
+    const old = file as typeof file & { attraction_id?: string };
+    return { ...file, poi_id: file.poi_id ?? old.attraction_id ?? "" };
+  }) };
+}
 
 export function installedPacks(): InstalledPack[] {
   return db.getAllSync<PackRow>("SELECT * FROM packs").map(toPack);
@@ -75,7 +106,7 @@ export function removePack(tourId: string, lang: string): void {
 
 export type PlayEvent = "play" | "complete" | "skip";
 export function recordEvent(
-  attractionId: string,
+  poiId: string,
   lang: string,
   event: PlayEvent,
   trigger: "geofence" | "manual",
@@ -84,7 +115,7 @@ export function recordEvent(
   const eventId = randomUUID();
   const body = {
     event_id: eventId,
-    attraction_id: attractionId,
+    poi_id: poiId,
     lang,
     event,
     trigger,
@@ -98,6 +129,12 @@ export function recordEvent(
 export async function syncEvents(): Promise<void> {
   const rows = db.getAllSync<{ event_id: string; body: string }>("SELECT * FROM events LIMIT 200");
   if (!rows.length) return;
-  await sendEvents(await getDeviceId(), rows.map((r) => JSON.parse(r.body)));
+  const server = getBackend();
+  await sendEvents(await getDeviceId(server), rows.map((r) => {
+    const event = JSON.parse(r.body);
+    if (!event.poi_id && event.attraction_id) event.poi_id = event.attraction_id;
+    delete event.attraction_id;
+    return event;
+  }), server);
   for (const r of rows) db.runSync("DELETE FROM events WHERE event_id = ?", r.event_id);
 }

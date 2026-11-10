@@ -4,7 +4,7 @@ from datetime import datetime
 
 @dataclass(frozen=True)
 class AuditResource:
-    """Đối tượng bị tác động, vd. `AuditResource("attraction", "66f1c0a2...")`."""
+    """Đối tượng bị tác động, vd. `AuditResource("poi", "66f1c0a2...")`."""
 
     type: str
     id: str
@@ -20,3 +20,14 @@ class AuditLog:
     resource: AuditResource
     ts: datetime
     note: str | None = None
+
+
+@dataclass(frozen=True)
+class AuditFilters:
+    action: str | None = None
+    resource_type: str | None = None
+    resource_id: str | None = None
+    since: datetime | None = None
+    until: datetime | None = None
+    q: str | None = None
+    before_id: str | None = None

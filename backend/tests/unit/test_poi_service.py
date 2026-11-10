@@ -5,11 +5,11 @@ from uuid import uuid4
 import pytest
 
 from app.core.exceptions import ConflictError, InvalidContentError, NotFoundError
-from app.models.attraction import Attraction, ScriptStatus
-from app.models.audit import AuditLog, AuditResource
+from app.models.audit import AuditFilters, AuditLog, AuditResource
 from app.models.language import Language
-from app.services.attraction_service import AttractionService, slugify
+from app.models.poi import Poi, ScriptStatus
 from app.services.audit_service import AuditService
+from app.services.poi_service import PoiService
 
 NOW = datetime(2026, 11, 5, tzinfo=UTC)
 ACTOR = str(uuid4())
@@ -31,25 +31,25 @@ class FakeAudit:
         actor_id: str | None = None,
         resource: AuditResource | None = None,
         before: datetime | None = None,
+        filters: AuditFilters | None = None,
     ) -> list[AuditLog]:
         return []
 
 
 class FakeRepo:
     def __init__(self) -> None:
-        self.items: dict[str, Attraction] = {}
+        self.items: dict[str, Poi] = {}
         self.jobs: list[dict[str, Any]] = []
 
-    async def find_all(self, category: str | None, script_status: str | None) -> list[Attraction]:
+    async def find_all(self, category: str | None, script_status: str | None) -> list[Poi]:
         return list(self.items.values())
 
-    async def get(self, attraction_id: str) -> Attraction | None:
-        return self.items.get(attraction_id)
+    async def get(self, poi_id: str) -> Poi | None:
+        return self.items.get(poi_id)
 
     async def insert(
         self,
         name: str,
-        slug: str,
         category: str,
         priority: int,
         lat: float,
@@ -60,13 +60,10 @@ class FakeRepo:
         images: list[str],
         actor_id: str,
         now: datetime,
-    ) -> Attraction | None:
-        if any(a.slug == slug for a in self.items.values()):
-            return None
-        item = Attraction(
+    ) -> Poi:
+        item = Poi(
             str(uuid4()),
             name,
-            slug,
             summary,
             images,
             lat,
@@ -87,25 +84,25 @@ class FakeRepo:
         return item
 
     async def update_info(
-        self, attraction_id: str, fields: dict[str, Any], actor_id: str, now: datetime
-    ) -> Attraction | None:
-        cur = self.items.get(attraction_id)
+        self, poi_id: str, fields: dict[str, Any], actor_id: str, now: datetime
+    ) -> Poi | None:
+        cur = self.items.get(poi_id)
         if cur is None:
             return None
-        self.items[attraction_id] = Attraction(**{**cur.__dict__, **fields})
-        return self.items[attraction_id]
+        self.items[poi_id] = Poi(**{**cur.__dict__, **fields})
+        return self.items[poi_id]
 
     async def update_script(
         self,
-        attraction_id: str,
+        poi_id: str,
         expected_status: ScriptStatus,
         patch: dict[str, Any],
         actor_id: str,
         now: datetime,
         jobs: list[dict[str, Any]] | None = None,
-    ) -> Attraction | None:
+    ) -> Poi | None:
         self.jobs.extend(jobs or [])
-        cur = self.items.get(attraction_id)
+        cur = self.items.get(poi_id)
         if cur is None or cur.script_status != expected_status:
             return None
         data = dict(cur.__dict__)
@@ -117,8 +114,8 @@ class FakeRepo:
             data["script_version"] = patch["version"]
         if "review_note" in patch:
             data["review_note"] = patch["review_note"]
-        self.items[attraction_id] = Attraction(**data)
-        return self.items[attraction_id]
+        self.items[poi_id] = Poi(**data)
+        return self.items[poi_id]
 
 
 class FakeLanguages:
@@ -131,31 +128,13 @@ class FakeLanguages:
     async def upsert(self, lang: Language) -> None: ...
 
 
-def _svc() -> tuple[AttractionService, FakeAudit]:
+def _svc() -> tuple[PoiService, FakeAudit]:
     audit = FakeAudit()
-    return AttractionService(
-        FakeRepo(), AuditService(audit), FakeLanguages(), clock=lambda: NOW
-    ), audit
+    return PoiService(FakeRepo(), AuditService(audit), FakeLanguages(), clock=lambda: NOW), audit
 
 
-async def _create(svc: AttractionService, name: str = "Chùa Đức Bà") -> Attraction:
+async def _create(svc: PoiService, name: str = "Chùa Đức Bà") -> Poi:
     return await svc.create(name, "temple", 1, 10.7, 106.6, 40, "nội dung", ACTOR)
-
-
-@pytest.mark.parametrize(
-    ("name", "slug"),
-    [
-        ("Chùa Ngọc Hoàng", "chua-ngoc-hoang"),
-        ("  Đường Đồng Khởi!! ", "duong-dong-khoi"),
-        ("Bảo tàng 3/2", "bao-tang-3-2"),
-    ],
-)
-def test_slugify_vietnamese(name: str, slug: str) -> None:
-    assert slugify(name) == slug
-
-
-def test_slugify_non_latin_name_gets_random_slug() -> None:
-    assert len(slugify("中文")) == 8
 
 
 async def test_full_review_flow_and_audit() -> None:
@@ -174,7 +153,7 @@ async def test_full_review_flow_and_audit() -> None:
     edited = await svc.save_script(a.id, "bản sửa sau duyệt", ACTOR)
     assert (edited.script_status, edited.script_version) == (ScriptStatus.DRAFT, 2)
     assert audit.actions == [
-        "attraction.create",
+        "poi.create",
         "script.submit",
         "script.reject",
         "script.submit",
@@ -193,21 +172,14 @@ async def test_wrong_status_is_conflict_and_records_no_audit() -> None:
         await svc.save_script(a.id, "x", ACTOR)
     with pytest.raises(ConflictError):
         await svc.submit(a.id, ACTOR)
-    assert audit.actions == ["attraction.create", "script.submit"]
+    assert audit.actions == ["poi.create", "script.submit"]
 
 
-async def test_missing_attraction_is_not_found() -> None:
+async def test_missing_poi_is_not_found() -> None:
     svc, _ = _svc()
     for call in (svc.get("x"), svc.submit("x", ACTOR), svc.approve("x", ACTOR)):
         with pytest.raises(NotFoundError):
             await call
-
-
-async def test_duplicate_name_is_conflict() -> None:
-    svc, _ = _svc()
-    await _create(svc, "Chùa A")
-    with pytest.raises(ConflictError):
-        await _create(svc, "chùa   a!")
 
 
 async def test_empty_script_cannot_be_submitted() -> None:
@@ -215,15 +187,15 @@ async def test_empty_script_cannot_be_submitted() -> None:
     a = await svc.create("Trống", "park", 1, 10.7, 106.6, 40, "  \n ", ACTOR)
     with pytest.raises(InvalidContentError):
         await svc.submit(a.id, ACTOR)
-    assert audit.actions == ["attraction.create"]
+    assert audit.actions == ["poi.create"]
 
 
 async def test_update_records_audit_and_empty_patch_changes_nothing() -> None:
     svc, audit = _svc()
     a = await _create(svc)
     assert await svc.update(a.id, {}, ACTOR) == a
-    assert audit.actions == ["attraction.create"]
+    assert audit.actions == ["poi.create"]
     assert (await svc.update(a.id, {"summary": "tóm tắt"}, ACTOR)).summary == "tóm tắt"
-    assert audit.actions == ["attraction.create", "attraction.update"]
+    assert audit.actions == ["poi.create", "poi.update"]
     with pytest.raises(NotFoundError):
         await svc.update("x", {"summary": "y"}, ACTOR)

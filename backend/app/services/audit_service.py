@@ -1,7 +1,8 @@
 from collections.abc import Callable
 from datetime import UTC, datetime
 
-from app.models.audit import AuditLog, AuditResource
+from app.core.exceptions import InvalidContentError
+from app.models.audit import AuditFilters, AuditLog, AuditResource
 from app.repositories.audit_repo import AuditLogRepository
 
 
@@ -28,5 +29,15 @@ class AuditService:
         actor_id: str | None = None,
         resource: AuditResource | None = None,
         before: datetime | None = None,
+        filters: AuditFilters | None = None,
     ) -> list[AuditLog]:
-        return await self._logs.find(limit, actor_id=actor_id, resource=resource, before=before)
+        if filters:
+            if filters.since and filters.until and filters.since >= filters.until:
+                raise InvalidContentError(
+                    "invalid_date_range", "Ngày bắt đầu phải trước ngày kết thúc"
+                )
+            if filters.before_id and before is None:
+                raise InvalidContentError("invalid_cursor", "Thiếu thời điểm của trang trước")
+        return await self._logs.find(
+            limit, actor_id=actor_id, resource=resource, before=before, filters=filters
+        )

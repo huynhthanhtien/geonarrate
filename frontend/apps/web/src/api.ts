@@ -24,5 +24,20 @@ export async function sendJson<T>(url: string, method = "GET", body?: unknown): 
     })
   );
   if (!res.ok) throw new Error(await errorMessage(res));
-  return (await res.json()) as T;
+  if (res.status === 204 || res.status === 205) return undefined as T;
+  try {
+    return (await res.json()) as T;
+  } catch (error) {
+    if (error instanceof SyntaxError) {
+      throw new Error(`Máy chủ trả về dữ liệu không đúng định dạng (HTTP ${res.status}).`);
+    }
+    throw error;
+  }
+}
+
+export async function getAudioPreview(poiId: string, lang: string, signal: AbortSignal): Promise<Blob> {
+  const path = `/api/v1/audio/${encodeURIComponent(poiId)}/${encodeURIComponent(lang)}/preview`;
+  const response = await authFetch(new Request(path, { signal }));
+  if (!response.ok) throw new Error(await errorMessage(response));
+  return response.blob();
 }

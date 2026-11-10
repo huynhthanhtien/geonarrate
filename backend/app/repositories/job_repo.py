@@ -2,11 +2,12 @@ import hashlib
 from datetime import datetime, timedelta
 from typing import Any
 
-from sqlalchemy import or_, select, text, update
+from sqlalchemy import Text, cast, func, or_, select, text, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 
-from app.core.schema import jobs
+from app.core.schema import jobs, pois
+from app.core.transaction import connection
 from app.repositories._ids import parse_uuid, record
 
 MAX_ATTEMPTS = 3
@@ -46,10 +47,43 @@ class SqlJobRepository:
     def __init__(self, engine: AsyncEngine) -> None:
         self._engine = engine
 
+    async def translation_progress(self) -> list[dict[str, Any]]:
+        poi_id = func.coalesce(
+            jobs.c.payload["poi_id"].astext, jobs.c.payload["attraction_id"].astext
+        )
+        lang = jobs.c.payload["lang"].astext
+        ranked = (
+            select(
+                poi_id.label("poi_id"),
+                lang.label("lang"),
+                jobs.c.status,
+                jobs.c.error,
+                jobs.c.attempts,
+                jobs.c.updated_at,
+                func.row_number()
+                .over(
+                    partition_by=(poi_id, lang),
+                    order_by=(jobs.c.created_at.desc(), jobs.c.id.desc()),
+                )
+                .label("rank"),
+            )
+            .where(jobs.c.type == "translate")
+            .subquery()
+        )
+        stmt = (
+            select(ranked, pois.c.title)
+            .join(pois, cast(pois.c.id, Text) == ranked.c.poi_id)
+            .where(ranked.c.rank == 1, ranked.c.status.in_(("queued", "running", "failed")))
+            .order_by(ranked.c.updated_at.desc())
+            .limit(200)
+        )
+        async with connection(self._engine) as conn:
+            return [dict(row) for row in (await conn.execute(stmt)).mappings().all()]
+
     async def enqueue(
         self, specs: list[dict[str, Any]], actor_id: str | None, now: datetime
     ) -> None:
-        async with self._engine.begin() as conn:
+        async with connection(self._engine, write=True) as conn:
             await add_jobs(conn, specs, actor_id, now)
 
     async def claim_next(self, now: datetime) -> dict[str, Any] | None:
@@ -71,12 +105,12 @@ class SqlJobRepository:
             .values(status="running", attempts=jobs.c.attempts + 1, updated_at=now)
             .returning(jobs)
         )
-        async with self._engine.begin() as conn:
+        async with connection(self._engine, write=True) as conn:
             row = (await conn.execute(stmt)).mappings().one_or_none()
         return record(row) if row else None
 
     async def finish(self, job_id: str, now: datetime) -> None:
-        async with self._engine.begin() as conn:
+        async with connection(self._engine, write=True) as conn:
             await conn.execute(
                 update(jobs)
                 .where(jobs.c.id == parse_uuid(job_id))
@@ -86,7 +120,7 @@ class SqlJobRepository:
     async def fail(self, job_id: str, attempts: int, message: str, now: datetime) -> None:
         """Còn lượt thì đưa về hàng đợi, hết lượt thì `failed` để người dùng bấm thử lại."""
         status = "queued" if attempts < MAX_ATTEMPTS else "failed"
-        async with self._engine.begin() as conn:
+        async with connection(self._engine, write=True) as conn:
             await conn.execute(
                 update(jobs)
                 .where(jobs.c.id == parse_uuid(job_id))
@@ -100,7 +134,7 @@ class SqlJobRepository:
 
     async def requeue_stale(self, cutoff: datetime, now: datetime) -> int:
         """Worker chết giữa chừng để job kẹt ở running."""
-        async with self._engine.begin() as conn:
+        async with connection(self._engine, write=True) as conn:
             stale = (
                 await conn.execute(
                     update(jobs)
@@ -119,6 +153,6 @@ class SqlJobRepository:
             .where(jobs.c.dedupe_key.startswith(prefix, autoescape=True))
             .order_by(jobs.c.updated_at)
         )
-        async with self._engine.connect() as conn:
+        async with connection(self._engine) as conn:
             rows = (await conn.execute(stmt)).mappings().all()
         return {r["dedupe_key"]: dict(r) for r in rows}
