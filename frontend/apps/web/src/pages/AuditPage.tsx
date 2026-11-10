@@ -7,13 +7,13 @@ import { Empty, ErrorBox, Field, Page, Table, ghostBtn, inputClass, primaryBtn }
 const PAGE_SIZE = 50;
 const INITIAL_FILTERS = { actor_id: "", resource_type: "", resource_id: "", action: "", q: "", from: "", to: "" };
 const ACTIONS: Record<string, string> = {
-  "attraction.create": "Thêm điểm tham quan", "attraction.update": "Sửa điểm tham quan",
+  "poi.create": "Thêm điểm tham quan", "poi.update": "Sửa điểm tham quan",
   "script.submit": "Gửi duyệt kịch bản", "script.approve": "Duyệt kịch bản", "script.reject": "Từ chối kịch bản",
   "translation.approve": "Duyệt bản dịch", "translation.reject": "Từ chối bản dịch",
   "tour.create": "Tạo tour", "tour.update": "Sửa tour", "pack.publish": "Phát hành pack", "pack.rollback": "Khôi phục pack",
   "ticket.issue": "Phát hành vé", "ticket.revoke": "Thu hồi vé", "user.create": "Tạo tài khoản", "user.update": "Sửa tài khoản", "user.lock": "Khoá tài khoản",
 };
-const RESOURCES: Record<string, string> = { attraction: "Điểm tham quan", translation: "Bản dịch", tour: "Tour", pack: "Pack", ticket: "Vé", ticket_batch: "Lô vé", user: "Tài khoản" };
+const RESOURCES: Record<string, string> = { poi: "Điểm tham quan", translation: "Bản dịch", tour: "Tour", pack: "Pack", ticket: "Vé", ticket_batch: "Lô vé", user: "Tài khoản" };
 interface User { id: string; full_name: string; email: string; }
 interface Cursor { ts: string; id: string; }
 

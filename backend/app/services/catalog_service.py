@@ -66,9 +66,7 @@ class CatalogService:
             raise NotFoundError("tour_not_found", "Không tìm thấy tour")
         return tour
 
-    async def _check_tour(self, slug: str | None, tour_id: str | None, points: Any) -> None:
-        if slug and await self._tours.slug_exists(slug, tour_id):
-            raise ConflictError("tour_slug_taken", f"Slug '{slug}' đã tồn tại")
+    async def _check_tour_points(self, points: Any) -> None:
         if points is None:
             return
         ids = [p["id"] for p in points]
@@ -80,8 +78,8 @@ class CatalogService:
             )
 
     async def create_tour(self, fields: dict[str, Any], actor_id: str) -> dict[str, Any]:
-        points = fields.pop("attractions")
-        await self._check_tour(fields["slug"], None, points)
+        points = fields.pop("pois")
+        await self._check_tour_points(points)
         tour_id = await self._tours.save(None, fields, points, actor_id, self._clock())
         await self._audit.record(actor_id, "tour.create", AuditResource("tour", tour_id))
         return await self.get_tour(tour_id)
@@ -90,8 +88,8 @@ class CatalogService:
         self, tour_id: str, fields: dict[str, Any], actor_id: str
     ) -> dict[str, Any]:
         await self.get_tour(tour_id)
-        points = fields.pop("attractions", None)
-        await self._check_tour(fields.get("slug"), tour_id, points)
+        points = fields.pop("pois", None)
+        await self._check_tour_points(points)
         await self._tours.save(tour_id, fields, points, actor_id, self._clock())
         await self._audit.record(actor_id, "tour.update", AuditResource("tour", tour_id))
         return await self.get_tour(tour_id)
@@ -209,13 +207,13 @@ class CatalogService:
         self,
         tour_id: str,
         lang: str,
-        attraction_id: str,
+        poi_id: str,
         device_id: str,
         pack_id: str | None = None,
     ) -> str:
         pack, tour = await self._published(tour_id, lang, pack_id)
         manifest = self._pipeline.read_manifest(pack)
-        item = next((f for f in manifest["files"] if f["attraction_id"] == attraction_id), None)
+        item = next((f for f in manifest["files"] if f["poi_id"] == poi_id), None)
         if item is None:
             raise NotFoundError("file_not_found", "Không có file này trong pack")
         allowed = (

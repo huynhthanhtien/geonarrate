@@ -16,7 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncConnection
 from app.core import schema
 from app.core.deps import get_maintenance_service
 from app.main import app
-from tests.integration.conftest import alembic_config, run_sql
+from tests.integration.conftest import alembic_config, clear_test_pois, run_sql
 
 pytestmark = pytest.mark.integration
 
@@ -35,13 +35,13 @@ def clean_tables() -> Iterator[None]:
             schema.audio_assets,
             schema.translations,
             schema.glossaries,
-            schema.tour_attractions,
+            schema.tour_pois,
             schema.tours,
-            schema.attractions,
             schema.refresh_tokens,
             schema.audit_logs,
         ):
             await conn.execute(delete(table))
+        await clear_test_pois(conn)
         # app seed ngôn ngữ khi khởi động; test chạy riêng lẻ vẫn cần có sẵn "vi"
         await conn.execute(
             pg_insert(schema.languages)
@@ -53,10 +53,9 @@ def clean_tables() -> Iterator[None]:
     yield
 
 
-def _attraction(slug: str, lat: float = 10.7797, lng: float = 106.6990) -> dict[str, Any]:
+def _poi(name: str, lat: float = 10.7797, lng: float = 106.6990) -> dict[str, Any]:
     return {
-        "slug": slug,
-        "title": slug,
+        "title": name,
         "category": "museum",
         "geo": f"SRID=4326;POINT({lng} {lat})",
         "trigger_radius_m": 40,
@@ -64,10 +63,10 @@ def _attraction(slug: str, lat: float = 10.7797, lng: float = 106.6990) -> dict[
     }
 
 
-def _insert_attraction(slug: str, **kw: float) -> UUID:
+def _insert_poi(name: str, **kw: float) -> UUID:
     async def _run(conn: AsyncConnection) -> UUID:
-        stmt = insert(schema.attractions).values(**_attraction(slug, **kw))
-        result = await conn.execute(stmt.returning(schema.attractions.c.id))
+        stmt = insert(schema.pois).values(**_poi(name, **kw))
+        result = await conn.execute(stmt.returning(schema.pois.c.id))
         return UUID(str(result.scalar_one()))
 
     return run_sql(_run)
@@ -94,14 +93,32 @@ def test_no_segment_columns_remain() -> None:
         assert not [c.name for c in table.columns if "segment" in c.name], table.name
 
 
+def test_tour_cannot_be_deleted_while_it_has_pois() -> None:
+    poi = _insert_poi("protected-tour-poi")
+
+    async def add_tour(conn: AsyncConnection) -> UUID:
+        stmt = insert(schema.tours).values(name="Protected tour", status="draft", access="free")
+        tour = (await conn.execute(stmt.returning(schema.tours.c.id))).scalar_one()
+        await conn.execute(insert(schema.tour_pois).values(tour_id=tour, poi_id=poi, position=0))
+        return tour
+
+    tour = run_sql(add_tour)
+
+    async def delete_tour(conn: AsyncConnection) -> None:
+        await conn.execute(delete(schema.tours).where(schema.tours.c.id == tour))
+
+    with pytest.raises(IntegrityError, match="fk_tour_pois_tour_id_tours"):
+        run_sql(delete_tour)
+
+
 def test_geo_lookup_uses_real_distance() -> None:
-    near = _insert_attraction("near", lat=10.7797, lng=106.6990)
-    _insert_attraction("far", lat=21.0285, lng=105.8542)  # Hà Nội
+    near = _insert_poi("near", lat=10.7797, lng=106.6990)
+    _insert_poi("far", lat=21.0285, lng=105.8542)  # Hà Nội
 
     async def within_100m(conn: AsyncConnection) -> list[UUID]:
         rows = await conn.execute(
             text(
-                "SELECT id FROM attractions WHERE ST_DWithin("
+                "SELECT id FROM pois WHERE ST_DWithin("
                 "geo, ST_GeogFromText('SRID=4326;POINT(106.6995 10.7797)'), 100)"
             )
         )
@@ -142,7 +159,7 @@ def test_global_glossary_terms_are_unique_despite_null() -> None:
 
 def test_only_one_published_pack_per_tour_and_language() -> None:
     async def tour(conn: AsyncConnection) -> UUID:
-        stmt = insert(schema.tours).values(slug="t", name="t", status="draft", access="free")
+        stmt = insert(schema.tours).values(name="t", status="draft", access="free")
         return UUID(str((await conn.execute(stmt.returning(schema.tours.c.id))).scalar_one()))
 
     tour_id = run_sql(tour)
@@ -172,9 +189,7 @@ def test_user_role_and_tour_access_are_constrained() -> None:
         )
 
     async def bad_access(conn: AsyncConnection) -> None:
-        await conn.execute(
-            insert(schema.tours).values(slug="b", name="b", status="draft", access="vip")
-        )
+        await conn.execute(insert(schema.tours).values(name="b", status="draft", access="vip"))
 
     with pytest.raises(IntegrityError):
         run_sql(bad_role)
@@ -182,13 +197,13 @@ def test_user_role_and_tour_access_are_constrained() -> None:
         run_sql(bad_access)
 
 
-def test_deleting_attraction_cascades_but_language_is_protected() -> None:
-    attraction_id = _insert_attraction("cascade")
+def test_deleting_poi_and_referenced_language_is_blocked() -> None:
+    poi_id = _insert_poi("cascade")
 
     async def add_translation(conn: AsyncConnection) -> None:
         await conn.execute(
             insert(schema.translations).values(
-                attraction_id=attraction_id,
+                poi_id=poi_id,
                 target_lang="vi",
                 version=1,
                 text="x",
@@ -199,21 +214,29 @@ def test_deleting_attraction_cascades_but_language_is_protected() -> None:
     async def delete_language(conn: AsyncConnection) -> None:
         await conn.execute(delete(schema.languages).where(schema.languages.c.code == "vi"))
 
-    async def delete_attraction(conn: AsyncConnection) -> int:
-        await conn.execute(delete(schema.attractions))
-        rows = await conn.execute(select(func.count()).select_from(schema.translations))
-        return rows.scalar_one()
+    async def delete_poi(conn: AsyncConnection) -> None:
+        await conn.execute(delete(schema.pois).where(schema.pois.c.id == poi_id))
+
+    async def truncate_pois(conn: AsyncConnection) -> None:
+        await conn.execute(text("TRUNCATE TABLE pois CASCADE"))
+
+    async def remaining(conn: AsyncConnection) -> int:
+        result = await conn.execute(select(func.count()).select_from(schema.translations))
+        return result.scalar_one()
 
     run_sql(add_translation)
     with pytest.raises(IntegrityError):
         run_sql(delete_language)
-    assert run_sql(delete_attraction) == 0
+    for operation in (delete_poi, truncate_pois):
+        with pytest.raises(IntegrityError, match="Không được xóa cứng POI"):
+            run_sql(operation)
+    assert run_sql(remaining) == 1
 
 
 def test_purge_replaces_mongo_ttl_indexes() -> None:
     """Token hết hạn và playback quá 180 ngày bị xoá; dữ liệu còn hạn được giữ."""
     now = datetime.now(UTC)
-    attraction_id = _insert_attraction("purge")
+    poi_id = _insert_poi("purge")
 
     async def seed(conn: AsyncConnection) -> None:
         user_id = (
@@ -237,7 +260,7 @@ def test_purge_replaces_mongo_ttl_indexes() -> None:
                 insert(schema.playback_events).values(
                     device_id="d",
                     event_id=name,
-                    attraction_id=attraction_id,
+                    poi_id=poi_id,
                     lang="vi",
                     event="play",
                     ts=now - timedelta(days=days),

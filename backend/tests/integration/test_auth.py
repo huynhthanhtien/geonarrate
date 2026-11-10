@@ -5,7 +5,8 @@ from uuid import uuid4
 import pytest
 from fastapi.testclient import TestClient
 from redis import Redis
-from sqlalchemy import delete, insert
+from sqlalchemy import delete
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncConnection
 
 from app.core.config import get_settings
@@ -35,13 +36,22 @@ def client() -> Iterator[TestClient]:
     async def reset(conn: AsyncConnection) -> None:
         await conn.execute(delete(refresh_tokens))
         await conn.execute(delete(audit_logs))
-        await conn.execute(delete(users).where(users.c.email == EDITOR["email"]))
         await conn.execute(
-            insert(users).values(
+            pg_insert(users)
+            .values(
                 email=EDITOR["email"],
                 password_hash=editor_hash,
                 full_name="Editor",
                 role="editor",
+            )
+            .on_conflict_do_update(
+                index_elements=[users.c.email],
+                set_={
+                    "password_hash": editor_hash,
+                    "full_name": "Editor",
+                    "role": "editor",
+                    "is_active": True,
+                },
             )
         )
 
@@ -130,7 +140,7 @@ def test_permissions_in_token_response(client: TestClient) -> None:
     editor = client.post("/api/v1/auth/login", json=EDITOR).json()["user"]
     assert "admin:manage" in admin["permissions"]
     assert editor["role"] == "editor"
-    assert editor["permissions"] == ["attraction:read", "script:write"]
+    assert editor["permissions"] == ["poi:read", "script:write"]
 
 
 def test_audit_requires_admin_manage(client: TestClient) -> None:
@@ -193,13 +203,13 @@ def test_audit_independent_filters_search_and_stable_pagination(client: TestClie
     portal.call(svc.record, admin["user"]["id"], "tour.update", AuditResource("tour", "tour-1"))
     portal.call(svc.record, admin["user"]["id"], "tour.create", AuditResource("tour", "tour-2"))
     portal.call(
-        svc.record, editor["user"]["id"], "script.submit", AuditResource("attraction", "a-1")
+        svc.record, editor["user"]["id"], "script.submit", AuditResource("poi", "a-1")
     )
     portal.call(
         svc.record,
         editor["user"]["id"],
         "script.reject",
-        AuditResource("attraction", "a-2"),
+        AuditResource("poi", "a-2"),
         "Sai 10%",
     )
 

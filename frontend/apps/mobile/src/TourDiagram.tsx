@@ -54,7 +54,7 @@ export function TourDiagram({ files, position, playingId, onPlay }: {
         {scale > 0 && points.map((point) => {
           const { x, y } = project(point);
           const diameter = point.file.radius * scale * 2;
-          return <View key={point.file.attraction_id} pointerEvents="none" style={[
+          return <View key={point.file.poi_id} pointerEvents="none" style={[
             styles.range, { left: x - diameter / 2, top: y - diameter / 2, width: diameter, height: diameter, borderRadius: diameter / 2 },
           ]} />;
         })}
@@ -62,7 +62,7 @@ export function TourDiagram({ files, position, playingId, onPlay }: {
           const { x, y } = project(point);
           return (
             <Pressable
-              key={point.file.attraction_id}
+              key={point.file.poi_id}
               accessibilityRole={onPlay ? "button" : undefined}
               accessibilityLabel={onPlay ? `Nghe ${point.file.name}` : point.file.name}
               disabled={!onPlay}
@@ -71,7 +71,7 @@ export function TourDiagram({ files, position, playingId, onPlay }: {
               style={[
                 styles.marker,
                 { left: x - MARKER_SIZE / 2, top: y - MARKER_SIZE / 2 },
-                point.file.attraction_id === playingId && styles.playing,
+                point.file.poi_id === playingId && styles.playing,
               ]}
             >
               <Text style={styles.number}>{index + 1}</Text>

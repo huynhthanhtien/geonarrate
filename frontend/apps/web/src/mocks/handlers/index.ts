@@ -1,5 +1,5 @@
 import { http, passthrough } from "msw";
-export { attractionHandlers } from "./attractions";
+export { poiHandlers } from "./pois";
 export { authHandlers } from "./auth";
 
 export const passthroughHandlers = [

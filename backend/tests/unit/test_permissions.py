@@ -11,7 +11,7 @@ def test_role_permissions() -> None:
     assert Permission.ADMIN_MANAGE not in permissions_for("editor")
     assert Permission.PACK_PUBLISH not in permissions_for("editor")
     assert permissions_for("translator") == {
-        Permission.ATTRACTION_READ,
+        Permission.POI_READ,
         Permission.TRANSLATION_REVIEW,
     }
     assert permissions_for("ghost") == frozenset()

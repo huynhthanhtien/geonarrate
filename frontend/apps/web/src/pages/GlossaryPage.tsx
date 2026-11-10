@@ -2,20 +2,22 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { sendJson } from "../api";
-import { Badge, dangerBtn, Empty, ErrorBox, Field, inputClass, LANGS, Page, primaryBtn, Table } from "../components/ui";
+import { Badge, dangerBtn, Empty, ErrorBox, Field, inputClass, Page, primaryBtn, Table } from "../components/ui";
+import { useLanguages } from "../languages";
 
 export function GlossaryPage() {
   const qc = useQueryClient();
-  const [form, setForm] = useState({ term: "", target_lang: "en", translation: "", is_required: true, attraction_id: "" });
+  const [form, setForm] = useState({ term: "", target_lang: "", translation: "", is_required: true, poi_id: "" });
+  const languages = useLanguages();
   const { data, error } = useQuery({
     queryKey: ["glossaries"],
     queryFn: () => sendJson<any[]>("/api/v1/glossaries"),
     retry: false,
   });
-  const points = useQuery({ queryKey: ["attractions", "", ""], queryFn: () => sendJson<any[]>("/api/v1/attractions?"), retry: false });
+  const points = useQuery({ queryKey: ["pois", "", ""], queryFn: () => sendJson<any[]>("/api/v1/pois?"), retry: false });
   const refresh = () => qc.invalidateQueries({ queryKey: ["glossaries"] });
   const add = useMutation({
-    mutationFn: () => sendJson("/api/v1/glossaries", "POST", { ...form, attraction_id: form.attraction_id || null }),
+    mutationFn: () => sendJson("/api/v1/glossaries", "POST", { ...form, poi_id: form.poi_id || null }),
     onSuccess: () => { setForm({ ...form, term: "", translation: "" }); return refresh(); },
   });
   const remove = useMutation({
@@ -31,13 +33,14 @@ export function GlossaryPage() {
       >
         <Field label="Từ gốc"><input required value={form.term} onChange={(e) => setForm({ ...form, term: e.target.value })} className={inputClass} /></Field>
         <Field label="Ngôn ngữ">
-          <select value={form.target_lang} onChange={(e) => setForm({ ...form, target_lang: e.target.value })} className={inputClass}>
-            {LANGS.map((l) => <option key={l}>{l}</option>)}
+          <select required value={form.target_lang} onChange={(e) => setForm({ ...form, target_lang: e.target.value })} className={inputClass}>
+            <option value="">Chọn ngôn ngữ</option>
+            {languages.data?.filter((l) => !l.is_source).map((l) => <option key={l.code} value={l.code}>{l.native_name} ({l.code})</option>)}
           </select>
         </Field>
         <Field label="Cách dịch"><input required value={form.translation} onChange={(e) => setForm({ ...form, translation: e.target.value })} className={inputClass} /></Field>
         <Field label="Áp dụng cho">
-          <select value={form.attraction_id} onChange={(e) => setForm({ ...form, attraction_id: e.target.value })} className={inputClass}>
+          <select value={form.poi_id} onChange={(e) => setForm({ ...form, poi_id: e.target.value })} className={inputClass}>
             <option value="">Toàn hệ thống</option>
             {points.data?.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
@@ -49,7 +52,7 @@ export function GlossaryPage() {
           <button className={primaryBtn} disabled={add.isPending}><Plus size={15} aria-hidden /> Thêm</button>
         </div>
       </form>
-      <ErrorBox error={error ?? add.error ?? remove.error} />
+      <ErrorBox error={languages.error ?? error ?? add.error ?? remove.error} />
       {data?.length === 0 && <Empty>Chưa có thuật ngữ nào.</Empty>}
       {!!data?.length && (
         <Table head={["Từ gốc", "Ngôn ngữ", "Cách dịch", "Áp dụng", "Mức", ""]}>
@@ -58,7 +61,7 @@ export function GlossaryPage() {
               <td className="px-4 py-2.5 font-medium">{g.term}</td>
               <td className="px-4 py-2.5">{g.target_lang}</td>
               <td className="px-4 py-2.5">{g.translation}</td>
-              <td className="px-4 py-2.5">{name(g.attraction_id)}</td>
+              <td className="px-4 py-2.5">{name(g.poi_id)}</td>
               <td className="px-4 py-2.5"><Badge tone={g.is_required ? "amber" : "gray"}>{g.is_required ? "Bắt buộc" : "Gợi ý"}</Badge></td>
               <td className="px-4 py-2.5 text-right">
                 <button className={dangerBtn} onClick={() => remove.mutate(g.id)} aria-label={`Xoá ${g.term}`}><Trash2 size={14} aria-hidden /></button>

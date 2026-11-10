@@ -1,9 +1,8 @@
-export type AttractionStatus = "draft" | "in_review" | "approved";
+export type PoiStatus = "draft" | "in_review" | "approved";
 
-export interface Attraction {
+export interface Poi {
   id: string;
   name: string;
-  slug: string;
   summary: string | null;
   images: string[];
   lat: number;
@@ -12,7 +11,7 @@ export interface Attraction {
   category: string;
   priority: number;
   script: string;
-  script_status: AttractionStatus;
+  script_status: PoiStatus;
   script_version: number;
   review_note?: string;
   created_by: string;
@@ -24,11 +23,10 @@ export interface Attraction {
 let _id = 1;
 const makeId = () => String(_id++);
 
-export const db: Attraction[] = [
+export const db: Poi[] = [
   {
     id: makeId(),
     name: "Chùa Ngọc Hoàng",
-    slug: "chua-ngoc-hoang",
     summary: null,
     images: [],
     lat: 10.7881,
@@ -47,7 +45,6 @@ export const db: Attraction[] = [
   {
     id: makeId(),
     name: "Nhà thờ Đức Bà",
-    slug: "nha-tho-duc-ba",
     summary: null,
     images: [],
     lat: 10.7797,
@@ -79,7 +76,6 @@ export function findById(id: string) {
 
 export function create(data: {
   name: string;
-  slug: string;
   summary: string | null;
   images: string[];
   lat: number;
@@ -88,27 +84,27 @@ export function create(data: {
   category: string;
   priority: number;
   script: string;
-  script_status: AttractionStatus;
+  script_status: PoiStatus;
   script_version: number;
   review_note?: string;
   created_by: string;
   updated_by: string;
 }) {
   const now = new Date().toISOString();
-  const attraction: Attraction = {
+  const poi: Poi = {
     id: makeId(),
     created_at: now,
     updated_at: now,
     ...data,
   };
-  db.push(attraction);
-  return attraction;
+  db.push(poi);
+  return poi;
 }
 
-export function update(id: string, data: Partial<Attraction>) {
+export function update(id: string, data: Partial<Poi>) {
   const idx = db.findIndex((a) => a.id === id);
   if (idx === -1) return null;
-  db[idx] = { ...db[idx], ...data, updated_at: new Date().toISOString() } as Attraction;
+  db[idx] = { ...db[idx], ...data, updated_at: new Date().toISOString() } as Poi;
   return db[idx];
 }
 

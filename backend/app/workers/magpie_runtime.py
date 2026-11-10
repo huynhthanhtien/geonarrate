@@ -49,22 +49,27 @@ async def magpie_runtime(settings: Settings) -> AsyncIterator[asyncio.subprocess
         async with httpx.AsyncClient(timeout=2.0, trust_env=False) as client:
             ready = await _ready(client, url)
             if ready is None:
-                runtime = BACKEND_ROOT / "var/nemo-speech-cjk"
+                device = settings.magpie_tts_device
+                runtime = BACKEND_ROOT / (
+                    "var/nemo-speech-cjk-cuda" if device == "cuda" else "var/nemo-speech-cjk"
+                )
                 binary = runtime / "bin/nemo-speech"
                 data_dir = runtime / "share/nemo-speech"
                 model_dir = BACKEND_ROOT / "var/nemo-models"
-                if not binary.is_file() or not model_dir.is_dir():
+                if not binary.is_file():
                     raise RuntimeError(
-                        "Thiếu runtime hoặc model Magpie trong backend/var. Xem README."
+                        f"Thiếu runtime Magpie cho {device.upper()} tại {binary}. Xem README."
                     )
-                logger.info("Đang khởi động MagpieTTS cục bộ")
+                if not model_dir.is_dir():
+                    raise RuntimeError(f"Thiếu model Magpie tại {model_dir}. Xem README.")
+                logger.info("Đang khởi động MagpieTTS cục bộ (%s)", device)
                 process = await asyncio.create_subprocess_exec(
                     str(binary),
                     "serve",
                     "--tts-model",
                     "magpie",
                     "--device",
-                    "cpu",
+                    device,
                     "--host",
                     "127.0.0.1",
                     "--port",

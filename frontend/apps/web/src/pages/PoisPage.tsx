@@ -3,15 +3,15 @@ import { List, Map as MapIcon, PenLine, Settings2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router";
 import { sendJson } from "../api";
-import { AttractionCard } from "../components/AttractionCard";
+import { PoiCard } from "../components/PoiCard";
 import { LoadError } from "../components/LoadError";
-import { AttractionsMap } from "../components/AttractionsMap";
+import { PoisMap } from "../components/PoisMap";
 import { ghostBtn } from "../components/ui";
 import { useCan } from "../auth/session";
 
 const CATEGORIES = ["temple", "church", "museum", "park", "other"];
 
-export function AttractionsPage() {
+export function PoisPage() {
   const navigate = useNavigate();
   const [category, setCategory] = useState("");
   const [status, setStatus] = useState("");
@@ -20,10 +20,10 @@ export function AttractionsPage() {
   const canWrite = useCan()("script:write");
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ["attractions", category, status],
+    queryKey: ["pois", category, status],
     queryFn: () =>
       sendJson<any[]>(
-        `/api/v1/attractions?${category ? `category=${category}&` : ""}${status ? `status=${status}` : ""}`
+        `/api/v1/pois?${category ? `category=${category}&` : ""}${status ? `status=${status}` : ""}`
       ),
     retry: false,
   });
@@ -37,7 +37,7 @@ export function AttractionsPage() {
           {data && <p className="text-slate-500 text-sm mt-1">{data.length} địa điểm trong hệ thống</p>}
         </div>
         {canWrite && <button
-          onClick={() => navigate("/attractions/new")}
+          onClick={() => navigate("/pois/new")}
           className="flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors shadow-sm"
         >
           + Thêm điểm
@@ -82,14 +82,14 @@ export function AttractionsPage() {
         </div>
       ) : view === "map" ? (
         <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_300px]">
-          <AttractionsMap points={data ?? []} selectedId={selected?.id} onSelect={setSelectedId} />
+          <PoisMap points={data ?? []} selectedId={selected?.id} onSelect={setSelectedId} />
           <aside className="rounded-xl border border-slate-200 bg-white p-4">
             {selected ? <div className="mb-4 border-b border-slate-100 pb-4">
               <h2 className="font-semibold text-slate-800">{selected.name}</h2>
               <p className="mt-1 text-xs text-slate-500">{selected.lat.toFixed(5)}, {selected.lng.toFixed(5)} · Vùng {selected.radius}m</p>
               {canWrite && <div className="mt-3 flex flex-wrap gap-2">
-                <button className={ghostBtn} onClick={() => navigate(`/attractions/${selected.id}/edit`)}><Settings2 size={14} aria-hidden /> Sửa điểm</button>
-                <button className={ghostBtn} onClick={() => navigate(`/attractions/${selected.id}/script`)}><PenLine size={14} aria-hidden /> Script</button>
+                <button className={ghostBtn} onClick={() => navigate(`/pois/${selected.id}/edit`)}><Settings2 size={14} aria-hidden /> Sửa điểm</button>
+                <button className={ghostBtn} onClick={() => navigate(`/pois/${selected.id}/script`)}><PenLine size={14} aria-hidden /> Script</button>
               </div>}
             </div> : <p className="mb-3 text-sm text-slate-500">Chọn marker hoặc tên điểm để xem thông tin.</p>}
             <div className="max-h-[360px] space-y-1 overflow-y-auto" aria-label="Điểm trên bản đồ">
@@ -101,7 +101,7 @@ export function AttractionsPage() {
         </div>
       ) : (
         <div className="grid gap-3">
-          {data?.map((a: any) => <AttractionCard key={a.id} attraction={a} />)}
+          {data?.map((a: any) => <PoiCard key={a.id} poi={a} />)}
         </div>
       )}
     </div>

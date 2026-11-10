@@ -2,11 +2,11 @@ import hashlib
 from datetime import datetime, timedelta
 from typing import Any
 
-from sqlalchemy import or_, select, text, update
+from sqlalchemy import Text, cast, func, or_, select, text, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 
-from app.core.schema import jobs
+from app.core.schema import jobs, pois
 from app.core.transaction import connection
 from app.repositories._ids import parse_uuid, record
 
@@ -46,6 +46,29 @@ async def add_jobs(
 class SqlJobRepository:
     def __init__(self, engine: AsyncEngine) -> None:
         self._engine = engine
+
+    async def translation_progress(self) -> list[dict[str, Any]]:
+        poi_id = func.coalesce(
+            jobs.c.payload["poi_id"].astext, jobs.c.payload["attraction_id"].astext
+        )
+        lang = jobs.c.payload["lang"].astext
+        ranked = select(
+            poi_id.label("poi_id"), lang.label("lang"), jobs.c.status,
+            jobs.c.error, jobs.c.attempts, jobs.c.updated_at,
+            func.row_number().over(
+                partition_by=(poi_id, lang),
+                order_by=(jobs.c.created_at.desc(), jobs.c.id.desc()),
+            ).label("rank"),
+        ).where(jobs.c.type == "translate").subquery()
+        stmt = (
+            select(ranked, pois.c.title)
+            .join(pois, cast(pois.c.id, Text) == ranked.c.poi_id)
+            .where(ranked.c.rank == 1, ranked.c.status.in_(("queued", "running", "failed")))
+            .order_by(ranked.c.updated_at.desc())
+            .limit(200)
+        )
+        async with connection(self._engine) as conn:
+            return [dict(row) for row in (await conn.execute(stmt)).mappings().all()]
 
     async def enqueue(
         self, specs: list[dict[str, Any]], actor_id: str | None, now: datetime

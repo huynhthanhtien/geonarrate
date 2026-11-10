@@ -5,14 +5,14 @@ from sqlalchemy import select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncEngine
 
-from app.core.schema import attractions, translations
+from app.core.schema import pois, translations
 from app.core.transaction import connection
 from app.repositories._ids import parse_uuid, record
 from app.repositories.job_repo import add_jobs
 
 _t = translations
-_COLS = (*_t.c, attractions.c.title, attractions.c.script["body"].astext.label("source_text"))
-_JOIN = _t.join(attractions, _t.c.attraction_id == attractions.c.id)
+_COLS = (*_t.c, pois.c.title, pois.c.script["body"].astext.label("source_text"))
+_JOIN = _t.join(pois, _t.c.poi_id == pois.c.id)
 
 
 class SqlTranslationRepository:
@@ -37,9 +37,9 @@ class SqlTranslationRepository:
             row = (await conn.execute(stmt)).mappings().one_or_none()
         return record(row) if row else None
 
-    async def approved_for(self, attraction_id: str, lang: str) -> dict[str, Any] | None:
+    async def approved_for(self, poi_id: str, lang: str) -> dict[str, Any] | None:
         stmt = select(_t).where(
-            _t.c.attraction_id == parse_uuid(attraction_id),
+            _t.c.poi_id == parse_uuid(poi_id),
             _t.c.target_lang == lang,
             _t.c.review_status == "approved",
         )
@@ -48,7 +48,7 @@ class SqlTranslationRepository:
         return record(row) if row else None
 
     async def all_approved(self) -> list[dict[str, Any]]:
-        stmt = select(_t.c.attraction_id, _t.c.target_lang, _t.c.text).where(
+        stmt = select(_t.c.poi_id, _t.c.target_lang, _t.c.text).where(
             _t.c.review_status == "approved"
         )
         async with connection(self._engine) as conn:
@@ -56,7 +56,7 @@ class SqlTranslationRepository:
 
     async def upsert_machine(
         self,
-        attraction_id: str,
+        poi_id: str,
         lang: str,
         text: str,
         provider: str,
@@ -67,7 +67,7 @@ class SqlTranslationRepository:
     ) -> None:
         """Kịch bản đổi thì bản dịch cũ về pending và tăng version."""
         stmt = insert(_t).values(
-            attraction_id=parse_uuid(attraction_id),
+            poi_id=parse_uuid(poi_id),
             target_lang=lang,
             version=1,
             text=text,
@@ -80,7 +80,7 @@ class SqlTranslationRepository:
             updated_at=now,
         )
         stmt = stmt.on_conflict_do_update(
-            constraint="uq_translations_attraction_lang",
+            constraint="uq_translations_poi_lang",
             set_={
                 "version": _t.c.version + 1,
                 "text": text,

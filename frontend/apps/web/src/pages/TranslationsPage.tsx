@@ -2,13 +2,19 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Save, TriangleAlert, Undo2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { sendJson } from "../api";
-import { Badge, Empty, ErrorBox, ghostBtn, inputClass, LANGS, Page, primaryBtn } from "../components/ui";
+import { Badge, Empty, ErrorBox, ghostBtn, inputClass, Page, primaryBtn } from "../components/ui";
+import { useLanguages } from "../languages";
 
 const STATUS = {
   pending: { label: "Chờ duyệt", tone: "amber" },
   approved: { label: "Đã duyệt", tone: "green" },
   rejected: { label: "Chưa đạt", tone: "red" },
 } as const;
+
+type TranslationJob = {
+  poi_id: string; title: string; lang: string;
+  status: "queued" | "running" | "failed"; attempts: number; error: string | null;
+};
 
 function flagText(flag: string) {
   if (flag === "mock_translation") return "Bản dịch giả để chạy thử, cần dịch thật";
@@ -17,7 +23,7 @@ function flagText(flag: string) {
   return flag;
 }
 
-function Row({ t }: { t: any }) {
+function Row({ t, showStatus }: { t: any; showStatus: (status: string) => void }) {
   const qc = useQueryClient();
   const [text, setText] = useState(t.text);
   const [note, setNote] = useState("");
@@ -25,7 +31,10 @@ function Row({ t }: { t: any }) {
   const done = () => qc.invalidateQueries({ queryKey: ["translations"] });
   const save = useMutation({
     mutationFn: () => sendJson(`/api/v1/translations/${t.id}`, "PUT", { text }),
-    onSuccess: done,
+    onSuccess: () => {
+      if (t.review_status === "rejected") showStatus("pending");
+      return done();
+    },
   });
   const approve = useMutation({
     mutationFn: async () => {
@@ -36,7 +45,7 @@ function Row({ t }: { t: any }) {
   });
   const reject = useMutation({
     mutationFn: () => sendJson(`/api/v1/translations/${t.id}/reject`, "POST", { review_note: note }),
-    onSuccess: () => { setNote(""); return done(); },
+    onSuccess: () => { setNote(""); showStatus("rejected"); return done(); },
   });
   const status = STATUS[t.review_status as keyof typeof STATUS];
   const approved = t.review_status === "approved";
@@ -65,6 +74,9 @@ function Row({ t }: { t: any }) {
         </p>
       ))}
       {t.review_note && <p className="text-xs text-red-700">Ghi chú: {t.review_note}</p>}
+      {t.review_status === "rejected" && (
+        <p className="text-sm text-amber-700">Sửa bản dịch ở ô bên trên rồi chọn Lưu để chuyển về Chờ duyệt, hoặc chọn Duyệt sau khi sửa.</p>
+      )}
       <ErrorBox error={save.error ?? approve.error ?? reject.error} />
       {!approved && (
         <div className="flex flex-wrap items-center gap-2">
@@ -72,7 +84,7 @@ function Row({ t }: { t: any }) {
             <Check size={15} aria-hidden /> Duyệt
           </button>
           <button className={ghostBtn} disabled={save.isPending || text === t.text} onClick={() => save.mutate()}>
-            <Save size={15} aria-hidden /> Lưu
+            <Save size={15} aria-hidden /> {t.review_status === "rejected" ? "Lưu và gửi duyệt lại" : "Lưu"}
           </button>
           <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Lý do chưa đạt..." className={`${inputClass} max-w-xs`} />
           <button className={ghostBtn} disabled={!note.trim() || reject.isPending} onClick={() => reject.mutate()}>
@@ -85,6 +97,7 @@ function Row({ t }: { t: any }) {
 }
 
 export function TranslationsPage() {
+  const languages = useLanguages();
   const [lang, setLang] = useState("");
   const [status, setStatus] = useState("pending");
   const q = new URLSearchParams();
@@ -94,13 +107,36 @@ export function TranslationsPage() {
     queryKey: ["translations", lang, status],
     queryFn: () => sendJson<any[]>(`/api/v1/translations?${q}`),
     retry: false,
+    refetchInterval: 5000,
+  });
+  const jobs = useQuery({
+    queryKey: ["translation-jobs"],
+    queryFn: () => sendJson<TranslationJob[]>("/api/v1/translation-jobs"),
+    refetchInterval: 5000,
+    retry: false,
   });
   return (
     <Page title="Bản dịch" subtitle="Duyệt bản dịch thì hệ thống tự sinh audio">
+      <p className="mb-3 text-sm text-slate-600">Chọn trạng thái “Chưa đạt” để tìm và sửa các bản dịch được trả lại.</p>
+      {jobs.error && <ErrorBox error={jobs.error} />}
+      {!!jobs.data?.length && (
+        <section className="mb-5 rounded-xl border border-slate-200 bg-white p-4" aria-live="polite">
+          <h2 className="mb-2 font-semibold text-slate-800">Tiến trình dịch</h2>
+          <p className="mb-2 text-xs text-slate-500">Job chờ lâu có thể do worker chưa chạy hoặc đang xử lý việc khác.</p>
+          <ul className="space-y-2">
+            {jobs.data.filter((job) => !lang || job.lang === lang).map((job) => (
+              <li key={`${job.poi_id}:${job.lang}`} className="text-sm text-slate-700">
+                <span className="font-medium">{job.title}</span> · {job.lang} · {job.status === "running" ? "Đang dịch" : job.status === "queued" ? "Đang chờ" : "Dịch lỗi"}
+                {job.error && <span className="block text-xs text-red-700">{job.status === "queued" ? "Lần thử trước: " : ""}{job.error}</span>}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       <div className="flex gap-3 mb-5 max-w-md">
         <select value={lang} onChange={(e) => setLang(e.target.value)} className={inputClass} aria-label="Ngôn ngữ">
           <option value="">Mọi ngôn ngữ</option>
-          {LANGS.map((l) => <option key={l} value={l}>{l}</option>)}
+          {languages.data?.filter((l) => !l.is_source).map((l) => <option key={l.code} value={l.code}>{l.native_name} ({l.code})</option>)}
         </select>
         <select value={status} onChange={(e) => setStatus(e.target.value)} className={inputClass} aria-label="Trạng thái">
           <option value="">Mọi trạng thái</option>
@@ -109,10 +145,10 @@ export function TranslationsPage() {
           <option value="approved">Đã duyệt</option>
         </select>
       </div>
-      <ErrorBox error={error} />
+      <ErrorBox error={languages.error ?? error} />
       {data?.length === 0 && <Empty>Không có bản dịch nào.</Empty>}
       {isLoading && <p className="text-slate-400 text-sm">Đang tải...</p>}
-      <div className="space-y-4">{data?.map((t) => <Row key={t.id} t={t} />)}</div>
+      <div className="space-y-4">{data?.map((t) => <Row key={t.id} t={t} showStatus={setStatus} />)}</div>
     </Page>
   );
 }

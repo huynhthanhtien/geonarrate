@@ -374,14 +374,14 @@
         }
       }
     },
-    "/api/v1/attractions": {
+    "/api/v1/pois": {
       "get": {
         "tags": [
           "catalog"
         ],
-        "summary": "List Attractions",
+        "summary": "List Pois",
         "description": "Lọc theo danh mục và trạng thái script (`draft`, `in_review`, `approved`).",
-        "operationId": "list_attractions_api_v1_attractions_get",
+        "operationId": "list_pois_api_v1_pois_get",
         "security": [
           {
             "HTTPBearer": []
@@ -429,9 +429,9 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/AttractionOut"
+                    "$ref": "#/components/schemas/PoiOut"
                   },
-                  "title": "Response List Attractions Api V1 Attractions Get"
+                  "title": "Response List Pois Api V1 Pois Get"
                 }
               }
             }
@@ -452,8 +452,8 @@
         "tags": [
           "catalog"
         ],
-        "summary": "Create Attraction",
-        "operationId": "create_attraction_api_v1_attractions_post",
+        "summary": "Create Poi",
+        "operationId": "create_poi_api_v1_pois_post",
         "security": [
           {
             "HTTPBearer": []
@@ -464,7 +464,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/AttractionCreateIn"
+                "$ref": "#/components/schemas/PoiCreateIn"
               }
             }
           }
@@ -475,7 +475,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AttractionOut"
+                  "$ref": "#/components/schemas/PoiOut"
                 }
               }
             }
@@ -493,13 +493,13 @@
         }
       }
     },
-    "/api/v1/attractions/{attraction_id}": {
+    "/api/v1/pois/{poi_id}": {
       "get": {
         "tags": [
           "catalog"
         ],
-        "summary": "Get Attraction",
-        "operationId": "get_attraction_api_v1_attractions__attraction_id__get",
+        "summary": "Get Poi",
+        "operationId": "get_poi_api_v1_pois__poi_id__get",
         "security": [
           {
             "HTTPBearer": []
@@ -507,12 +507,12 @@
         ],
         "parameters": [
           {
-            "name": "attraction_id",
+            "name": "poi_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Attraction Id"
+              "title": "Poi Id"
             }
           }
         ],
@@ -522,7 +522,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AttractionOut"
+                  "$ref": "#/components/schemas/PoiOut"
                 }
               }
             }
@@ -543,8 +543,8 @@
         "tags": [
           "catalog"
         ],
-        "summary": "Update Attraction",
-        "operationId": "update_attraction_api_v1_attractions__attraction_id__patch",
+        "summary": "Update Poi",
+        "operationId": "update_poi_api_v1_pois__poi_id__patch",
         "security": [
           {
             "HTTPBearer": []
@@ -552,12 +552,12 @@
         ],
         "parameters": [
           {
-            "name": "attraction_id",
+            "name": "poi_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Attraction Id"
+              "title": "Poi Id"
             }
           }
         ],
@@ -566,7 +566,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/AttractionUpdateIn"
+                "$ref": "#/components/schemas/PoiUpdateIn"
               }
             }
           }
@@ -577,7 +577,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AttractionOut"
+                  "$ref": "#/components/schemas/PoiOut"
                 }
               }
             }
@@ -595,13 +595,13 @@
         }
       }
     },
-    "/api/v1/attractions/{attraction_id}/script": {
+    "/api/v1/pois/{poi_id}/script": {
       "put": {
         "tags": [
           "catalog"
         ],
         "summary": "Save Script",
-        "operationId": "save_script_api_v1_attractions__attraction_id__script_put",
+        "operationId": "save_script_api_v1_pois__poi_id__script_put",
         "security": [
           {
             "HTTPBearer": []
@@ -609,12 +609,12 @@
         ],
         "parameters": [
           {
-            "name": "attraction_id",
+            "name": "poi_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Attraction Id"
+              "title": "Poi Id"
             }
           }
         ],
@@ -634,7 +634,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AttractionOut"
+                  "$ref": "#/components/schemas/PoiOut"
                 }
               }
             }
@@ -652,13 +652,13 @@
         }
       }
     },
-    "/api/v1/attractions/{attraction_id}/submit": {
+    "/api/v1/pois/{poi_id}/submit": {
       "post": {
         "tags": [
           "catalog"
         ],
         "summary": "Submit Script",
-        "operationId": "submit_script_api_v1_attractions__attraction_id__submit_post",
+        "operationId": "submit_script_api_v1_pois__poi_id__submit_post",
         "security": [
           {
             "HTTPBearer": []
@@ -666,12 +666,12 @@
         ],
         "parameters": [
           {
-            "name": "attraction_id",
+            "name": "poi_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Attraction Id"
+              "title": "Poi Id"
             }
           }
         ],
@@ -681,7 +681,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AttractionOut"
+                  "$ref": "#/components/schemas/PoiOut"
                 }
               }
             }
@@ -699,13 +699,13 @@
         }
       }
     },
-    "/api/v1/attractions/{attraction_id}/approve": {
+    "/api/v1/pois/{poi_id}/approve": {
       "post": {
         "tags": [
           "catalog"
         ],
         "summary": "Approve Script",
-        "operationId": "approve_script_api_v1_attractions__attraction_id__approve_post",
+        "operationId": "approve_script_api_v1_pois__poi_id__approve_post",
         "security": [
           {
             "HTTPBearer": []
@@ -713,12 +713,12 @@
         ],
         "parameters": [
           {
-            "name": "attraction_id",
+            "name": "poi_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Attraction Id"
+              "title": "Poi Id"
             }
           }
         ],
@@ -728,7 +728,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AttractionOut"
+                  "$ref": "#/components/schemas/PoiOut"
                 }
               }
             }
@@ -746,13 +746,13 @@
         }
       }
     },
-    "/api/v1/attractions/{attraction_id}/reject": {
+    "/api/v1/pois/{poi_id}/reject": {
       "post": {
         "tags": [
           "catalog"
         ],
         "summary": "Reject Script",
-        "operationId": "reject_script_api_v1_attractions__attraction_id__reject_post",
+        "operationId": "reject_script_api_v1_pois__poi_id__reject_post",
         "security": [
           {
             "HTTPBearer": []
@@ -760,12 +760,12 @@
         ],
         "parameters": [
           {
-            "name": "attraction_id",
+            "name": "poi_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Attraction Id"
+              "title": "Poi Id"
             }
           }
         ],
@@ -785,7 +785,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AttractionOut"
+                  "$ref": "#/components/schemas/PoiOut"
                 }
               }
             }
@@ -801,6 +801,36 @@
             }
           }
         }
+      }
+    },
+    "/api/v1/translation-jobs": {
+      "get": {
+        "tags": [
+          "studio"
+        ],
+        "summary": "Translation Jobs",
+        "operationId": "translation_jobs_api_v1_translation_jobs_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TranslationJobOut"
+                  },
+                  "type": "array",
+                  "title": "Response Translation Jobs Api V1 Translation Jobs Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/api/v1/translations": {
@@ -1210,13 +1240,13 @@
         ]
       }
     },
-    "/api/v1/audio/{attraction_id}/{lang}/preview": {
+    "/api/v1/audio/{poi_id}/{lang}/preview": {
       "get": {
         "tags": [
           "studio"
         ],
         "summary": "Preview Audio",
-        "operationId": "preview_audio_api_v1_audio__attraction_id___lang__preview_get",
+        "operationId": "preview_audio_api_v1_audio__poi_id___lang__preview_get",
         "security": [
           {
             "HTTPBearer": []
@@ -1224,12 +1254,12 @@
         ],
         "parameters": [
           {
-            "name": "attraction_id",
+            "name": "poi_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Attraction Id"
+              "title": "Poi Id"
             }
           },
           {
@@ -2248,13 +2278,13 @@
         }
       }
     },
-    "/api/v1/public/tours/{tour_id}/packs/{lang}/files/{attraction_id}": {
+    "/api/v1/public/tours/{tour_id}/packs/{lang}/files/{poi_id}": {
       "get": {
         "tags": [
           "public"
         ],
         "summary": "Pack File",
-        "operationId": "pack_file_api_v1_public_tours__tour_id__packs__lang__files__attraction_id__get",
+        "operationId": "pack_file_api_v1_public_tours__tour_id__packs__lang__files__poi_id__get",
         "parameters": [
           {
             "name": "tour_id",
@@ -2275,12 +2305,12 @@
             }
           },
           {
-            "name": "attraction_id",
+            "name": "poi_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Attraction Id"
+              "title": "Poi Id"
             }
           },
           {
@@ -2365,6 +2395,31 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/content-limits": {
+      "get": {
+        "tags": [
+          "content"
+        ],
+        "summary": "Content Limits",
+        "operationId": "content_limits_api_v1_content_limits_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "integer"
+                  },
+                  "type": "object",
+                  "title": "Response Content Limits Api V1 Content Limits Get"
                 }
               }
             }
@@ -2617,12 +2672,12 @@
             ],
             "title": "Completion Rate"
           },
-          "top_attractions": {
+          "top_pois": {
             "items": {
               "$ref": "#/components/schemas/AnalyticsTop"
             },
             "type": "array",
-            "title": "Top Attractions"
+            "title": "Top Pois"
           },
           "by_lang": {
             "items": {
@@ -2637,7 +2692,7 @@
           "plays",
           "completes",
           "completion_rate",
-          "top_attractions",
+          "top_pois",
           "by_lang"
         ],
         "title": "AnalyticsOut"
@@ -2664,346 +2719,6 @@
           "plays"
         ],
         "title": "AnalyticsTop"
-      },
-      "AttractionCreateIn": {
-        "properties": {
-          "name": {
-            "type": "string",
-            "maxLength": 200,
-            "minLength": 1,
-            "title": "Name"
-          },
-          "category": {
-            "type": "string",
-            "enum": [
-              "temple",
-              "church",
-              "museum",
-              "park",
-              "other"
-            ],
-            "title": "Category"
-          },
-          "priority": {
-            "type": "integer",
-            "maximum": 1000.0,
-            "minimum": 0.0,
-            "title": "Priority",
-            "default": 1
-          },
-          "lat": {
-            "type": "number",
-            "maximum": 90.0,
-            "minimum": -90.0,
-            "title": "Lat"
-          },
-          "lng": {
-            "type": "number",
-            "maximum": 180.0,
-            "minimum": -180.0,
-            "title": "Lng"
-          },
-          "radius": {
-            "type": "integer",
-            "maximum": 200.0,
-            "minimum": 10.0,
-            "title": "Radius",
-            "description": "Bán kính kích hoạt (mét)"
-          },
-          "script": {
-            "type": "string",
-            "maxLength": 600,
-            "title": "Script",
-            "default": ""
-          },
-          "summary": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 2000
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Summary"
-          },
-          "images": {
-            "items": {
-              "type": "string",
-              "maxLength": 2000,
-              "pattern": "^https?://\\S+$"
-            },
-            "type": "array",
-            "maxItems": 20,
-            "title": "Images",
-            "default": []
-          }
-        },
-        "type": "object",
-        "required": [
-          "name",
-          "category",
-          "lat",
-          "lng",
-          "radius"
-        ],
-        "title": "AttractionCreateIn"
-      },
-      "AttractionOut": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "title": "Id"
-          },
-          "name": {
-            "type": "string",
-            "title": "Name"
-          },
-          "slug": {
-            "type": "string",
-            "title": "Slug"
-          },
-          "summary": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Summary"
-          },
-          "images": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Images"
-          },
-          "lat": {
-            "type": "number",
-            "title": "Lat"
-          },
-          "lng": {
-            "type": "number",
-            "title": "Lng"
-          },
-          "radius": {
-            "type": "integer",
-            "title": "Radius"
-          },
-          "category": {
-            "type": "string",
-            "title": "Category"
-          },
-          "priority": {
-            "type": "integer",
-            "title": "Priority"
-          },
-          "script": {
-            "type": "string",
-            "title": "Script"
-          },
-          "script_status": {
-            "type": "string",
-            "enum": [
-              "draft",
-              "in_review",
-              "approved"
-            ],
-            "title": "Script Status"
-          },
-          "script_version": {
-            "type": "integer",
-            "title": "Script Version"
-          },
-          "review_note": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Review Note"
-          },
-          "created_by": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Created By"
-          },
-          "updated_by": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Updated By"
-          },
-          "created_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Created At"
-          },
-          "updated_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Updated At"
-          }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "name",
-          "slug",
-          "summary",
-          "images",
-          "lat",
-          "lng",
-          "radius",
-          "category",
-          "priority",
-          "script",
-          "script_status",
-          "script_version",
-          "review_note",
-          "created_by",
-          "updated_by",
-          "created_at",
-          "updated_at"
-        ],
-        "title": "AttractionOut"
-      },
-      "AttractionUpdateIn": {
-        "properties": {
-          "name": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 200,
-                "minLength": 1
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Name"
-          },
-          "category": {
-            "anyOf": [
-              {
-                "type": "string",
-                "enum": [
-                  "temple",
-                  "church",
-                  "museum",
-                  "park",
-                  "other"
-                ]
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Category"
-          },
-          "priority": {
-            "anyOf": [
-              {
-                "type": "integer",
-                "maximum": 1000.0,
-                "minimum": 0.0
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Priority"
-          },
-          "lat": {
-            "anyOf": [
-              {
-                "type": "number",
-                "maximum": 90.0,
-                "minimum": -90.0
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Lat"
-          },
-          "lng": {
-            "anyOf": [
-              {
-                "type": "number",
-                "maximum": 180.0,
-                "minimum": -180.0
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Lng"
-          },
-          "radius": {
-            "anyOf": [
-              {
-                "type": "integer",
-                "maximum": 200.0,
-                "minimum": 10.0
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Radius"
-          },
-          "summary": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 2000
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Summary"
-          },
-          "images": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "string",
-                  "maxLength": 2000,
-                  "pattern": "^https?://\\S+$"
-                },
-                "type": "array",
-                "maxItems": 20
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Images"
-          }
-        },
-        "type": "object",
-        "title": "AttractionUpdateIn",
-        "description": "Chỉ gửi trường cần đổi. Slug không đổi được; `lat` và `lng` phải đi cùng nhau."
       },
       "AudioCell": {
         "properties": {
@@ -3052,9 +2767,9 @@
       },
       "AudioRetryIn": {
         "properties": {
-          "attraction_id": {
+          "poi_id": {
             "type": "string",
-            "title": "Attraction Id"
+            "title": "Poi Id"
           },
           "lang": {
             "type": "string",
@@ -3063,7 +2778,7 @@
         },
         "type": "object",
         "required": [
-          "attraction_id",
+          "poi_id",
           "lang"
         ],
         "title": "AudioRetryIn"
@@ -3165,9 +2880,9 @@
             "minLength": 1,
             "title": "Event Id"
           },
-          "attraction_id": {
+          "poi_id": {
             "type": "string",
-            "title": "Attraction Id"
+            "title": "Poi Id"
           },
           "lang": {
             "type": "string",
@@ -3218,7 +2933,7 @@
         "type": "object",
         "required": [
           "event_id",
-          "attraction_id",
+          "poi_id",
           "lang",
           "event",
           "ts"
@@ -3285,7 +3000,7 @@
             "title": "Is Required",
             "default": false
           },
-          "attraction_id": {
+          "poi_id": {
             "anyOf": [
               {
                 "type": "string"
@@ -3294,7 +3009,7 @@
                 "type": "null"
               }
             ],
-            "title": "Attraction Id"
+            "title": "Poi Id"
           }
         },
         "type": "object",
@@ -3327,7 +3042,7 @@
             "type": "boolean",
             "title": "Is Required"
           },
-          "attraction_id": {
+          "poi_id": {
             "anyOf": [
               {
                 "type": "string"
@@ -3336,7 +3051,7 @@
                 "type": "null"
               }
             ],
-            "title": "Attraction Id"
+            "title": "Poi Id"
           }
         },
         "type": "object",
@@ -3346,7 +3061,7 @@
           "target_lang",
           "translation",
           "is_required",
-          "attraction_id"
+          "poi_id"
         ],
         "title": "GlossaryOut"
       },
@@ -3415,9 +3130,9 @@
       },
       "ManifestFile": {
         "properties": {
-          "attraction_id": {
+          "poi_id": {
             "type": "string",
-            "title": "Attraction Id"
+            "title": "Poi Id"
           },
           "name": {
             "type": "string",
@@ -3469,7 +3184,7 @@
         },
         "type": "object",
         "required": [
-          "attraction_id",
+          "poi_id",
           "name",
           "summary",
           "lat",
@@ -3649,15 +3364,346 @@
         ],
         "title": "PackOut"
       },
-      "PublicTourOut": {
+      "PoiCreateIn": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "temple",
+              "church",
+              "museum",
+              "park",
+              "other"
+            ],
+            "title": "Category"
+          },
+          "priority": {
+            "type": "integer",
+            "maximum": 1000.0,
+            "minimum": 0.0,
+            "title": "Priority",
+            "default": 1
+          },
+          "lat": {
+            "type": "number",
+            "maximum": 90.0,
+            "minimum": -90.0,
+            "title": "Lat"
+          },
+          "lng": {
+            "type": "number",
+            "maximum": 180.0,
+            "minimum": -180.0,
+            "title": "Lng"
+          },
+          "radius": {
+            "type": "integer",
+            "maximum": 200.0,
+            "minimum": 10.0,
+            "title": "Radius",
+            "description": "Bán kính kích hoạt (mét)"
+          },
+          "script": {
+            "type": "string",
+            "maxLength": 1000,
+            "title": "Script",
+            "default": ""
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          },
+          "images": {
+            "items": {
+              "type": "string",
+              "maxLength": 2000,
+              "pattern": "^https?://\\S+$"
+            },
+            "type": "array",
+            "maxItems": 20,
+            "title": "Images",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "category",
+          "lat",
+          "lng",
+          "radius"
+        ],
+        "title": "PoiCreateIn"
+      },
+      "PoiOut": {
         "properties": {
           "id": {
             "type": "string",
             "title": "Id"
           },
-          "slug": {
+          "name": {
             "type": "string",
-            "title": "Slug"
+            "title": "Name"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          },
+          "images": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Images"
+          },
+          "lat": {
+            "type": "number",
+            "title": "Lat"
+          },
+          "lng": {
+            "type": "number",
+            "title": "Lng"
+          },
+          "radius": {
+            "type": "integer",
+            "title": "Radius"
+          },
+          "category": {
+            "type": "string",
+            "title": "Category"
+          },
+          "priority": {
+            "type": "integer",
+            "title": "Priority"
+          },
+          "script": {
+            "type": "string",
+            "title": "Script"
+          },
+          "script_status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "in_review",
+              "approved"
+            ],
+            "title": "Script Status"
+          },
+          "script_version": {
+            "type": "integer",
+            "title": "Script Version"
+          },
+          "review_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Note"
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By"
+          },
+          "updated_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated By"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "summary",
+          "images",
+          "lat",
+          "lng",
+          "radius",
+          "category",
+          "priority",
+          "script",
+          "script_status",
+          "script_version",
+          "review_note",
+          "created_by",
+          "updated_by",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "PoiOut"
+      },
+      "PoiUpdateIn": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "temple",
+                  "church",
+                  "museum",
+                  "park",
+                  "other"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          },
+          "priority": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 1000.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Priority"
+          },
+          "lat": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 90.0,
+                "minimum": -90.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lat"
+          },
+          "lng": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 180.0,
+                "minimum": -180.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lng"
+          },
+          "radius": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 200.0,
+                "minimum": 10.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Radius"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          },
+          "images": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string",
+                  "maxLength": 2000,
+                  "pattern": "^https?://\\S+$"
+                },
+                "type": "array",
+                "maxItems": 20
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Images"
+          }
+        },
+        "type": "object",
+        "title": "PoiUpdateIn",
+        "description": "Chỉ gửi trường cần đổi. `lat` và `lng` phải đi cùng nhau."
+      },
+      "PublicTourOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
           },
           "name": {
             "type": "string",
@@ -3681,9 +3727,9 @@
             ],
             "title": "Bbox"
           },
-          "attraction_count": {
+          "poi_count": {
             "type": "integer",
-            "title": "Attraction Count"
+            "title": "Poi Count"
           },
           "langs": {
             "items": {
@@ -3696,11 +3742,10 @@
         "type": "object",
         "required": [
           "id",
-          "slug",
           "name",
           "access",
           "bbox",
-          "attraction_count",
+          "poi_count",
           "langs"
         ],
         "title": "PublicTourOut"
@@ -3795,7 +3840,7 @@
         "properties": {
           "script": {
             "type": "string",
-            "maxLength": 600,
+            "maxLength": 1000,
             "title": "Script"
           }
         },
@@ -3979,12 +4024,6 @@
       },
       "TourCreateIn": {
         "properties": {
-          "slug": {
-            "type": "string",
-            "maxLength": 120,
-            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
-            "title": "Slug"
-          },
           "name": {
             "type": "string",
             "maxLength": 500,
@@ -4009,21 +4048,20 @@
             "title": "Status",
             "default": "draft"
           },
-          "attractions": {
+          "pois": {
             "items": {
               "$ref": "#/components/schemas/TourPoint"
             },
             "type": "array",
             "maxItems": 500,
             "minItems": 1,
-            "title": "Attractions"
+            "title": "Pois"
           }
         },
         "type": "object",
         "required": [
-          "slug",
           "name",
-          "attractions"
+          "pois"
         ],
         "title": "TourCreateIn"
       },
@@ -4033,10 +4071,6 @@
             "type": "string",
             "title": "Id"
           },
-          "slug": {
-            "type": "string",
-            "title": "Slug"
-          },
           "name": {
             "type": "string",
             "title": "Name"
@@ -4063,28 +4097,27 @@
             ],
             "title": "Bbox"
           },
-          "attraction_count": {
+          "poi_count": {
             "type": "integer",
-            "title": "Attraction Count"
+            "title": "Poi Count"
           },
-          "attractions": {
+          "pois": {
             "items": {
               "$ref": "#/components/schemas/TourPointOut"
             },
             "type": "array",
-            "title": "Attractions"
+            "title": "Pois"
           }
         },
         "type": "object",
         "required": [
           "id",
-          "slug",
           "name",
           "access",
           "status",
           "bbox",
-          "attraction_count",
-          "attractions"
+          "poi_count",
+          "pois"
         ],
         "title": "TourDetailOut"
       },
@@ -4094,10 +4127,6 @@
             "type": "string",
             "title": "Id"
           },
-          "slug": {
-            "type": "string",
-            "title": "Slug"
-          },
           "name": {
             "type": "string",
             "title": "Name"
@@ -4124,20 +4153,19 @@
             ],
             "title": "Bbox"
           },
-          "attraction_count": {
+          "poi_count": {
             "type": "integer",
-            "title": "Attraction Count"
+            "title": "Poi Count"
           }
         },
         "type": "object",
         "required": [
           "id",
-          "slug",
           "name",
           "access",
           "status",
           "bbox",
-          "attraction_count"
+          "poi_count"
         ],
         "title": "TourOut"
       },
@@ -4204,19 +4232,6 @@
       },
       "TourUpdateIn": {
         "properties": {
-          "slug": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 120,
-                "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Slug"
-          },
           "name": {
             "anyOf": [
               {
@@ -4260,7 +4275,7 @@
             ],
             "title": "Status"
           },
-          "attractions": {
+          "pois": {
             "anyOf": [
               {
                 "items": {
@@ -4273,7 +4288,7 @@
                 "type": "null"
               }
             ],
-            "title": "Attractions"
+            "title": "Pois"
           }
         },
         "type": "object",
@@ -4294,15 +4309,71 @@
         ],
         "title": "TranslationEditIn"
       },
+      "TranslationJobOut": {
+        "properties": {
+          "poi_id": {
+            "type": "string",
+            "title": "Poi Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "lang": {
+            "type": "string",
+            "title": "Lang"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "failed"
+            ],
+            "title": "Status"
+          },
+          "attempts": {
+            "type": "integer",
+            "title": "Attempts"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "poi_id",
+          "title",
+          "lang",
+          "status",
+          "attempts",
+          "error",
+          "updated_at"
+        ],
+        "title": "TranslationJobOut"
+      },
       "TranslationOut": {
         "properties": {
           "id": {
             "type": "string",
             "title": "Id"
           },
-          "attraction_id": {
+          "poi_id": {
             "type": "string",
-            "title": "Attraction Id"
+            "title": "Poi Id"
           },
           "title": {
             "type": "string",
@@ -4382,7 +4453,7 @@
         "type": "object",
         "required": [
           "id",
-          "attraction_id",
+          "poi_id",
           "title",
           "target_lang",
           "version",

@@ -27,11 +27,11 @@ export interface PublicTour {
   id: string;
   name: string;
   access: "free" | "paid";
-  attraction_count: number;
+  poi_count: number;
   langs: string[];
 }
 export interface PackFile {
-  attraction_id: string;
+  poi_id: string;
   name: string;
   summary: string | null;
   lat: number;
@@ -90,8 +90,8 @@ export const getManifest = (tourId: string, lang: string, device: string, previe
     `/public/tours/${tourId}/packs/${lang}?device_id=${encodeURIComponent(device)}&preview=${preview}`,
     undefined, server,
   );
-export const fileUrl = (manifest: Manifest, attractionId: string, device: string, server = backend) =>
-  `${server}/api/v1/public/tours/${manifest.tour_id}/packs/${manifest.lang}/files/${attractionId}?device_id=${encodeURIComponent(device)}&pack_id=${encodeURIComponent(manifest.pack_id)}`;
+export const fileUrl = (manifest: Manifest, poiId: string, device: string, server = backend) =>
+  `${server}/api/v1/public/tours/${manifest.tour_id}/packs/${manifest.lang}/files/${poiId}?device_id=${encodeURIComponent(device)}&pack_id=${encodeURIComponent(manifest.pack_id)}`;
 export const activateTicket = (code: string, device: string, server = backend) =>
   call<{ result: string; tour_ids: string[] }>("/public/tickets/activate", {
     method: "POST",

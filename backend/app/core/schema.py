@@ -48,12 +48,12 @@ def _timestamps() -> tuple[Column[object], Column[object]]:
     )
 
 
-def _user_fk(name: str, ondelete: str = "SET NULL", nullable: bool = True) -> Column[object]:
-    return Column(name, Uuid, ForeignKey("users.id", ondelete=ondelete), nullable=nullable)
+def _user_fk(name: str, nullable: bool = True) -> Column[object]:
+    return Column(name, Uuid, ForeignKey("users.id", ondelete="RESTRICT"), nullable=nullable)
 
 
 def _lang_fk(name: str) -> Column[object]:
-    return Column(name, Text, ForeignKey("languages.code"), nullable=False)
+    return Column(name, Text, ForeignKey("languages.code", ondelete="RESTRICT"), nullable=False)
 
 
 languages = Table(
@@ -87,7 +87,7 @@ refresh_tokens = Table(
     "refresh_tokens",
     metadata,
     _id(),
-    _user_fk("user_id", ondelete="CASCADE", nullable=False),
+    _user_fk("user_id", nullable=False),
     Column("token_hash", Text, nullable=False, unique=True),
     Column("family_id", Text, nullable=False),
     Column("expires_at", DateTime(timezone=True), nullable=False),
@@ -102,7 +102,7 @@ audit_logs = Table(
     "audit_logs",
     metadata,
     _id(),
-    _user_fk("actor_id", ondelete="RESTRICT", nullable=False),
+    _user_fk("actor_id", nullable=False),
     Column("action", Text, nullable=False),
     Column("resource_type", Text, nullable=False),
     Column("resource_id", Text, nullable=False),
@@ -113,11 +113,10 @@ audit_logs = Table(
     Index("ix_audit_logs_ts", text("ts DESC")),
 )
 
-attractions = Table(
-    "attractions",
+pois = Table(
+    "pois",
     metadata,
     _id(),
-    Column("slug", Text, nullable=False, unique=True),
     Column("title", Text, nullable=False),
     Column("summary", Text),
     Column("category", Text, nullable=False),
@@ -132,16 +131,15 @@ attractions = Table(
     _user_fk("created_by"),
     _user_fk("updated_by"),
     *_timestamps(),
-    Index("ix_attractions_geo", "geo", postgresql_using="gist"),
-    Index("ix_attractions_status_updated_at", "status", text("updated_at DESC")),
-    Index("ix_attractions_script_status", text("(script ->> 'status')")),
+    Index("ix_pois_geo", "geo", postgresql_using="gist"),
+    Index("ix_pois_status_updated_at", "status", text("updated_at DESC")),
+    Index("ix_pois_script_status", text("(script ->> 'status')")),
 )
 
 tours = Table(
     "tours",
     metadata,
     _id(),
-    Column("slug", Text, nullable=False, unique=True),
     Column("name", Text, nullable=False),
     Column("bbox", ARRAY(Double)),
     Column("status", Text, nullable=False),
@@ -151,16 +149,16 @@ tours = Table(
     CheckConstraint("access IN ('free', 'paid')", name="access"),
 )
 
-# Thay cho tours.attraction_ids + preview_attraction_ids; position giữ thứ tự điểm trong tour
-tour_attractions = Table(
-    "tour_attractions",
+# Thay cho tours.poi_ids + preview_poi_ids; position giữ thứ tự điểm trong tour
+tour_pois = Table(
+    "tour_pois",
     metadata,
-    Column("tour_id", Uuid, ForeignKey("tours.id", ondelete="CASCADE"), nullable=False),
-    Column("attraction_id", Uuid, ForeignKey("attractions.id", ondelete="CASCADE"), nullable=False),
+    Column("tour_id", Uuid, ForeignKey("tours.id", ondelete="RESTRICT"), nullable=False),
+    Column("poi_id", Uuid, ForeignKey("pois.id", ondelete="RESTRICT"), nullable=False),
     Column("position", Integer, nullable=False),
     Column("is_preview", Boolean, nullable=False, server_default=text("false")),
-    PrimaryKeyConstraint("tour_id", "attraction_id"),
-    Index("ix_tour_attractions_attraction_id", "attraction_id"),
+    PrimaryKeyConstraint("tour_id", "poi_id"),
+    Index("ix_tour_pois_poi_id", "poi_id"),
 )
 
 glossaries = Table(
@@ -172,15 +170,15 @@ glossaries = Table(
     Column("translation", Text, nullable=False),
     Column("is_required", Boolean, nullable=False, server_default=text("false")),
     # NULL = áp dụng toàn hệ thống
-    Column("attraction_id", Uuid, ForeignKey("attractions.id", ondelete="CASCADE")),
+    Column("poi_id", Uuid, ForeignKey("pois.id", ondelete="RESTRICT")),
     _user_fk("created_by"),
     *_timestamps(),
-    # NULLS NOT DISTINCT: thuật ngữ toàn hệ thống (attraction_id NULL) cũng không được trùng
+    # NULLS NOT DISTINCT: thuật ngữ toàn hệ thống (poi_id NULL) cũng không được trùng
     UniqueConstraint(
         "term",
         "target_lang",
-        "attraction_id",
-        name="uq_glossaries_term_lang_attraction",
+        "poi_id",
+        name="uq_glossaries_term_lang_poi",
         postgresql_nulls_not_distinct=True,
     ),
     Index("ix_glossaries_target_lang", "target_lang"),
@@ -191,9 +189,9 @@ translations = Table(
     metadata,
     _id(),
     Column(
-        "attraction_id",
+        "poi_id",
         Uuid,
-        ForeignKey("attractions.id", ondelete="CASCADE"),
+        ForeignKey("pois.id", ondelete="RESTRICT"),
         nullable=False,
     ),
     _lang_fk("target_lang"),
@@ -208,7 +206,7 @@ translations = Table(
     Column("reviewed_at", DateTime(timezone=True)),
     Column("text_hash", Text),
     *_timestamps(),
-    UniqueConstraint("attraction_id", "target_lang", name="uq_translations_attraction_lang"),
+    UniqueConstraint("poi_id", "target_lang", name="uq_translations_poi_lang"),
     Index("ix_translations_lang_review_status", "target_lang", "review_status"),
 )
 
@@ -217,9 +215,9 @@ audio_assets = Table(
     metadata,
     _id(),
     Column(
-        "attraction_id",
+        "poi_id",
         Uuid,
-        ForeignKey("attractions.id", ondelete="CASCADE"),
+        ForeignKey("pois.id", ondelete="RESTRICT"),
         nullable=False,
     ),
     _lang_fk("lang"),
@@ -233,7 +231,7 @@ audio_assets = Table(
     Column("status", Text, nullable=False),
     *_timestamps(),
     # build lại không sinh bản ghi trùng
-    UniqueConstraint("attraction_id", "lang", "text_hash", name="uq_audio_assets_attraction_lang"),
+    UniqueConstraint("poi_id", "lang", "text_hash", name="uq_audio_assets_poi_lang"),
     Index("ix_audio_assets_text_hash", "text_hash"),
 )
 
@@ -241,7 +239,7 @@ audio_packs = Table(
     "audio_packs",
     metadata,
     _id(),
-    Column("tour_id", Uuid, ForeignKey("tours.id", ondelete="CASCADE"), nullable=False),
+    Column("tour_id", Uuid, ForeignKey("tours.id", ondelete="RESTRICT"), nullable=False),
     _lang_fk("lang"),
     Column("version", Integer, nullable=False),
     Column("status", Text, nullable=False),
@@ -300,7 +298,7 @@ tickets = Table(
     Column("activated_at", DateTime(timezone=True)),
     Column("transfers_left", Integer, nullable=False),
     Column("status", Text, nullable=False),
-    _user_fk("created_by", ondelete="RESTRICT", nullable=False),
+    _user_fk("created_by", nullable=False),
     *_timestamps(),
     Index("ix_tickets_device_id", "device_id"),
     Index("ix_tickets_batch", "batch"),
@@ -310,8 +308,8 @@ tickets = Table(
 ticket_tours = Table(
     "ticket_tours",
     metadata,
-    Column("ticket_id", Uuid, ForeignKey("tickets.id", ondelete="CASCADE"), nullable=False),
-    Column("tour_id", Uuid, ForeignKey("tours.id", ondelete="CASCADE"), nullable=False),
+    Column("ticket_id", Uuid, ForeignKey("tickets.id", ondelete="RESTRICT"), nullable=False),
+    Column("tour_id", Uuid, ForeignKey("tours.id", ondelete="RESTRICT"), nullable=False),
     PrimaryKeyConstraint("ticket_id", "tour_id"),
     Index("ix_ticket_tours_tour_id", "tour_id"),
 )
@@ -323,9 +321,9 @@ playback_events = Table(
     Column("device_id", Text, nullable=False),
     Column("event_id", Text, nullable=False),
     Column(
-        "attraction_id",
+        "poi_id",
         Uuid,
-        ForeignKey("attractions.id", ondelete="CASCADE"),
+        ForeignKey("pois.id", ondelete="RESTRICT"),
         nullable=False,
     ),
     _lang_fk("lang"),
@@ -334,6 +332,6 @@ playback_events = Table(
     Column("trigger", Text),
     Column("ts", DateTime(timezone=True), nullable=False),
     UniqueConstraint("device_id", "event_id", name="uq_playback_events_device_event"),
-    Index("ix_playback_events_attraction_ts", "attraction_id", text("ts DESC")),
+    Index("ix_playback_events_poi_ts", "poi_id", text("ts DESC")),
     Index("ix_playback_events_ts", "ts"),  # MaintenanceService xoá sự kiện quá hạn
 )

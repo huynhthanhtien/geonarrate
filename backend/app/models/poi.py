@@ -15,12 +15,11 @@ class ScriptStatus(StrEnum):
 
 
 @dataclass(frozen=True)
-class Attraction:
+class Poi:
     """Domain entity — không phụ thuộc CSDL hay HTTP."""
 
     id: str
     name: str
-    slug: str
     summary: str | None
     images: list[str]
     lat: float

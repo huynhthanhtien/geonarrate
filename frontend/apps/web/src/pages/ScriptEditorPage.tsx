@@ -6,7 +6,6 @@ import { sendJson } from "../api";
 import { LoadError } from "../components/LoadError";
 
 const CHARS_PER_SECOND = 14;
-const MAX_CHARS = 600;
 
 function formatDuration(seconds: number) {
   const m = Math.floor(seconds / 60);
@@ -19,46 +18,52 @@ export function ScriptEditorPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const { data: attraction, isLoading, error } = useQuery({
-    queryKey: ["attraction", id],
-    queryFn: () => sendJson<any>(`/api/v1/attractions/${id}`),
+  const { data: poi, isLoading, error } = useQuery({
+    queryKey: ["poi", id],
+    queryFn: () => sendJson<any>(`/api/v1/pois/${id}`),
     retry: false,
+  });
+  const limits = useQuery({
+    queryKey: ["content-limits"],
+    queryFn: () => sendJson<{ script_max_chars: number }>("/api/v1/content-limits"),
   });
 
   const [script, setScript] = useState("");
 
   useEffect(() => {
-    if (attraction?.script) setScript(attraction.script);
-  }, [attraction?.script]);
+    if (poi?.script) setScript(poi.script);
+  }, [poi?.script]);
 
-  const isDraft = attraction?.script_status === "draft";
-  const isEditable = isDraft || attraction?.script_status === "approved";
-  const charCount = script.length;
+  const isDraft = poi?.script_status === "draft";
+  const MAX_CHARS = limits.data?.script_max_chars ?? 0;
+  const isEditable = isDraft || poi?.script_status === "approved";
+  const charCount = Array.from(script).length;
   const duration = charCount / CHARS_PER_SECOND;
   const isOverLimit = charCount > MAX_CHARS;
   const paragraphs = script.split("\n").filter(Boolean);
 
   const saveMutation = useMutation({
-    mutationFn: () => sendJson(`/api/v1/attractions/${id}/script`, "PUT", { script }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["attraction", id] }),
+    mutationFn: () => sendJson(`/api/v1/pois/${id}/script`, "PUT", { script }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["poi", id] }),
   });
 
   const submitMutation = useMutation({
     mutationFn: async () => {
-      await sendJson(`/api/v1/attractions/${id}/script`, "PUT", { script });
-      return sendJson(`/api/v1/attractions/${id}/submit`, "POST");
+      await sendJson(`/api/v1/pois/${id}/script`, "PUT", { script });
+      return sendJson(`/api/v1/pois/${id}/submit`, "POST");
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["attraction", id] });
-      queryClient.invalidateQueries({ queryKey: ["attractions"] });
+      queryClient.invalidateQueries({ queryKey: ["poi", id] });
+      queryClient.invalidateQueries({ queryKey: ["pois"] });
     },
   });
 
-  if (isLoading) return (
+  if (isLoading || limits.isLoading) return (
     <div className="flex items-center justify-center py-20 text-slate-400">Đang tải...</div>
   );
 
   if (error) return <LoadError error={error} />;
+  if (limits.error) return <LoadError error={limits.error} />;
 
   return (
     <div className="max-w-3xl mx-auto">
@@ -66,32 +71,32 @@ export function ScriptEditorPage() {
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <button
-            onClick={() => navigate("/attractions")}
+            onClick={() => navigate("/pois")}
             className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-700 transition-colors"
           >
             <ArrowLeft size={16} aria-label="Quay lại" />
           </button>
           <div>
-            <h1 className="text-2xl font-bold text-slate-800">{attraction?.name}</h1>
-            <p className="text-slate-400 text-sm">Script tiếng Việt · v{attraction?.script_version}</p>
+            <h1 className="text-2xl font-bold text-slate-800">{poi?.name}</h1>
+            <p className="text-slate-400 text-sm">Script tiếng Việt · v{poi?.script_version}</p>
           </div>
         </div>
 
         <span className={`text-xs font-medium px-3 py-1 rounded-full ${
-          attraction?.script_status === "approved" ? "bg-green-100 text-green-700" :
-          attraction?.script_status === "in_review" ? "bg-amber-100 text-amber-700" :
+          poi?.script_status === "approved" ? "bg-green-100 text-green-700" :
+          poi?.script_status === "in_review" ? "bg-amber-100 text-amber-700" :
           "bg-slate-100 text-slate-600"
         }`}>
-          {attraction?.script_status === "approved" ? "Đã duyệt" :
-           attraction?.script_status === "in_review" ? "Chờ duyệt" : "Nháp"}
+          {poi?.script_status === "approved" ? "Đã duyệt" :
+           poi?.script_status === "in_review" ? "Chờ duyệt" : "Nháp"}
         </span>
       </div>
 
       {/* Review note */}
-      {attraction?.review_note && (
+      {poi?.review_note && (
         <div className="mb-5 p-4 bg-amber-50 border border-amber-200 rounded-xl">
           <p className="inline-flex items-center gap-1.5 text-sm font-semibold text-amber-800 mb-1"><MessageSquare size={14} aria-hidden /> Ghi chú từ người duyệt:</p>
-          <p className="text-sm text-amber-700">{attraction.review_note}</p>
+          <p className="text-sm text-amber-700">{poi.review_note}</p>
         </div>
       )}
 
@@ -185,11 +190,11 @@ export function ScriptEditorPage() {
 
         {!isDraft && (
           <div className={`mt-5 p-3 rounded-lg text-sm ${
-            attraction?.script_status === "in_review"
+            poi?.script_status === "in_review"
               ? "bg-amber-50 text-amber-700 border border-amber-200"
               : "bg-green-50 text-green-700 border border-green-200"
           }`}>
-            {attraction?.script_status === "in_review"
+            {poi?.script_status === "in_review"
               ? "Script đang chờ duyệt, không thể chỉnh sửa."
               : "Script đã được duyệt. Lưu thay đổi sẽ đưa script về nháp và tăng phiên bản."}
           </div>

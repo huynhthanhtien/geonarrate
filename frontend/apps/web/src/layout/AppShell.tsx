@@ -1,6 +1,7 @@
 import { color, font, space } from "@geonarrate/tokens";
 import { Headphones } from "lucide-react";
-import { NavLink, Outlet } from "react-router";
+import { useLayoutEffect, useRef } from "react";
+import { NavLink, Outlet, useLocation } from "react-router";
 import { api } from "../api";
 import { logout, useCan, useSession } from "../auth/session";
 import { NAV } from "../routes";
@@ -8,6 +9,12 @@ import { NAV } from "../routes";
 export function AppShell() {
   const user = useSession((s) => s.user);
   const can = useCan();
+  const { pathname } = useLocation();
+  const content = useRef<HTMLElement>(null);
+
+  useLayoutEffect(() => {
+    content.current?.scrollTo(0, 0);
+  }, [pathname]);
 
   async function logoutAll() {
     if (!confirm("Đăng xuất khỏi mọi thiết bị?")) return;
@@ -21,8 +28,15 @@ export function AppShell() {
   }
 
   return (
-    <div style={{ display: "flex", minHeight: "100vh", fontFamily: "system-ui", color: color.text }}>
-      <nav style={{ width: 220, background: color.surfaceMuted, padding: space.lg }}>
+    <div
+      className="grid h-dvh grid-cols-[clamp(8.5rem,22vw,13.75rem)_minmax(0,1fr)] overflow-hidden"
+      style={{ fontFamily: "system-ui", color: color.text }}
+    >
+      <nav
+        aria-label="Điều hướng chính"
+        className="col-start-1 row-start-1 min-h-0 overflow-y-auto p-3 sm:p-4"
+        style={{ background: color.surfaceMuted }}
+      >
         <div style={{ fontSize: font.title, fontWeight: 700, color: color.primary, marginBottom: space.xl, display: "flex", alignItems: "center", gap: 8 }}>
           <Headphones size={20} aria-hidden /> GeoNarrate
         </div>
@@ -44,12 +58,10 @@ export function AppShell() {
           </NavLink>
         ))}
       </nav>
-      <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+      <div className="col-start-2 row-start-1 flex min-h-0 min-w-0 flex-col">
         <header
+          className="flex shrink-0 flex-wrap items-center justify-end"
           style={{
-            display: "flex",
-            justifyContent: "flex-end",
-            alignItems: "center",
             gap: space.md,
             padding: `${space.md}px ${space.xl}px`,
             borderBottom: `1px solid ${color.surfaceMuted}`,
@@ -61,7 +73,7 @@ export function AppShell() {
           <button onClick={() => void logout()}>Đăng xuất</button>
           <button onClick={() => void logoutAll()}>Đăng xuất mọi nơi</button>
         </header>
-        <main style={{ padding: space.xl }}>
+        <main ref={content} className="min-h-0 flex-1 overflow-auto overscroll-contain" style={{ padding: space.xl }}>
           <Outlet />
         </main>
       </div>

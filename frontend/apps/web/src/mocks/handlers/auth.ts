@@ -1,6 +1,6 @@
 import { http, HttpResponse } from "msw";
 
-const EDITOR_PERMISSIONS = ["attraction:read", "script:write"];
+const EDITOR_PERMISSIONS = ["poi:read", "script:write"];
 // Khớp ROLE_PERMISSIONS trong backend/app/core/permissions.py
 const USERS = {
   editor: { id: "user-01", email: "editor@test.com", full_name: "Editor Mock", role: "editor", permissions: EDITOR_PERMISSIONS },
@@ -49,6 +49,9 @@ export const authHandlers = [
     HttpResponse.json([
       { code: "vi", bcp47: "vi-VN", native_name: "Tiếng Việt", is_source: true },
       { code: "en", bcp47: "en-US", native_name: "English", is_source: false },
+      { code: "zh", bcp47: "zh-CN", native_name: "中文", is_source: false },
+      { code: "ja", bcp47: "ja-JP", native_name: "日本語", is_source: false },
+      { code: "ko", bcp47: "ko-KR", native_name: "한국어", is_source: false },
     ])
   ),
 ];

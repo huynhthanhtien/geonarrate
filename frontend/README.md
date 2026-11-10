@@ -80,7 +80,10 @@ Khi đổi IP LAN cho kết nối HTTP, cần tạo lại bản Android. URL HTT
 Trên Android, mở tour và chọn **Tải bản đồ offline** khi có Internet. App lưu nền đường phố quanh
 các điểm dừng; audio được tải riêng. Khi mất mạng, mở tour từ **Đã tải về máy** để dùng cả hai.
 Ngoài vùng đã tải hoặc nếu không tải được bản đồ, có thể dùng sơ đồ tour.
-Hạn chế đã biết: chỉ theo dõi vị trí khi app đang mở, giao diện chỉ có tiếng Việt, chưa tự báo khi có pack mới.
+Trên Android, trong trình nghe, cấp quyền vị trí rồi chọn **Bật tự phát khi khóa màn hình**.
+App dùng dịch vụ vị trí có thông báo để tự phát các đoạn đã lưu. Chọn **Kết thúc tour** để dừng GPS và audio.
+Nếu dịch vụ không khởi động được, app chỉ theo dõi khi màn hình nghe đang mở.
+Hạn chế đã biết: giao diện chỉ có tiếng Việt, chưa tự báo khi có pack mới.
 
 ## Đồng bộ API từ backend
 

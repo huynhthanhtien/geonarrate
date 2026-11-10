@@ -4,13 +4,22 @@ from typing import Annotated, Any, Literal
 from pydantic import BaseModel, Field, StringConstraints
 
 Text1 = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=500)]
-Slug = Annotated[str, StringConstraints(pattern=r"^[a-z0-9]+(-[a-z0-9]+)*$", max_length=120)]
 Device = Annotated[str, StringConstraints(min_length=8, max_length=128)]
+
+
+class TranslationJobOut(BaseModel):
+    poi_id: str
+    title: str
+    lang: str
+    status: Literal["queued", "running", "failed"]
+    attempts: int
+    error: str | None
+    updated_at: datetime
 
 
 class TranslationOut(BaseModel):
     id: str
-    attraction_id: str
+    poi_id: str
     title: str
     target_lang: str
     version: int
@@ -39,7 +48,7 @@ class GlossaryIn(BaseModel):
     target_lang: str
     translation: Text1
     is_required: bool = False
-    attraction_id: str | None = None
+    poi_id: str | None = None
 
 
 class GlossaryOut(BaseModel):
@@ -48,7 +57,7 @@ class GlossaryOut(BaseModel):
     target_lang: str
     translation: str
     is_required: bool
-    attraction_id: str | None
+    poi_id: str | None
 
 
 class AudioCell(BaseModel):
@@ -64,7 +73,7 @@ class AudioRow(BaseModel):
 
 
 class AudioRetryIn(BaseModel):
-    attraction_id: str
+    poi_id: str
     lang: str
 
 
@@ -74,29 +83,26 @@ class TourPoint(BaseModel):
 
 
 class TourCreateIn(BaseModel):
-    slug: Slug
     name: Text1
     access: Literal["free", "paid"] = "free"
     status: Literal["draft", "published"] = "draft"
-    attractions: list[TourPoint] = Field(min_length=1, max_length=500)
+    pois: list[TourPoint] = Field(min_length=1, max_length=500)
 
 
 class TourUpdateIn(BaseModel):
-    slug: Slug | None = None
     name: Text1 | None = None
     access: Literal["free", "paid"] | None = None
     status: Literal["draft", "published"] | None = None
-    attractions: list[TourPoint] | None = Field(default=None, max_length=500)
+    pois: list[TourPoint] | None = Field(default=None, max_length=500)
 
 
 class TourOut(BaseModel):
     id: str
-    slug: str
     name: str
     access: str
     status: str
     bbox: list[float] | None
-    attraction_count: int
+    poi_count: int
 
 
 class TourPointOut(BaseModel):
@@ -110,7 +116,7 @@ class TourPointOut(BaseModel):
 
 
 class TourDetailOut(TourOut):
-    attractions: list[TourPointOut]
+    pois: list[TourPointOut]
 
 
 class PackBuildIn(BaseModel):
@@ -208,17 +214,16 @@ class AnalyticsOut(BaseModel):
     plays: int
     completes: int
     completion_rate: float | None
-    top_attractions: list[AnalyticsTop]
+    top_pois: list[AnalyticsTop]
     by_lang: list[AnalyticsLang]
 
 
 class PublicTourOut(BaseModel):
     id: str
-    slug: str
     name: str
     access: str
     bbox: list[float] | None
-    attraction_count: int
+    poi_count: int
     langs: list[str]
 
 
@@ -234,7 +239,7 @@ class ActivateOut(BaseModel):
 
 
 class ManifestFile(BaseModel):
-    attraction_id: str
+    poi_id: str
     name: str
     summary: str | None
     lat: float
@@ -258,7 +263,7 @@ class ManifestOut(BaseModel):
 
 class EventIn(BaseModel):
     event_id: Annotated[str, StringConstraints(min_length=1, max_length=64)]
-    attraction_id: str
+    poi_id: str
     lang: str
     event: Literal["play", "complete", "skip"]
     position_ms: int | None = Field(default=None, ge=0)

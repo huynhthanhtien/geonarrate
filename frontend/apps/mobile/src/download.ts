@@ -8,8 +8,8 @@ function packDir(tourId: string, lang: string): Directory {
   return new Directory(Paths.document, "packs", tourId, lang);
 }
 
-export function audioFile(tourId: string, lang: string, f: { attraction_id: string; sha256: string }): File {
-  return new File(packDir(tourId, lang), `${f.attraction_id}-${f.sha256.slice(0, 12)}.mp3`);
+export function audioFile(tourId: string, lang: string, f: { poi_id: string; sha256: string }): File {
+  return new File(packDir(tourId, lang), `${f.poi_id}-${f.sha256.slice(0, 12)}.mp3`);
 }
 
 async function matches(file: File, sha256: string): Promise<boolean> {
@@ -34,7 +34,7 @@ async function fetchOne(m: Manifest, f: PackFile, device: string, server: string
   if (dest.exists && (await matches(dest, f.sha256))) return;
   for (let attempt = 0; attempt < 2; attempt++) {
     if (dest.exists) dest.delete();
-    await File.downloadFileAsync(fileUrl(m, f.attraction_id, device, server), dest);
+    await File.downloadFileAsync(fileUrl(m, f.poi_id, device, server), dest);
     if (await matches(dest, f.sha256)) return;
   }
   if (dest.exists) dest.delete();

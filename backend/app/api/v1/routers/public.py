@@ -51,20 +51,20 @@ async def manifest(
 
 
 @router.get(
-    "/tours/{tour_id}/packs/{lang}/files/{attraction_id}",
+    "/tours/{tour_id}/packs/{lang}/files/{poi_id}",
     response_class=FileResponse,
     responses={200: {"content": {"audio/mpeg": {}}}},
 )
 async def pack_file(
     tour_id: str,
     lang: str,
-    attraction_id: str,
+    poi_id: str,
     svc: Catalog,
     device_id: Annotated[Device, Query()],
     pack_id: str | None = None,
 ) -> FileResponse:
     verify_device_id(device_id)
-    path = await svc.public_file(tour_id, lang, attraction_id, device_id, pack_id)
+    path = await svc.public_file(tour_id, lang, poi_id, device_id, pack_id)
     return FileResponse(path, media_type="audio/mpeg")
 
 

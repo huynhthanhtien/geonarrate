@@ -21,11 +21,11 @@ class SqlGlossaryRepository:
         async with connection(self._engine) as conn:
             return [record(r) for r in (await conn.execute(stmt)).mappings().all()]
 
-    async def for_translation(self, attraction_id: str, lang: str) -> list[dict[str, Any]]:
-        uid = parse_uuid(attraction_id)
+    async def for_translation(self, poi_id: str, lang: str) -> list[dict[str, Any]]:
+        uid = parse_uuid(poi_id)
         stmt = select(glossaries).where(
             glossaries.c.target_lang == lang,
-            glossaries.c.attraction_id.is_(None) | (glossaries.c.attraction_id == uid),
+            glossaries.c.poi_id.is_(None) | (glossaries.c.poi_id == uid),
         )
         async with connection(self._engine) as conn:
             return [record(r) for r in (await conn.execute(stmt)).mappings().all()]
@@ -36,7 +36,7 @@ class SqlGlossaryRepository:
         lang: str,
         translation: str,
         is_required: bool,
-        attraction_id: str | None,
+        poi_id: str | None,
         actor_id: str,
         now: datetime,
     ) -> dict[str, Any] | None:
@@ -47,12 +47,12 @@ class SqlGlossaryRepository:
                 target_lang=lang,
                 translation=translation,
                 is_required=is_required,
-                attraction_id=parse_uuid(attraction_id) if attraction_id else None,
+                poi_id=parse_uuid(poi_id) if poi_id else None,
                 created_by=parse_uuid(actor_id),
                 created_at=now,
                 updated_at=now,
             )
-            .on_conflict_do_nothing(constraint="uq_glossaries_term_lang_attraction")
+            .on_conflict_do_nothing(constraint="uq_glossaries_term_lang_poi")
             .returning(glossaries)
         )
         async with connection(self._engine, write=True) as conn:

@@ -1,10 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { CircleCheck, CircleX } from "lucide-react";
 import { api } from "../api";
+import { useLanguages } from "../languages";
 
 export function HomePage() {
   const health = useQuery({ queryKey: ["healthz"], queryFn: () => api.GET("/healthz").then((r) => r.data) });
-  const langs = useQuery({ queryKey: ["languages"], queryFn: () => api.GET("/api/v1/languages").then((r) => r.data) });
+  const langs = useLanguages();
 
   return (
     <section>

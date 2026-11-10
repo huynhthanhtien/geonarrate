@@ -24,9 +24,12 @@ class Settings(BaseSettings):
     magpie_tts_url: str = "http://127.0.0.1:18081"
     magpie_tts_voice: str = "Aria"
     magpie_tts_autostart: bool = True
-    translate_provider: Literal["mock", "libretranslate"] = "mock"
+    magpie_tts_device: Literal["cpu", "cuda"] = "cpu"
+    translate_provider: Literal["mock", "libretranslate", "groq"] = "mock"
     libretranslate_url: str = "http://127.0.0.1:5000"
     libretranslate_api_key: str = ""
+    groq_api_key: str = ""
+    groq_model: str = "openai/gpt-oss-20b"
     comet_model: str = ""  # Model QE (không cần reference); rỗng = chưa chấm
     whisper_model: str = ""  # Model faster-whisper; rỗng = chưa chấm
     cors_origins: tuple[str, ...] = ("http://localhost:5173",)
@@ -59,6 +62,8 @@ class Settings(BaseSettings):
             not self.azure_speech_key or not self.azure_speech_region
         ):
             raise ValueError("Azure TTS cần AZURE_SPEECH_KEY và AZURE_SPEECH_REGION")
+        if self.translate_provider == "groq" and not self.groq_api_key:
+            raise ValueError("Groq Translate cần GROQ_API_KEY")
         for value in (
             self.public_rate_limit,
             self.public_activate_rate_limit,

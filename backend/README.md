@@ -4,7 +4,7 @@ FastAPI, kiến trúc 3 lớp `api → services → repositories` (cùng `core`,
 PostgreSQL 16 + PostGIS qua SQLAlchemy Core async (`asyncpg`), Redis 7, migration bằng Alembic.
 
 ```
-app/api/v1/routers/   HTTP: auth, audit, languages, attractions, studio (CMS), public (app di động)
+app/api/v1/routers/   HTTP: auth, audit, languages, pois, studio (CMS), public (app di động)
 app/services/         nghiệp vụ; PipelineService là phần worker chạy
 app/repositories/     truy vấn SQL; job_repo tạo job trong cùng transaction với thao tác nghiệp vụ
 app/core/             config, schema.py, kết nối DB/Redis, bảo mật, phân quyền, dependency
@@ -43,8 +43,9 @@ khoản bằng trang **Tài khoản** trên CMS hoặc dòng lệnh:
 | `JWT_SECRET` | Khoá ký access token; thiếu thì app không khởi động |
 | `STORAGE_DIR` | Thư mục lưu audio/pack hoặc cache khi dùng S3 (mặc định `./var/storage`) |
 | `STORAGE_PROVIDER`, `S3_BUCKET`, `S3_ENDPOINT_URL` | `local` hoặc `s3`; endpoint để trống khi dùng AWS S3 |
-| `TRANSLATE_PROVIDER` | `mock` để thử luồng, `libretranslate` để dịch thật |
+| `TRANSLATE_PROVIDER` | `mock`, `libretranslate` hoặc `groq` để dịch thật bằng Groq |
 | `LIBRETRANSLATE_URL`, `LIBRETRANSLATE_API_KEY` | Instance dịch phải hỗ trợ đủ vi → en/zh/ja/ko; thuật ngữ được QA kiểm tra trước khi duyệt |
+| `GROQ_API_KEY`, `GROQ_MODEL` | Khóa Groq chỉ đặt ở backend; model mặc định `openai/gpt-oss-20b`. Thuật ngữ CMS được đưa vào hướng dẫn dịch và vẫn qua bước duyệt |
 | `TTS_PROVIDER` | `edge`, `magpie` hoặc `azure` |
 | `MAGPIE_TTS_URL`, `MAGPIE_TTS_VOICE` | Máy chủ Magpie có endpoint `/v1/audio/speech`, trả WAV; cần ffmpeg để đổi MP3 |
 | `AZURE_SPEECH_KEY`, `AZURE_SPEECH_REGION` | Bắt buộc khi dùng Azure TTS |
@@ -76,6 +77,11 @@ Khi chạy nhiều worker, dùng một dịch vụ Magpie riêng và đặt `MAG
 để dịch vụ có thể chạy độc lập. Docker Compose dùng dịch vụ `magpie` trong stack.
 `MAGPIE_TTS_VOICE` mặc định là `Aria`.
 
+Worker mặc định dùng `MAGPIE_TTS_DEVICE=cpu`. Để dùng CUDA, build NeMo-Speech.cpp với
+`-DGGML_CUDA=ON` cùng các tùy chọn HTTP, JA và ZH ở trên, cài vào
+`var/nemo-speech-cjk-cuda`, rồi đặt `MAGPIE_TTS_DEVICE=cuda`. Hai runtime dùng chung
+model trong `var/nemo-models`; bản CPU vẫn chạy được khi chưa cài CUDA.
+
 ## API
 
 Tất cả nằm dưới `/api/v1`. Lỗi trả theo RFC 7807 (`application/problem+json`). Danh sách đầy đủ ở `/docs`.
@@ -83,7 +89,7 @@ Tất cả nằm dưới `/api/v1`. Lỗi trả theo RFC 7807 (`application/prob
 | Nhóm | Endpoint | Quyền |
 |---|---|---|
 | Đăng nhập (UC-01) | `POST /auth/login`, `/refresh`, `/logout`, `/logout-all` | — |
-| Điểm, kịch bản (UC-02, 03, 04) | `GET/POST /attractions`, `GET/PATCH /attractions/{id}`, `PUT .../script`, `POST .../{submit,approve,reject}` | `attraction:read`, `script:write`; duyệt cần `admin:manage` |
+| Điểm, kịch bản (UC-02, 03, 04) | `GET/POST /pois`, `GET/PATCH /pois/{id}`, `PUT .../script`, `POST .../{submit,approve,reject}` | `poi:read`, `script:write`; duyệt cần `admin:manage` |
 | Bản dịch (UC-05) | `GET /translations`, `PUT /translations/{id}`, `POST .../{approve,reject}` | `translation:review` |
 | Thuật ngữ (UC-06) | `GET/POST /glossaries`, `DELETE /glossaries/{id}` | `translation:review` |
 | Audio (UC-07) | `GET /audio/status`, `POST /audio/retry` | `audio:build` |
@@ -93,7 +99,7 @@ Tất cả nằm dưới `/api/v1`. Lỗi trả theo RFC 7807 (`application/prob
 | Nhật ký (UC-12) | `GET /audit` (người, hành động, loại/mã đối tượng, từ khoá, khoảng ngày) | `admin:manage` |
 | Vé QR (UC-13) | `POST /tickets`, `GET /tickets?q=`, `POST /tickets/revoke` | `admin:manage` |
 | Analytics (UC-14) | `GET /analytics/summary` | `analytics:view` |
-| App di động (UC-15 đến 18) | `GET /public/tours`, `POST /public/tickets/activate`, `GET /public/tours/{id}/packs/{lang}`, `GET .../files/{attraction_id}`, `POST /public/playback-events` | Không đăng nhập; `device_id` do máy chủ cấp qua `POST /public/devices` |
+| App di động (UC-15 đến 18) | `GET /public/tours`, `POST /public/tickets/activate`, `GET /public/tours/{id}/packs/{lang}`, `GET .../files/{poi_id}`, `POST /public/playback-events` | Không đăng nhập; `device_id` do máy chủ cấp qua `POST /public/devices` |
 
 ## Pipeline nội dung
 
@@ -145,6 +151,15 @@ khớp migration, và chạy nguyên chuỗi duyệt → dịch → audio → pa
 qua, hãy cập nhật venv: `.venv/bin/pip install -U -e '.[dev]'`.
 
 ## Đổi schema
+
+Migration `0004` đổi tên các bảng điểm tham quan và bảng nối tour sang `pois`, `tour_pois`,
+và các khóa ngoại liên quan thành `poi_id`. API v1, web và ứng dụng dùng tên POI;
+phiên bản web và APK cũ cần được cập nhật cùng backend.
+PostgreSQL chặn `DELETE` và `TRUNCATE` trực tiếp trên `pois`. Để bỏ một điểm khỏi tour, sửa danh
+sách điểm của tour; thao tác này chỉ bỏ liên kết và giữ lại POI, bản dịch và audio.
+Migration `0005` dùng `ON DELETE RESTRICT` cho toàn bộ khóa ngoại. PostgreSQL từ chối
+`DELETE` bản ghi cha còn được tham chiếu, thay vì tự xóa bản ghi con hoặc tự bỏ liên kết.
+Migration `0006` bỏ cột `slug` trên POI và tour; dùng UUID để tra cứu. Tên hiển thị có thể trùng.
 
 ```bash
 # sửa app/core/schema.py, rồi sinh migration và đọc lại file sinh ra trước khi commit

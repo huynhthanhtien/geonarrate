@@ -4,7 +4,7 @@ from datetime import datetime
 
 @dataclass(frozen=True)
 class AuditResource:
-    """Đối tượng bị tác động, vd. `AuditResource("attraction", "66f1c0a2...")`."""
+    """Đối tượng bị tác động, vd. `AuditResource("poi", "66f1c0a2...")`."""
 
     type: str
     id: str

@@ -33,7 +33,7 @@ docker compose -f infra/docker-compose.yml up -d --wait   # PostgreSQL + PostGIS
 python3 -m venv .venv && .venv/bin/pip install -e '.[dev]'
 cp .env.example .env
 .venv/bin/alembic upgrade head
-.venv/bin/uvicorn app.main:app --reload --port 8000       # API: http://localhost:8000/docs
+.venv/bin/uvicorn app.main:app --reload --host 0.0.0.0 --port 8000      # API: http://localhost:8000/docs
 
 # 2. Worker nền (terminal khác): dịch, sinh audio, build pack
 cd backend && .venv/bin/python -m app.workers.run
@@ -66,9 +66,17 @@ kiểm thử GPS/QR/audio/offline trên thiết bị thật, tên miền/TLS và
 
 ## Hợp đồng API
 
-`backend/openapi.json` sinh từ code FastAPI và được commit; đây là nguồn duy nhất để `frontend/packages/api-client`
-sinh type. Đổi API thì sửa backend, xuất lại `openapi.json`, chạy `pnpm api:generate` trong `frontend/` và commit
-cả hai trong cùng PR.
+`backend/openapi.json` được sinh từ code FastAPI để `frontend/packages/api-client` sinh kiểu API.
+Sau khi thay đổi schema backend, chạy các lệnh sau từ thư mục `code/`:
+
+```bash
+cd backend
+.venv/bin/python -m app.tools.export_openapi > openapi.json
+cd ../frontend
+pnpm api:generate
+```
+
+Lệnh đầu cập nhật `backend/openapi.json`; lệnh sau cập nhật `frontend/packages/api-client/src/schema.d.ts`.
 
 ## CI
 

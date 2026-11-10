@@ -35,7 +35,7 @@ class SqlLanguageRepository:
         stmt = (
             insert(languages)
             .values(code=lang.code, **values)
-            .on_conflict_do_update(index_elements=[languages.c.code], set_=values)
+            .on_conflict_do_nothing(index_elements=[languages.c.code])
         )
         async with connection(self._engine, write=True) as conn:
             await conn.execute(stmt)

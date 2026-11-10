@@ -1,15 +1,16 @@
 import { color, radius, space } from "@geonarrate/tokens";
-import { GeofenceTracker, GPS_THROTTLE_MS, AUDIO_FADE_MS } from "@geonarrate/core";
+import { GeofenceTracker, GPS_THROTTLE_MS } from "@geonarrate/core";
 import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from "expo-audio";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import * as Location from "expo-location";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { TextInput, View } from "react-native";
+import { AppState, BackHandler, Platform, TextInput, View } from "react-native";
 import { activateTicket, ApiError, checkBackend, getBackend, parseBackend, getLanguages, getManifest, getTours, type Manifest, type PackFile, type PublicTour } from "./api";
 import { audioFile, deletePack, downloadPack, limitProblem } from "./download";
 import { withDevice, installedPacks, recordEvent, setPref, syncEvents, type InstalledPack } from "./store";
 import { Btn, Card, Screen, T } from "./ui";
 import { TourMap } from "./TourMap";
+import { stopTourLocation, trackTourLocation } from "./tourLocation";
 
 const mb = (n: number) => `${(n / 1024 / 1024).toFixed(1)} MB`;
 const message = (e: unknown) =>
@@ -157,7 +158,7 @@ export function ToursScreen({ lang, onOpen, onPlay, onChangeLang, onServer, onSc
         <Card key={t.id} onPress={() => onOpen(t)}>
           <T.h>{t.name}</T.h>
           <T.muted>
-            {t.attraction_count} điểm · {t.access === "paid" ? "Cần vé" : "Miễn phí"}
+            {t.poi_count} điểm · {t.access === "paid" ? "Cần vé" : "Miễn phí"}
             {t.langs.includes(lang) ? "" : ` · chưa có ngôn ngữ ${lang}`}
           </T.muted>
         </Card>
@@ -244,7 +245,7 @@ export function TourScreen({ tour, lang, onBack, onScan, onPlay }: {
           <T.muted>{manifest.files.length} điểm · {mb(total)} · phiên bản {manifest.version}</T.muted>
           <TourMap files={manifest.files} />
           {manifest.files.map((f, index) => (
-            <Card key={f.attraction_id}>
+            <Card key={f.poi_id}>
               <T.h>{index + 1}. {f.name}</T.h>
               {f.summary && <T.muted>{f.summary}</T.muted>}
             </Card>
@@ -343,127 +344,175 @@ export function ScanScreen({ onBack, onActivated }: { onBack: () => void; onActi
   );
 }
 
-const fade = (player: AudioPlayer, from: number, to: number) =>
-  new Promise<void>((resolve) => {
-    const steps = 6;
-    let i = 0;
-    player.volume = from;
-    const timer = setInterval(() => {
-      i += 1;
-      player.volume = from + ((to - from) * i) / steps;
-      if (i >= steps) {
-        clearInterval(timer);
-        resolve();
-      }
-    }, AUDIO_FADE_MS / steps);
-  });
-
 /** UC-18: nghe tự động theo vị trí, hoặc chọn điểm thủ công */
 export function PlayerScreen({ pack, onBack }: { pack: InstalledPack; onBack: () => void }) {
   const { manifest: m } = pack;
-  const [gps, setGps] = useState<"checking" | "on" | "denied">("checking");
+  const [gps, setGps] = useState<"checking" | "background" | "foreground" | "denied">("checking");
   const [now, setNow] = useState<PackFile | null>(null);
+  const [playing, setPlaying] = useState(false);
   const [position, setPosition] = useState<Pick<PackFile, "lat" | "lng"> | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [enablingBackground, setEnablingBackground] = useState(false);
+  const enableBackground = useRef<(() => Promise<void>) | null>(null);
   const playerRef = useRef<AudioPlayer | null>(null);
-  const finishedRef = useRef(false);
-  const trackerRef = useRef(
-    new GeofenceTracker(m.files.map((f) => ({ id: f.attraction_id, lat: f.lat, lng: f.lng, radiusM: f.radius, priority: f.priority }))),
-  );
+  const current = useRef<{ file: PackFile; trigger: "geofence" | "manual"; finished: boolean } | null>(null);
+  const [tracker] = useState(() => new GeofenceTracker(
+    m.files.map((f) => ({ id: f.poi_id, lat: f.lat, lng: f.lng, radiusM: f.radius, priority: f.priority })),
+  ));
 
-  const stop = useCallback(async () => {
-    const p = playerRef.current;
-    if (!p) return;
-    playerRef.current = null;
-    await fade(p, p.volume, 0);
-    p.pause();
-    p.remove();
-  }, []);
-
-  const play = useCallback(async (f: PackFile, trigger: "geofence" | "manual") => {
+  const play = useCallback((f: PackFile, trigger: "geofence" | "manual") => {
+    const player = playerRef.current;
+    if (!player) return;
     const file = audioFile(m.tour_id, m.lang, f);
     if (!file.exists) {
       setNotice(`Thiếu file của "${f.name}". Hãy xoá pack và tải lại.`);
       return;
     }
-    if (trigger === "manual") trackerRef.current.markPlayed(f.attraction_id, Date.now());
-    await stop();
+    if (trigger === "manual") tracker.markPlayed(f.poi_id, Date.now());
     setNotice(null);
+    player.pause();
+    current.current = { file: f, trigger, finished: false };
     setNow(f);
-    finishedRef.current = false;
-    const player = createAudioPlayer({ uri: file.uri });
-    playerRef.current = player;
-    player.addListener("playbackStatusUpdate", (s) => {
-      if (s.didJustFinish && !finishedRef.current) {
-        finishedRef.current = true;
-        recordEvent(f.attraction_id, m.lang, "complete", trigger, s.currentTime * 1000);
-        setNow(null);
-        syncEvents().catch(() => undefined);
-      }
-    });
-    recordEvent(f.attraction_id, m.lang, "play", trigger, 0);
-    player.volume = 0;
+    player.replace({ uri: file.uri });
+    if (Platform.OS === "android" || Platform.OS === "ios") {
+      player.updateLockScreenMetadata({ title: f.name, artist: "GeoNarrate", albumTitle: pack.tourName });
+    }
     player.play();
-    await fade(player, 0, 1);
-  }, [m.tour_id, m.lang, stop]);
+    recordEvent(f.poi_id, m.lang, "play", trigger, 0);
+  }, [m.tour_id, m.lang, tracker, pack.tourName]);
 
   useEffect(() => {
-    void setAudioModeAsync({ playsInSilentMode: true, shouldPlayInBackground: true });
-    let sub: Location.LocationSubscription | undefined;
+    const back = BackHandler.addEventListener("hardwareBackPress", () => {
+      onBack();
+      return true;
+    });
+    return () => back.remove();
+  }, [onBack]);
+
+  useEffect(() => {
     let alive = true;
-    (async () => {
+    let lastFix = 0;
+    let sub: Location.LocationSubscription | undefined;
+    const onLocation = (loc: Location.LocationObject) => {
+      if (!alive || loc.timestamp <= lastFix || Date.now() - loc.timestamp > 30_000) return;
+      lastFix = loc.timestamp;
+      const coords = { lat: loc.coords.latitude, lng: loc.coords.longitude };
+      setPosition(coords);
+      const point = tracker.update({ ...coords, accuracyM: loc.coords.accuracy ?? Infinity }, loc.timestamp);
+      const f = point && m.files.find((item) => item.poi_id === point.id);
+      if (f) play(f, "geofence");
+    };
+    async function start() {
+      await setAudioModeAsync({
+        playsInSilentMode: true, shouldPlayInBackground: true, interruptionMode: "doNotMix",
+      });
+      if (!alive) return;
+      const player = createAudioPlayer();
+      playerRef.current = player;
+      if (Platform.OS === "android" || Platform.OS === "ios") {
+        player.setActiveForLockScreen(true, { title: pack.tourName, artist: "GeoNarrate" });
+      }
+      player.addListener("playbackStatusUpdate", (status) => {
+        if (!alive) return;
+        setPlaying(status.playing);
+        const clip = current.current;
+        if (!status.didJustFinish || !clip || clip.finished) return;
+        clip.finished = true;
+        recordEvent(clip.file.poi_id, m.lang, "complete", clip.trigger, status.currentTime * 1000);
+        setNow(null);
+        syncEvents().catch(() => undefined);
+      });
+
       const { granted } = await Location.requestForegroundPermissionsAsync();
       if (!alive) return;
-      setGps(granted ? "on" : "denied");
-      if (!granted) return;
-      sub = await Location.watchPositionAsync(
-        {
-          accuracy: Location.Accuracy.High,
-          timeInterval: GPS_THROTTLE_MS,
-          distanceInterval: 0,
-          mayShowUserSettingsDialog: false,
-        },
-        (loc) => {
-          if (!alive) return;
-          const coords = { lat: loc.coords.latitude, lng: loc.coords.longitude };
-          setPosition(coords);
-          const point = trackerRef.current.update(
-            { ...coords, accuracyM: loc.coords.accuracy ?? Infinity },
-            Date.now(),
-          );
-          const f = point && m.files.find((x) => x.attraction_id === point.id);
-          if (f) void play(f, "geofence");
-        },
-      );
-      if (!alive) sub.remove();
-    })().catch(() => setGps("denied"));
+      if (!granted || !await Location.hasServicesEnabledAsync()) {
+        if (alive) setGps("denied");
+        return;
+      }
+      if (!alive) return;
+      sub = await Location.watchPositionAsync({
+        accuracy: Location.Accuracy.High, timeInterval: GPS_THROTTLE_MS,
+        distanceInterval: 0, mayShowUserSettingsDialog: false,
+      }, onLocation);
+      if (!alive) {
+        sub.remove();
+        return;
+      }
+      if (Platform.OS === "android") {
+        enableBackground.current = async () => {
+          if (!alive || AppState.currentState !== "active") return;
+          setNotice(null);
+          setEnablingBackground(true);
+          try {
+            await trackTourLocation(onLocation);
+            if (!alive) return;
+            sub?.remove();
+            sub = undefined;
+            setGps("background");
+          } catch {
+            await stopTourLocation(onLocation).catch(() => undefined);
+            if (alive) setNotice("Chưa bật được vị trí khi khóa màn hình. Bạn vẫn có thể nghe khi mở app.");
+          } finally {
+            if (alive) setEnablingBackground(false);
+          }
+        };
+      }
+      setGps("foreground");
+    }
+    void start().catch(() => {
+      if (!alive) return;
+      setGps("denied");
+      if (!playerRef.current) setNotice("Không khởi tạo được trình phát. Hãy mở lại tour.");
+    });
     return () => {
       alive = false;
+      enableBackground.current = null;
       sub?.remove();
-      void stop();
+      void stopTourLocation(onLocation).catch(() => undefined);
+      const player = playerRef.current;
+      playerRef.current = null;
+      current.current = null;
+      if (player) {
+        player.pause();
+        if (Platform.OS === "android" || Platform.OS === "ios") player.setActiveForLockScreen(false);
+        player.remove();
+      }
       syncEvents().catch(() => undefined);
     };
-  }, [m.files, play, stop]);
+  }, [m.files, m.lang, pack.tourName, play, tracker]);
 
   return (
     <Screen title={pack.tourName} onBack={onBack}>
-      {gps === "on" && <T.muted>Đang theo dõi vị trí. Audio sẽ tự phát khi bạn đến gần một điểm.</T.muted>}
+      {gps === "background" && <T.muted>Tự phát theo vị trí kể cả khi khóa màn hình.</T.muted>}
+      {gps === "foreground" && <T.muted>Đang theo dõi vị trí khi app mở.</T.muted>}
+      {gps === "foreground" && Platform.OS === "android" && (
+        <Btn
+          label={enablingBackground ? "Đang bật vị trí…" : "Bật tự phát khi khóa màn hình"}
+          kind="ghost"
+          disabled={enablingBackground}
+          onPress={() => { void enableBackground.current?.(); }}
+        />
+      )}
       {gps === "denied" && <T.muted>Vị trí chưa sẵn sàng. Bạn vẫn có thể chọn điểm để nghe.</T.muted>}
       {notice && <T.error>{notice}</T.error>}
       {now && (
         <Card>
-          <T.muted>Đang phát</T.muted>
+          <T.muted>{playing ? "Đang phát" : "Thuyết minh"}</T.muted>
           <T.h>{now.name}</T.h>
-          <Btn label="Dừng" kind="ghost" onPress={() => { void stop(); setNow(null); }} />
+          <Btn label={playing ? "Tạm dừng" : "Phát tiếp"} kind="ghost" onPress={() => {
+            if (playing) playerRef.current?.pause();
+            else playerRef.current?.play();
+          }} />
         </Card>
       )}
-      <TourMap files={m.files} position={position} playingId={now?.attraction_id} onPlay={(f) => void play(f, "manual")} />
+      <TourMap files={m.files} position={position} playingId={playing ? now?.poi_id : undefined} onPlay={(f) => play(f, "manual")} />
       {m.files.map((f, index) => (
-        <Card key={f.attraction_id} onPress={() => void play(f, "manual")}>
+        <Card key={f.poi_id} onPress={() => play(f, "manual")}>
           <T.h>{index + 1}. {f.name}</T.h>
           <T.muted>Chạm để nghe · {Math.round(f.duration_ms / 1000)} giây</T.muted>
         </Card>
       ))}
+      <Btn label="Kết thúc tour" kind="ghost" onPress={onBack} />
     </Screen>
   );
 }

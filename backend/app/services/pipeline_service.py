@@ -14,11 +14,11 @@ from app.integrations.storage.local import LocalStorage
 from app.integrations.translate.base import GlossaryTerm, TranslateProvider
 from app.integrations.tts.base import TTSProvider
 from app.models.audit import AuditResource
-from app.repositories.attraction_repo import AttractionRepository
 from app.repositories.audio_repo import SqlAudioRepository
 from app.repositories.glossary_repo import SqlGlossaryRepository
 from app.repositories.job_repo import SqlJobRepository, job_spec, text_hash
 from app.repositories.language_repo import LanguageRepository
+from app.repositories.poi_repo import PoiRepository
 from app.repositories.tour_repo import SqlTourRepository
 from app.repositories.translation_repo import SqlTranslationRepository
 from app.services.audit_service import AuditService
@@ -48,7 +48,7 @@ class PipelineService:
     def __init__(
         self,
         jobs: SqlJobRepository,
-        attractions: AttractionRepository,
+        pois: PoiRepository,
         translations: SqlTranslationRepository,
         glossary: SqlGlossaryRepository,
         audio: SqlAudioRepository,
@@ -66,7 +66,7 @@ class PipelineService:
         asr_wer_max: float = 0.08,
     ) -> None:
         self._jobs = jobs
-        self._attractions = attractions
+        self._pois = pois
         self._translations = translations
         self._glossary = glossary
         self._audio = audio
@@ -96,7 +96,10 @@ class PipelineService:
                 "audio": self._generate_audio,
                 "pack_build": self._build_pack,
             }[job["type"]]
-            await handler(job["payload"])
+            payload = dict(job["payload"] or {})
+            if "poi_id" not in payload and "attraction_id" in payload:
+                payload["poi_id"] = payload.pop("attraction_id")
+            await handler(payload)
         except Exception as e:  # lỗi nhà cung cấp, mạng, đĩa: ghi lại để thử lại hoặc báo CMS
             await self._jobs.fail(job["id"], job["attempts"], str(e) or repr(e), self._clock())
             if job["type"] == "pack_build" and job["attempts"] >= 3:
@@ -107,19 +110,40 @@ class PipelineService:
         await self._jobs.finish(job["id"], self._clock())
         return True
 
+    async def translation_progress(self) -> list[dict[str, Any]]:
+        rows = await self._jobs.translation_progress()
+        return [
+            {
+                "poi_id": row["poi_id"], "title": row["title"],
+                "lang": row["lang"], "status": row["status"], "attempts": row["attempts"],
+                "error": (row["error"] or {}).get("message"), "updated_at": row["updated_at"],
+            }
+            for row in rows
+        ]
+
     async def _translate(self, p: dict[str, Any]) -> None:
-        attraction = await self._attractions.get(p["attraction_id"])
-        if attraction is None:
+        poi = await self._pois.get(p["poi_id"])
+        if poi is None or poi.script_status.value != "approved":
             return
-        rows = await self._glossary.for_translation(p["attraction_id"], p["lang"])
+        source_hash = text_hash(poi.script)
+        if p.get("source_hash", source_hash) != source_hash:
+            return
+        rows = await self._glossary.for_translation(p["poi_id"], p["lang"])
         terms = [GlossaryTerm(r["term"], r["translation"], r["is_required"]) for r in rows]
-        text = await self._translator.translate(attraction.script, SOURCE_LANG, p["lang"], terms)
-        score = await self._quality.translation_score(attraction.script, text)
-        flags = qa_flags(attraction.script, text, rows, self._translator.name)
+        text = await self._translator.translate(poi.script, SOURCE_LANG, p["lang"], terms)
+        latest = await self._pois.get(p["poi_id"])
+        if (
+            latest is None
+            or latest.script_status.value != "approved"
+            or text_hash(latest.script) != source_hash
+        ):
+            return
+        score = await self._quality.translation_score(poi.script, text)
+        flags = qa_flags(poi.script, text, rows, self._translator.name)
         if score is not None and score < self._comet_qe_min:
             flags.append("low_comet_qe")
         await self._translations.upsert_machine(
-            p["attraction_id"],
+            p["poi_id"],
             p["lang"],
             text,
             self._translator.name,
@@ -129,16 +153,16 @@ class PipelineService:
             comet_qe=score,
         )
 
-    async def _approved_text(self, attraction_id: str, lang: str) -> str | None:
+    async def _approved_text(self, poi_id: str, lang: str) -> str | None:
         if lang == SOURCE_LANG:
-            a = await self._attractions.get(attraction_id)
+            a = await self._pois.get(poi_id)
             approved = a is not None and a.script_status.value == "approved"
             return a.script if approved and a is not None else None
-        row = await self._translations.approved_for(attraction_id, lang)
+        row = await self._translations.approved_for(poi_id, lang)
         return row["text"] if row else None
 
     async def _generate_audio(self, p: dict[str, Any]) -> None:
-        aid, lang = p["attraction_id"], p["lang"]
+        aid, lang = p["poi_id"], p["lang"]
         text = await self._approved_text(aid, lang)
         if text is None:
             return  # nội dung đã đổi sau khi tạo job: lần duyệt sau sẽ tạo job mới
@@ -173,7 +197,7 @@ class PipelineService:
         """Audio khớp nội dung đã duyệt hiện tại của mọi điểm; kèm danh sách điểm còn thiếu."""
         found: list[dict[str, Any]] = []
         missing: list[str] = []
-        for point in tour["attractions"]:
+        for point in tour["pois"]:
             text = await self._approved_text(point["id"], lang)
             asset = (
                 await self._audio.find_asset(point["id"], lang, text_hash(text)) if text else None
@@ -203,7 +227,7 @@ class PipelineService:
                 z.writestr(f"{point['id']}.mp3", self._storage.read(asset["storage_key"]))
                 files.append(
                     {
-                        "attraction_id": point["id"],
+                        "poi_id": point["id"],
                         "name": point["name"],
                         "summary": point["summary"],
                         "lat": point["lat"],
@@ -258,13 +282,13 @@ class PipelineService:
     async def audio_status(self) -> list[dict[str, Any]]:
         langs = [lang.code for lang in await self._languages.list_active()]
         approved = await self._translations.all_approved()
-        texts = {(r["attraction_id"], r["target_lang"]): r["text"] for r in approved}
+        texts = {(r["poi_id"], r["target_lang"]): r["text"] for r in approved}
         assets = await self._audio.all_ready()
-        by_key = {(a["attraction_id"], a["lang"], a["text_hash"]): a for a in assets}
-        any_asset = {(a["attraction_id"], a["lang"]) for a in assets}
+        by_key = {(a["poi_id"], a["lang"], a["text_hash"]): a for a in assets}
+        any_asset = {(a["poi_id"], a["lang"]) for a in assets}
         jobs = await self._jobs.latest_by_prefix("audio:")
         out = []
-        for a in await self._attractions.find_all(None, None):
+        for a in await self._pois.find_all(None, None):
             cells = {}
             for lang in langs:
                 if lang == SOURCE_LANG:
@@ -301,19 +325,19 @@ class PipelineService:
         state = "stale" if (aid, lang) in any_asset else "none"
         return {"state": state, "error": None, "duration_ms": None}
 
-    async def audio_preview_path(self, attraction_id: str, lang: str) -> str:
-        text = await self._approved_text(attraction_id, lang)
-        asset = await self._audio.find_asset(attraction_id, lang, text_hash(text)) if text else None
+    async def audio_preview_path(self, poi_id: str, lang: str) -> str:
+        text = await self._approved_text(poi_id, lang)
+        asset = await self._audio.find_asset(poi_id, lang, text_hash(text)) if text else None
         if asset is None or not self._storage.exists(asset["storage_key"]):
             raise NotFoundError("audio_not_found", "Chưa có audio cho nội dung đã duyệt")
         return self.file_path(asset["storage_key"])
 
-    async def retry_audio(self, attraction_id: str, lang: str, actor_id: str) -> None:
-        text = await self._approved_text(attraction_id, lang)
+    async def retry_audio(self, poi_id: str, lang: str, actor_id: str) -> None:
+        text = await self._approved_text(poi_id, lang)
         if text is None:
             raise InvalidContentError("not_approved", "Nội dung ngôn ngữ này chưa được duyệt")
-        key = f"audio:{attraction_id}:{lang}:{text_hash(text)}"
-        spec = job_spec("audio", key, {"attraction_id": attraction_id, "lang": lang})
+        key = f"audio:{poi_id}:{lang}:{text_hash(text)}"
+        spec = job_spec("audio", key, {"poi_id": poi_id, "lang": lang})
         await self._jobs.enqueue([spec], actor_id, self._clock())
 
     # --- UC-09, UC-10
@@ -325,7 +349,7 @@ class PipelineService:
         if tour is None:
             raise NotFoundError("tour_not_found", "Không tìm thấy tour")
         _, missing = await self._tour_assets(tour, lang)
-        if missing or not tour["attractions"]:
+        if missing or not tour["pois"]:
             detail = ", ".join(missing) or "tour chưa có điểm nào"
             raise InvalidContentError("audio_missing", f"Còn thiếu audio: {detail}")
         pack_id = await self._audio.create_pack(tour_id, lang, actor_id, self._clock())
@@ -363,6 +387,9 @@ class PipelineService:
 
     def read_manifest(self, pack: dict[str, Any]) -> dict[str, Any]:
         result: dict[str, Any] = json.loads(self._storage.read(pack["manifest_key"]))
+        for item in result.get("files", []):
+            if "poi_id" not in item and "attraction_id" in item:
+                item["poi_id"] = item.pop("attraction_id")
         return result
 
     def file_path(self, key: str) -> str:

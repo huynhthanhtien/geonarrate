@@ -15,9 +15,9 @@ class SqlAudioRepository:
     def __init__(self, engine: AsyncEngine) -> None:
         self._engine = engine
 
-    async def find_asset(self, attraction_id: str, lang: str, hash_: str) -> dict[str, Any] | None:
+    async def find_asset(self, poi_id: str, lang: str, hash_: str) -> dict[str, Any] | None:
         stmt = select(audio_assets).where(
-            audio_assets.c.attraction_id == parse_uuid(attraction_id),
+            audio_assets.c.poi_id == parse_uuid(poi_id),
             audio_assets.c.lang == lang,
             audio_assets.c.text_hash == hash_,
             audio_assets.c.status == "ready",
@@ -33,7 +33,7 @@ class SqlAudioRepository:
 
     async def upsert_asset(
         self,
-        attraction_id: str,
+        poi_id: str,
         lang: str,
         hash_: str,
         voice: str,
@@ -57,13 +57,13 @@ class SqlAudioRepository:
         stmt = (
             insert(audio_assets)
             .values(
-                attraction_id=parse_uuid(attraction_id),
+                poi_id=parse_uuid(poi_id),
                 lang=lang,
                 text_hash=hash_,
                 created_at=now,
                 **values,
             )
-            .on_conflict_do_update(constraint="uq_audio_assets_attraction_lang", set_=values)
+            .on_conflict_do_update(constraint="uq_audio_assets_poi_lang", set_=values)
         )
         async with connection(self._engine, write=True) as conn:
             await conn.execute(stmt)

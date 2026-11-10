@@ -115,7 +115,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/attractions": {
+    "/api/v1/pois": {
         parameters: {
             query?: never;
             header?: never;
@@ -123,38 +123,38 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List Attractions
+         * List Pois
          * @description Lọc theo danh mục và trạng thái script (`draft`, `in_review`, `approved`).
          */
-        get: operations["list_attractions_api_v1_attractions_get"];
+        get: operations["list_pois_api_v1_pois_get"];
         put?: never;
-        /** Create Attraction */
-        post: operations["create_attraction_api_v1_attractions_post"];
+        /** Create Poi */
+        post: operations["create_poi_api_v1_pois_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/attractions/{attraction_id}": {
+    "/api/v1/pois/{poi_id}": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** Get Attraction */
-        get: operations["get_attraction_api_v1_attractions__attraction_id__get"];
+        /** Get Poi */
+        get: operations["get_poi_api_v1_pois__poi_id__get"];
         put?: never;
         post?: never;
         delete?: never;
         options?: never;
         head?: never;
-        /** Update Attraction */
-        patch: operations["update_attraction_api_v1_attractions__attraction_id__patch"];
+        /** Update Poi */
+        patch: operations["update_poi_api_v1_pois__poi_id__patch"];
         trace?: never;
     };
-    "/api/v1/attractions/{attraction_id}/script": {
+    "/api/v1/pois/{poi_id}/script": {
         parameters: {
             query?: never;
             header?: never;
@@ -163,7 +163,7 @@ export interface paths {
         };
         get?: never;
         /** Save Script */
-        put: operations["save_script_api_v1_attractions__attraction_id__script_put"];
+        put: operations["save_script_api_v1_pois__poi_id__script_put"];
         post?: never;
         delete?: never;
         options?: never;
@@ -171,7 +171,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/attractions/{attraction_id}/submit": {
+    "/api/v1/pois/{poi_id}/submit": {
         parameters: {
             query?: never;
             header?: never;
@@ -181,14 +181,14 @@ export interface paths {
         get?: never;
         put?: never;
         /** Submit Script */
-        post: operations["submit_script_api_v1_attractions__attraction_id__submit_post"];
+        post: operations["submit_script_api_v1_pois__poi_id__submit_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/attractions/{attraction_id}/approve": {
+    "/api/v1/pois/{poi_id}/approve": {
         parameters: {
             query?: never;
             header?: never;
@@ -198,14 +198,14 @@ export interface paths {
         get?: never;
         put?: never;
         /** Approve Script */
-        post: operations["approve_script_api_v1_attractions__attraction_id__approve_post"];
+        post: operations["approve_script_api_v1_pois__poi_id__approve_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/attractions/{attraction_id}/reject": {
+    "/api/v1/pois/{poi_id}/reject": {
         parameters: {
             query?: never;
             header?: never;
@@ -215,7 +215,24 @@ export interface paths {
         get?: never;
         put?: never;
         /** Reject Script */
-        post: operations["reject_script_api_v1_attractions__attraction_id__reject_post"];
+        post: operations["reject_script_api_v1_pois__poi_id__reject_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/translation-jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Translation Jobs */
+        get: operations["translation_jobs_api_v1_translation_jobs_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -342,7 +359,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/audio/{attraction_id}/{lang}/preview": {
+    "/api/v1/audio/{poi_id}/{lang}/preview": {
         parameters: {
             query?: never;
             header?: never;
@@ -350,7 +367,7 @@ export interface paths {
             cookie?: never;
         };
         /** Preview Audio */
-        get: operations["preview_audio_api_v1_audio__attraction_id___lang__preview_get"];
+        get: operations["preview_audio_api_v1_audio__poi_id___lang__preview_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -638,7 +655,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/public/tours/{tour_id}/packs/{lang}/files/{attraction_id}": {
+    "/api/v1/public/tours/{tour_id}/packs/{lang}/files/{poi_id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -646,7 +663,7 @@ export interface paths {
             cookie?: never;
         };
         /** Pack File */
-        get: operations["pack_file_api_v1_public_tours__tour_id__packs__lang__files__attraction_id__get"];
+        get: operations["pack_file_api_v1_public_tours__tour_id__packs__lang__files__poi_id__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -666,6 +683,23 @@ export interface paths {
         put?: never;
         /** Playback Events */
         post: operations["playback_events_api_v1_public_playback_events_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/content-limits": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Content Limits */
+        get: operations["content_limits_api_v1_content_limits_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -768,8 +802,8 @@ export interface components {
             completes: number;
             /** Completion Rate */
             completion_rate: number | null;
-            /** Top Attractions */
-            top_attractions: components["schemas"]["AnalyticsTop"][];
+            /** Top Pois */
+            top_pois: components["schemas"]["AnalyticsTop"][];
             /** By Lang */
             by_lang: components["schemas"]["AnalyticsLang"][];
         };
@@ -781,112 +815,6 @@ export interface components {
             name: string;
             /** Plays */
             plays: number;
-        };
-        /** AttractionCreateIn */
-        AttractionCreateIn: {
-            /** Name */
-            name: string;
-            /**
-             * Category
-             * @enum {string}
-             */
-            category: "temple" | "church" | "museum" | "park" | "other";
-            /**
-             * Priority
-             * @default 1
-             */
-            priority: number;
-            /** Lat */
-            lat: number;
-            /** Lng */
-            lng: number;
-            /**
-             * Radius
-             * @description Bán kính kích hoạt (mét)
-             */
-            radius: number;
-            /**
-             * Script
-             * @default
-             */
-            script: string;
-            /** Summary */
-            summary?: string | null;
-            /**
-             * Images
-             * @default []
-             */
-            images: string[];
-        };
-        /** AttractionOut */
-        AttractionOut: {
-            /** Id */
-            id: string;
-            /** Name */
-            name: string;
-            /** Slug */
-            slug: string;
-            /** Summary */
-            summary: string | null;
-            /** Images */
-            images: string[];
-            /** Lat */
-            lat: number;
-            /** Lng */
-            lng: number;
-            /** Radius */
-            radius: number;
-            /** Category */
-            category: string;
-            /** Priority */
-            priority: number;
-            /** Script */
-            script: string;
-            /**
-             * Script Status
-             * @enum {string}
-             */
-            script_status: "draft" | "in_review" | "approved";
-            /** Script Version */
-            script_version: number;
-            /** Review Note */
-            review_note: string | null;
-            /** Created By */
-            created_by: string | null;
-            /** Updated By */
-            updated_by: string | null;
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /**
-             * Updated At
-             * Format: date-time
-             */
-            updated_at: string;
-        };
-        /**
-         * AttractionUpdateIn
-         * @description Chỉ gửi trường cần đổi. Slug không đổi được; `lat` và `lng` phải đi cùng nhau.
-         */
-        AttractionUpdateIn: {
-            /** Name */
-            name?: string | null;
-            /** Category */
-            category?: ("temple" | "church" | "museum" | "park" | "other") | null;
-            /** Priority */
-            priority?: number | null;
-            /** Lat */
-            lat?: number | null;
-            /** Lng */
-            lng?: number | null;
-            /** Radius */
-            radius?: number | null;
-            /** Summary */
-            summary?: string | null;
-            /** Images */
-            images?: string[] | null;
         };
         /** AudioCell */
         AudioCell: {
@@ -902,8 +830,8 @@ export interface components {
         };
         /** AudioRetryIn */
         AudioRetryIn: {
-            /** Attraction Id */
-            attraction_id: string;
+            /** Poi Id */
+            poi_id: string;
             /** Lang */
             lang: string;
         };
@@ -946,8 +874,8 @@ export interface components {
         EventIn: {
             /** Event Id */
             event_id: string;
-            /** Attraction Id */
-            attraction_id: string;
+            /** Poi Id */
+            poi_id: string;
             /** Lang */
             lang: string;
             /**
@@ -990,8 +918,8 @@ export interface components {
              * @default false
              */
             is_required: boolean;
-            /** Attraction Id */
-            attraction_id?: string | null;
+            /** Poi Id */
+            poi_id?: string | null;
         };
         /** GlossaryOut */
         GlossaryOut: {
@@ -1005,8 +933,8 @@ export interface components {
             translation: string;
             /** Is Required */
             is_required: boolean;
-            /** Attraction Id */
-            attraction_id: string | null;
+            /** Poi Id */
+            poi_id: string | null;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -1033,8 +961,8 @@ export interface components {
         };
         /** ManifestFile */
         ManifestFile: {
-            /** Attraction Id */
-            attraction_id: string;
+            /** Poi Id */
+            poi_id: string;
             /** Name */
             name: string;
             /** Summary */
@@ -1112,20 +1040,122 @@ export interface components {
              */
             created_at: string;
         };
+        /** PoiCreateIn */
+        PoiCreateIn: {
+            /** Name */
+            name: string;
+            /**
+             * Category
+             * @enum {string}
+             */
+            category: "temple" | "church" | "museum" | "park" | "other";
+            /**
+             * Priority
+             * @default 1
+             */
+            priority: number;
+            /** Lat */
+            lat: number;
+            /** Lng */
+            lng: number;
+            /**
+             * Radius
+             * @description Bán kính kích hoạt (mét)
+             */
+            radius: number;
+            /**
+             * Script
+             * @default
+             */
+            script: string;
+            /** Summary */
+            summary?: string | null;
+            /**
+             * Images
+             * @default []
+             */
+            images: string[];
+        };
+        /** PoiOut */
+        PoiOut: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Summary */
+            summary: string | null;
+            /** Images */
+            images: string[];
+            /** Lat */
+            lat: number;
+            /** Lng */
+            lng: number;
+            /** Radius */
+            radius: number;
+            /** Category */
+            category: string;
+            /** Priority */
+            priority: number;
+            /** Script */
+            script: string;
+            /**
+             * Script Status
+             * @enum {string}
+             */
+            script_status: "draft" | "in_review" | "approved";
+            /** Script Version */
+            script_version: number;
+            /** Review Note */
+            review_note: string | null;
+            /** Created By */
+            created_by: string | null;
+            /** Updated By */
+            updated_by: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /**
+         * PoiUpdateIn
+         * @description Chỉ gửi trường cần đổi. `lat` và `lng` phải đi cùng nhau.
+         */
+        PoiUpdateIn: {
+            /** Name */
+            name?: string | null;
+            /** Category */
+            category?: ("temple" | "church" | "museum" | "park" | "other") | null;
+            /** Priority */
+            priority?: number | null;
+            /** Lat */
+            lat?: number | null;
+            /** Lng */
+            lng?: number | null;
+            /** Radius */
+            radius?: number | null;
+            /** Summary */
+            summary?: string | null;
+            /** Images */
+            images?: string[] | null;
+        };
         /** PublicTourOut */
         PublicTourOut: {
             /** Id */
             id: string;
-            /** Slug */
-            slug: string;
             /** Name */
             name: string;
             /** Access */
             access: string;
             /** Bbox */
             bbox: number[] | null;
-            /** Attraction Count */
-            attraction_count: number;
+            /** Poi Count */
+            poi_count: number;
             /** Langs */
             langs: string[];
         };
@@ -1232,8 +1262,6 @@ export interface components {
         };
         /** TourCreateIn */
         TourCreateIn: {
-            /** Slug */
-            slug: string;
             /** Name */
             name: string;
             /**
@@ -1248,15 +1276,13 @@ export interface components {
              * @enum {string}
              */
             status: "draft" | "published";
-            /** Attractions */
-            attractions: components["schemas"]["TourPoint"][];
+            /** Pois */
+            pois: components["schemas"]["TourPoint"][];
         };
         /** TourDetailOut */
         TourDetailOut: {
             /** Id */
             id: string;
-            /** Slug */
-            slug: string;
             /** Name */
             name: string;
             /** Access */
@@ -1265,17 +1291,15 @@ export interface components {
             status: string;
             /** Bbox */
             bbox: number[] | null;
-            /** Attraction Count */
-            attraction_count: number;
-            /** Attractions */
-            attractions: components["schemas"]["TourPointOut"][];
+            /** Poi Count */
+            poi_count: number;
+            /** Pois */
+            pois: components["schemas"]["TourPointOut"][];
         };
         /** TourOut */
         TourOut: {
             /** Id */
             id: string;
-            /** Slug */
-            slug: string;
             /** Name */
             name: string;
             /** Access */
@@ -1284,8 +1308,8 @@ export interface components {
             status: string;
             /** Bbox */
             bbox: number[] | null;
-            /** Attraction Count */
-            attraction_count: number;
+            /** Poi Count */
+            poi_count: number;
         };
         /** TourPoint */
         TourPoint: {
@@ -1316,28 +1340,49 @@ export interface components {
         };
         /** TourUpdateIn */
         TourUpdateIn: {
-            /** Slug */
-            slug?: string | null;
             /** Name */
             name?: string | null;
             /** Access */
             access?: ("free" | "paid") | null;
             /** Status */
             status?: ("draft" | "published") | null;
-            /** Attractions */
-            attractions?: components["schemas"]["TourPoint"][] | null;
+            /** Pois */
+            pois?: components["schemas"]["TourPoint"][] | null;
         };
         /** TranslationEditIn */
         TranslationEditIn: {
             /** Text */
             text: string;
         };
+        /** TranslationJobOut */
+        TranslationJobOut: {
+            /** Poi Id */
+            poi_id: string;
+            /** Title */
+            title: string;
+            /** Lang */
+            lang: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "queued" | "running" | "failed";
+            /** Attempts */
+            attempts: number;
+            /** Error */
+            error: string | null;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
         /** TranslationOut */
         TranslationOut: {
             /** Id */
             id: string;
-            /** Attraction Id */
-            attraction_id: string;
+            /** Poi Id */
+            poi_id: string;
             /** Title */
             title: string;
             /** Target Lang */
@@ -1584,7 +1629,7 @@ export interface operations {
             };
         };
     };
-    list_attractions_api_v1_attractions_get: {
+    list_pois_api_v1_pois_get: {
         parameters: {
             query?: {
                 category?: string | null;
@@ -1602,7 +1647,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AttractionOut"][];
+                    "application/json": components["schemas"]["PoiOut"][];
                 };
             };
             /** @description Validation Error */
@@ -1616,7 +1661,7 @@ export interface operations {
             };
         };
     };
-    create_attraction_api_v1_attractions_post: {
+    create_poi_api_v1_pois_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -1625,7 +1670,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["AttractionCreateIn"];
+                "application/json": components["schemas"]["PoiCreateIn"];
             };
         };
         responses: {
@@ -1635,7 +1680,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AttractionOut"];
+                    "application/json": components["schemas"]["PoiOut"];
                 };
             };
             /** @description Validation Error */
@@ -1649,12 +1694,12 @@ export interface operations {
             };
         };
     };
-    get_attraction_api_v1_attractions__attraction_id__get: {
+    get_poi_api_v1_pois__poi_id__get: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                attraction_id: string;
+                poi_id: string;
             };
             cookie?: never;
         };
@@ -1666,7 +1711,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AttractionOut"];
+                    "application/json": components["schemas"]["PoiOut"];
                 };
             };
             /** @description Validation Error */
@@ -1680,18 +1725,18 @@ export interface operations {
             };
         };
     };
-    update_attraction_api_v1_attractions__attraction_id__patch: {
+    update_poi_api_v1_pois__poi_id__patch: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                attraction_id: string;
+                poi_id: string;
             };
             cookie?: never;
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["AttractionUpdateIn"];
+                "application/json": components["schemas"]["PoiUpdateIn"];
             };
         };
         responses: {
@@ -1701,7 +1746,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AttractionOut"];
+                    "application/json": components["schemas"]["PoiOut"];
                 };
             };
             /** @description Validation Error */
@@ -1715,12 +1760,12 @@ export interface operations {
             };
         };
     };
-    save_script_api_v1_attractions__attraction_id__script_put: {
+    save_script_api_v1_pois__poi_id__script_put: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                attraction_id: string;
+                poi_id: string;
             };
             cookie?: never;
         };
@@ -1736,7 +1781,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AttractionOut"];
+                    "application/json": components["schemas"]["PoiOut"];
                 };
             };
             /** @description Validation Error */
@@ -1750,12 +1795,12 @@ export interface operations {
             };
         };
     };
-    submit_script_api_v1_attractions__attraction_id__submit_post: {
+    submit_script_api_v1_pois__poi_id__submit_post: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                attraction_id: string;
+                poi_id: string;
             };
             cookie?: never;
         };
@@ -1767,7 +1812,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AttractionOut"];
+                    "application/json": components["schemas"]["PoiOut"];
                 };
             };
             /** @description Validation Error */
@@ -1781,12 +1826,12 @@ export interface operations {
             };
         };
     };
-    approve_script_api_v1_attractions__attraction_id__approve_post: {
+    approve_script_api_v1_pois__poi_id__approve_post: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                attraction_id: string;
+                poi_id: string;
             };
             cookie?: never;
         };
@@ -1798,7 +1843,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AttractionOut"];
+                    "application/json": components["schemas"]["PoiOut"];
                 };
             };
             /** @description Validation Error */
@@ -1812,12 +1857,12 @@ export interface operations {
             };
         };
     };
-    reject_script_api_v1_attractions__attraction_id__reject_post: {
+    reject_script_api_v1_pois__poi_id__reject_post: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                attraction_id: string;
+                poi_id: string;
             };
             cookie?: never;
         };
@@ -1833,7 +1878,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AttractionOut"];
+                    "application/json": components["schemas"]["PoiOut"];
                 };
             };
             /** @description Validation Error */
@@ -1843,6 +1888,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    translation_jobs_api_v1_translation_jobs_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TranslationJobOut"][];
                 };
             };
         };
@@ -2093,12 +2158,12 @@ export interface operations {
             };
         };
     };
-    preview_audio_api_v1_audio__attraction_id___lang__preview_get: {
+    preview_audio_api_v1_audio__poi_id___lang__preview_get: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                attraction_id: string;
+                poi_id: string;
                 lang: string;
             };
             cookie?: never;
@@ -2735,7 +2800,7 @@ export interface operations {
             };
         };
     };
-    pack_file_api_v1_public_tours__tour_id__packs__lang__files__attraction_id__get: {
+    pack_file_api_v1_public_tours__tour_id__packs__lang__files__poi_id__get: {
         parameters: {
             query: {
                 device_id: string;
@@ -2745,7 +2810,7 @@ export interface operations {
             path: {
                 tour_id: string;
                 lang: string;
-                attraction_id: string;
+                poi_id: string;
             };
             cookie?: never;
         };
@@ -2800,6 +2865,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    content_limits_api_v1_content_limits_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: number;
+                    };
                 };
             };
         };

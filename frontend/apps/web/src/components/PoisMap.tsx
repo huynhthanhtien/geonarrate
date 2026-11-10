@@ -17,7 +17,7 @@ function fitPoints(map: maplibregl.Map, points: MapPoint[]) {
   if (!bounds.isEmpty()) map.fitBounds(bounds, { padding: 65, maxZoom: 16, duration: 300 });
 }
 
-export function AttractionsMap({ points, selectedId, onSelect, connectPoints = false }: {
+export function PoisMap({ points, selectedId, onSelect, connectPoints = false }: {
   points: MapPoint[];
   selectedId?: string;
   onSelect?: (id: string) => void;

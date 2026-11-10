@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { createCircle, DEFAULT_CENTER, MAP_STYLE, maplibregl, observeMapSize, validCoordinates } from "./map";
 
 interface Props {
-  lat: number;
-  lng: number;
+  lat: number | null;
+  lng: number | null;
   radius: number;
   onChange: (lat: number, lng: number) => void;
 }
@@ -19,14 +19,16 @@ export function MapPicker({ lat, lng, radius, onChange }: Props) {
 
   useEffect(() => {
     if (!container.current) return;
+    const { lat: initialLat, lng: initialLng } = latest.current;
+    const hasPoint = initialLat !== null && initialLng !== null && validCoordinates(initialLat, initialLng);
     let map: maplibregl.Map;
     try {
       map = new maplibregl.Map({ container: container.current, style: MAP_STYLE,
-        center: validCoordinates(latest.current.lat, latest.current.lng) ? [latest.current.lng, latest.current.lat] : DEFAULT_CENTER, zoom: 15 });
+        center: hasPoint ? [initialLng, initialLat] : DEFAULT_CENTER, zoom: 15 });
     } catch { setError(true); return; }
     mapRef.current = map;
     map.addControl(new maplibregl.NavigationControl(), "top-right");
-    const marker = new maplibregl.Marker({ draggable: true, color: "#0f766e" }).setLngLat(map.getCenter()).addTo(map);
+    const marker = new maplibregl.Marker({ draggable: true, color: "#0f766e" });
     markerRef.current = marker;
     marker.on("dragend", () => {
       const point = marker.getLngLat().wrap();
@@ -44,13 +46,30 @@ export function MapPicker({ lat, lng, radius, onChange }: Props) {
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !validCoordinates(lat, lng)) return;
-    markerRef.current?.setLngLat([lng, lat]);
+    const marker = markerRef.current;
+    if (!map || !marker) return;
+    if (lat === null || lng === null || !validCoordinates(lat, lng)) {
+      marker.remove();
+      return;
+    }
+    marker.setLngLat([lng, lat]).addTo(map);
     map.panTo([lng, lat], { duration: 250 });
-    if (!ready) return;
+  }, [lat, lng]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready) return;
+    const layers = ["radius-fill", "radius-border"];
+    if (lat === null || lng === null || !validCoordinates(lat, lng)) {
+      for (const layer of layers) if (map.getLayer(layer)) map.setLayoutProperty(layer, "visibility", "none");
+      return;
+    }
     const data = createCircle([lng, lat], radius);
     const source = map.getSource<maplibregl.GeoJSONSource>("radius");
-    if (source) source.setData(data);
+    if (source) {
+      source.setData(data);
+      for (const layer of layers) map.setLayoutProperty(layer, "visibility", "visible");
+    }
     else {
       map.addSource("radius", { type: "geojson", data });
       map.addLayer({ id: "radius-fill", type: "fill", source: "radius", paint: { "fill-color": "#0f766e", "fill-opacity": 0.15 } });

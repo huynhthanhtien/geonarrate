@@ -6,7 +6,8 @@ from contextlib import asynccontextmanager
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.v1.routers import attractions, audit, auth, languages, public, studio
+from app.api.v1.routers import audit, auth, languages, pois, public, studio
+from app.api.v1.schemas.poi import SCRIPT_MAX_CHARS
 from app.core import cache, database
 from app.core.config import get_settings
 from app.core.deps import get_auth_service, get_language_service, get_maintenance_service
@@ -46,9 +47,14 @@ app.include_router(auth.router, prefix="/api/v1")
 app.include_router(audit.router, prefix="/api/v1")
 app.include_router(languages.router, prefix="/api/v1")
 _cms_dependencies = [Depends(cms_transaction, scope="function")]
-app.include_router(attractions.router, prefix="/api/v1", dependencies=_cms_dependencies)
+app.include_router(pois.router, prefix="/api/v1", dependencies=_cms_dependencies)
 app.include_router(studio.router, prefix="/api/v1", dependencies=_cms_dependencies)
 app.include_router(public.router, prefix="/api/v1")
+
+
+@app.get("/api/v1/content-limits", tags=["content"])
+async def content_limits() -> dict[str, int]:
+    return {"script_max_chars": SCRIPT_MAX_CHARS}
 
 
 @app.get("/healthz", tags=["ops"])

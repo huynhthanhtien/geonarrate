@@ -76,8 +76,15 @@ const toPack = (r: PackRow): InstalledPack => ({
   lang: r.lang,
   tourName: r.tour_name,
   bytes: r.bytes,
-  manifest: JSON.parse(r.manifest) as Manifest,
+  manifest: normalizeManifest(JSON.parse(r.manifest)),
 });
+
+function normalizeManifest(manifest: Manifest): Manifest {
+  return { ...manifest, files: manifest.files.map((file) => {
+    const old = file as typeof file & { attraction_id?: string };
+    return { ...file, poi_id: file.poi_id ?? old.attraction_id ?? "" };
+  }) };
+}
 
 export function installedPacks(): InstalledPack[] {
   return db.getAllSync<PackRow>("SELECT * FROM packs").map(toPack);
@@ -99,7 +106,7 @@ export function removePack(tourId: string, lang: string): void {
 
 export type PlayEvent = "play" | "complete" | "skip";
 export function recordEvent(
-  attractionId: string,
+  poiId: string,
   lang: string,
   event: PlayEvent,
   trigger: "geofence" | "manual",
@@ -108,7 +115,7 @@ export function recordEvent(
   const eventId = randomUUID();
   const body = {
     event_id: eventId,
-    attraction_id: attractionId,
+    poi_id: poiId,
     lang,
     event,
     trigger,
@@ -123,6 +130,11 @@ export async function syncEvents(): Promise<void> {
   const rows = db.getAllSync<{ event_id: string; body: string }>("SELECT * FROM events LIMIT 200");
   if (!rows.length) return;
   const server = getBackend();
-  await sendEvents(await getDeviceId(server), rows.map((r) => JSON.parse(r.body)), server);
+  await sendEvents(await getDeviceId(server), rows.map((r) => {
+    const event = JSON.parse(r.body);
+    if (!event.poi_id && event.attraction_id) event.poi_id = event.attraction_id;
+    delete event.attraction_id;
+    return event;
+  }), server);
   for (const r of rows) db.runSync("DELETE FROM events WHERE event_id = ?", r.event_id);
 }

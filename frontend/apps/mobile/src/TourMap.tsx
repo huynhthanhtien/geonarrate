@@ -168,10 +168,10 @@ export function TourMap({ files, position, playingId, onPlay }: {
       >
         <Camera ref={camera} initialViewState={initialView} />
         {files.map((file, index) => (
-          <Marker key={file.attraction_id} lngLat={toLngLat(file)}
+          <Marker key={file.poi_id} lngLat={toLngLat(file)}
             accessibilityLabel={onPlay ? `Nghe ${file.name}` : file.name}
             onPress={onPlay ? () => onPlay(file) : undefined}>
-            <View style={[styles.marker, file.attraction_id === playingId && styles.playing]}>
+            <View style={[styles.marker, file.poi_id === playingId && styles.playing]}>
               <Text style={styles.number}>{index + 1}</Text>
             </View>
           </Marker>

@@ -84,6 +84,3 @@ export function Field({ label, children }: { label: string; children: ReactNode 
     </label>
   );
 }
-
-export const LANGS = ["en", "zh", "ja", "ko"];
-export const ALL_LANGS = ["vi", ...LANGS];
