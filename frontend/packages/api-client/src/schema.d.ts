@@ -1397,8 +1397,6 @@ export interface components {
             provider: string | null;
             /** Qa Flags */
             qa_flags: string[];
-            /** Comet Qe */
-            comet_qe?: number | null;
             /**
              * Review Status
              * @enum {string}

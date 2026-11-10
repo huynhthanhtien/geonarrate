@@ -63,7 +63,6 @@ class SqlTranslationRepository:
         qa_flags: list[str],
         hash_: str,
         now: datetime,
-        comet_qe: float | None = None,
     ) -> None:
         """Kịch bản đổi thì bản dịch cũ về pending và tăng version."""
         stmt = insert(_t).values(
@@ -73,7 +72,6 @@ class SqlTranslationRepository:
             text=text,
             provider=provider,
             qa_flags=qa_flags,
-            comet_qe=comet_qe,
             review_status="pending",
             text_hash=hash_,
             created_at=now,
@@ -86,7 +84,6 @@ class SqlTranslationRepository:
                 "text": text,
                 "provider": provider,
                 "qa_flags": qa_flags,
-                "comet_qe": comet_qe,
                 "review_status": "pending",
                 "review_note": None,
                 "reviewed_by": None,
@@ -108,7 +105,6 @@ class SqlTranslationRepository:
                 .values(
                     text=text,
                     qa_flags=flags,
-                    comet_qe=None,
                     text_hash=hash_,
                     review_status="pending",
                     updated_at=now,

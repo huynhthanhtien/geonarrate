@@ -4413,17 +4413,6 @@
             "type": "array",
             "title": "Qa Flags"
           },
-          "comet_qe": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Comet Qe"
-          },
           "review_status": {
             "type": "string",
             "enum": [

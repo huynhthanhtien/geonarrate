@@ -2,13 +2,11 @@ import io
 import json
 import shutil
 import wave
-from xml.etree.ElementTree import fromstring
 
 import httpx
 import pytest
 
 from app.integrations.translate.libretranslate import LibreTranslate
-from app.integrations.tts.azure import AzureTTS
 from app.integrations.tts.magpie import MagpieTTS, _encode_mp3
 
 
@@ -54,31 +52,6 @@ async def test_provider_http_errors_propagate(monkeypatch: pytest.MonkeyPatch) -
     mock_http(monkeypatch, httpx.Response(429))
     with pytest.raises(httpx.HTTPStatusError):
         await LibreTranslate("http://translator").translate("x", "vi", "en", [])
-    with pytest.raises(httpx.HTTPStatusError):
-        await AzureTTS("key", "eastus").synthesize("x", "en-US-AriaNeural")
-
-
-async def test_azure_escapes_ssml_and_requests_mp3(monkeypatch: pytest.MonkeyPatch) -> None:
-    requests = mock_http(monkeypatch, httpx.Response(200, content=b"mp3"))
-    assert await AzureTTS("key", "eastus").synthesize("A & <B>", "vi-VN-HoaiMyNeural") == b"mp3"
-    request = requests[0]
-    root = fromstring(request.content)
-    assert root.attrib["{http://www.w3.org/XML/1998/namespace}lang"] == "vi-VN"
-    assert root.find("voice/prosody").text == "A & <B>"  # type: ignore[union-attr]
-    assert request.headers["X-Microsoft-OutputFormat"] == "audio-24khz-48kbitrate-mono-mp3"
-
-
-async def test_azure_empty_audio(monkeypatch: pytest.MonkeyPatch) -> None:
-    mock_http(monkeypatch, httpx.Response(200))
-    with pytest.raises(RuntimeError):
-        await AzureTTS("key", "eastus").synthesize("x", "en-US-AriaNeural")
-
-
-def test_azure_requires_credentials() -> None:
-    with pytest.raises(ValueError):
-        AzureTTS("", "eastus")
-    with pytest.raises(ValueError):
-        AzureTTS("key", "invalid/region")
 
 
 async def test_magpie_rejects_non_wav_and_custom_rate() -> None:

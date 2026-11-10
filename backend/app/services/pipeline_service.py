@@ -16,7 +16,7 @@ from app.integrations.tts.base import TTSProvider
 from app.models.audit import AuditResource
 from app.repositories.audio_repo import SqlAudioRepository
 from app.repositories.glossary_repo import SqlGlossaryRepository
-from app.repositories.job_repo import SqlJobRepository, job_spec, text_hash
+from app.repositories.job_repo import MAX_ATTEMPTS, SqlJobRepository, job_spec, text_hash
 from app.repositories.language_repo import LanguageRepository
 from app.repositories.poi_repo import PoiRepository
 from app.repositories.tour_repo import SqlTourRepository
@@ -62,7 +62,6 @@ class PipelineService:
         *,
         tts_voice: str | None = None,
         quality: LocalQuality | None = None,
-        comet_qe_min: float = 0.8,
         asr_wer_max: float = 0.08,
     ) -> None:
         self._jobs = jobs
@@ -78,7 +77,6 @@ class PipelineService:
         self._tts = tts
         self._tts_voice = tts_voice
         self._quality = quality or LocalQuality()
-        self._comet_qe_min = comet_qe_min
         self._asr_wer_max = asr_wer_max
         self._clock = clock
 
@@ -102,9 +100,12 @@ class PipelineService:
             await handler(payload)
         except Exception as e:  # lỗi nhà cung cấp, mạng, đĩa: ghi lại để thử lại hoặc báo CMS
             await self._jobs.fail(job["id"], job["attempts"], str(e) or repr(e), self._clock())
-            if job["type"] == "pack_build" and job["attempts"] >= 3:
+            if job["type"] == "pack_build" and job["attempts"] >= MAX_ATTEMPTS:
                 await self._audio.update_pack(
-                    job["payload"]["pack_id"], {"status": "failed"}, self._clock()
+                    job["payload"]["pack_id"],
+                    {"status": "failed"},
+                    self._clock(),
+                    expected="building",
                 )
             return True
         await self._jobs.finish(job["id"], self._clock())
@@ -142,10 +143,7 @@ class PipelineService:
             or text_hash(latest.script) != source_hash
         ):
             return
-        score = await self._quality.translation_score(poi.script, text)
         flags = qa_flags(poi.script, text, rows, self._translator.name)
-        if score is not None and score < self._comet_qe_min:
-            flags.append("low_comet_qe")
         await self._translations.upsert_machine(
             p["poi_id"],
             p["lang"],
@@ -154,7 +152,6 @@ class PipelineService:
             flags,
             text_hash(text),
             self._clock(),
-            comet_qe=score,
         )
 
     async def _approved_text(self, poi_id: str, lang: str) -> str | None:
@@ -212,39 +209,42 @@ class PipelineService:
                 missing.append(point["name"])
         return found, missing
 
+    @staticmethod
+    def _manifest_files(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """Danh sách file của manifest; dùng cả để so pack mới với các bản đã có."""
+        return [
+            {
+                "poi_id": point["id"],
+                "name": point["name"],
+                "summary": point["summary"],
+                "lat": point["lat"],
+                "lng": point["lng"],
+                "radius": point["radius"],
+                "priority": point["priority"],
+                "is_preview": point["is_preview"],
+                "storage_key": asset["storage_key"],
+                "sha256": asset["sha256"],
+                "bytes": asset["bytes"],
+                "duration_ms": asset["duration_ms"],
+            }
+            for point, asset in ((item["point"], item["asset"]) for item in items)
+        ]
+
     async def _build_pack(self, p: dict[str, Any]) -> None:
         pack = await self._audio.get_pack(p["pack_id"])
-        if pack is None:
-            return
+        if pack is None or pack["status"] != "building":
+            return  # job chạy lại (worker kẹt hoặc chết sau khi lưu): không build đè bản đã QA
         tour = await self._tours.get(pack["tour_id"])
         if tour is None:
             return
         items, missing = await self._tour_assets(tour, pack["lang"])
         if missing or not items:
-            await self._audio.update_pack(pack["id"], {"status": "failed"}, self._clock())
             raise RuntimeError(f"Thiếu audio: {', '.join(missing) or 'tour không có điểm'}")
-        files = []
+        files = self._manifest_files(items)
         archive = io.BytesIO()
         with zipfile.ZipFile(archive, "w", zipfile.ZIP_STORED) as z:
-            for item in items:
-                point, asset = item["point"], item["asset"]
-                z.writestr(f"{point['id']}.mp3", self._storage.read(asset["storage_key"]))
-                files.append(
-                    {
-                        "poi_id": point["id"],
-                        "name": point["name"],
-                        "summary": point["summary"],
-                        "lat": point["lat"],
-                        "lng": point["lng"],
-                        "radius": point["radius"],
-                        "priority": point["priority"],
-                        "is_preview": point["is_preview"],
-                        "storage_key": asset["storage_key"],
-                        "sha256": asset["sha256"],
-                        "bytes": asset["bytes"],
-                        "duration_ms": asset["duration_ms"],
-                    }
-                )
+            for f in files:
+                z.writestr(f"{f['poi_id']}.mp3", self._storage.read(f["storage_key"]))
         manifest = json.dumps(
             {
                 "pack_id": pack["id"],
@@ -259,6 +259,15 @@ class PipelineService:
         data = archive.getvalue()
         self._storage.put(f"{prefix}/pack.zip", data)
         self._storage.put(f"{prefix}/manifest.json", manifest)
+        if not self._verify_pack_files(files):
+            raise RuntimeError("QA pack không đạt: file thiếu hoặc sai checksum")
+        if (
+            not self._storage.exists(f"{prefix}/pack.zip")
+            or _sha(self._storage.read(f"{prefix}/pack.zip")) != _sha(data)
+            or not self._storage.exists(f"{prefix}/manifest.json")
+            or self._storage.read(f"{prefix}/manifest.json") != manifest
+        ):
+            raise RuntimeError("QA pack không đạt: gói hoặc manifest lưu không đúng")
         await self._audio.update_pack(
             pack["id"],
             {
@@ -270,10 +279,8 @@ class PipelineService:
                 "file_count": len(files),
             },
             self._clock(),
+            expected="building",
         )
-        if not self._verify_pack_files(files):
-            await self._audio.update_pack(pack["id"], {"status": "failed"}, self._clock())
-            raise RuntimeError("QA pack không đạt: file thiếu hoặc sai checksum")
 
     def _verify_pack_files(self, files: list[dict[str, Any]]) -> bool:
         return all(
@@ -281,6 +288,18 @@ class PipelineService:
             and _sha(self._storage.read(f["storage_key"])) == f["sha256"]
             for f in files
         )
+
+    def _pack_intact(self, pack: dict[str, Any]) -> bool:
+        """Gói zip và từng file audio mà app tải (theo manifest) còn đúng checksum."""
+        key, manifest_key = pack["archive_key"], pack["manifest_key"]
+        if not key or not manifest_key or not self._storage.exists(key):
+            return False
+        if (
+            not self._storage.exists(manifest_key)
+            or _sha(self._storage.read(key)) != pack["sha256"]
+        ):
+            return False
+        return self._verify_pack_files(self.read_manifest(pack).get("files", []))
 
     # --- UC-07: trạng thái cho Voice Studio
     async def audio_status(self) -> list[dict[str, Any]]:
@@ -352,11 +371,21 @@ class PipelineService:
         tour = await self._tours.get(tour_id)
         if tour is None:
             raise NotFoundError("tour_not_found", "Không tìm thấy tour")
-        _, missing = await self._tour_assets(tour, lang)
+        items, missing = await self._tour_assets(tour, lang)
         if missing or not tour["pois"]:
             detail = ", ".join(missing) or "tour chưa có điểm nào"
             raise InvalidContentError("audio_missing", f"Còn thiếu audio: {detail}")
+        files = self._manifest_files(items)
+        for p in await self._audio.find_packs(tour_id, lang):
+            if p["status"] in ("qa", "published") and p["manifest_key"]:
+                if self.read_manifest(p).get("files") == files:
+                    raise ConflictError(
+                        "pack_unchanged",
+                        f"Nội dung giống version {p['version']} ({p['status']}), không cần build",
+                    )
         pack_id = await self._audio.create_pack(tour_id, lang, actor_id, self._clock())
+        if pack_id is None:
+            raise ConflictError("pack_building", "Đang có pack build cho tour và ngôn ngữ này")
         pack = await self._audio.get_pack(pack_id)
         assert pack is not None
         return pack
@@ -371,6 +400,14 @@ class PipelineService:
         pack = await self._pack(pack_id)
         if pack["status"] != "qa":
             raise ConflictError("pack_not_ready", "Chỉ phát hành được pack đã qua QA")
+        current = await self._audio.published_pack(pack["tour_id"], pack["lang"])
+        if current is not None and current["version"] > pack["version"]:
+            raise ConflictError(
+                "pack_outdated",
+                f"Đang phát hành version {current['version']} mới hơn; muốn quay lại hãy rollback",
+            )
+        if not self._pack_intact(pack):
+            raise InvalidContentError("pack_files_invalid", "File thiếu hoặc sai checksum")
         if not await self._audio.promote_pack(pack, "qa", actor_id, self._clock()):
             raise ConflictError("pack_not_ready", "Pack vừa thay đổi trạng thái, hãy tải lại")
         await self._audit.record(actor_id, "pack.publish", AuditResource("pack", pack_id))
@@ -380,9 +417,7 @@ class PipelineService:
         pack = await self._pack(pack_id)
         if pack["status"] != "superseded":
             raise ConflictError("pack_not_superseded", "Chỉ rollback về bản đã bị thay thế")
-        key, sha = pack["archive_key"], pack["sha256"]
-        ok = key and self._storage.exists(key) and _sha(self._storage.read(key)) == sha
-        if not ok:
+        if not self._pack_intact(pack):
             raise InvalidContentError("pack_files_invalid", "File thiếu hoặc sai checksum")
         if not await self._audio.promote_pack(pack, "superseded", actor_id, self._clock()):
             raise ConflictError("pack_not_superseded", "Pack vừa thay đổi trạng thái")

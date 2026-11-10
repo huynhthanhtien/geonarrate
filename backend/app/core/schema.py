@@ -199,7 +199,6 @@ translations = Table(
     Column("text", Text, nullable=False),
     Column("provider", Text),
     Column("qa_flags", ARRAY(Text), nullable=False, server_default=text("'{}'::text[]")),
-    Column("comet_qe", Double),
     Column("review_status", Text, nullable=False),
     Column("review_note", Text),
     _user_fk("reviewed_by"),

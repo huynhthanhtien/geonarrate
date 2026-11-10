@@ -8,7 +8,7 @@ app/api/v1/routers/   HTTP: auth, audit, languages, pois, studio (CMS), public (
 app/services/         nghiệp vụ; PipelineService là phần worker chạy
 app/repositories/     truy vấn SQL; job_repo tạo job trong cùng transaction với thao tác nghiệp vụ
 app/core/             config, schema.py, kết nối DB/Redis, bảo mật, phân quyền, dependency
-app/integrations/     cổng ra ngoài: tts (Edge, Magpie, Azure), translate (mock, LibreTranslate), storage (local hoặc S3)
+app/integrations/     cổng ra ngoài: tts (Edge, Magpie), translate (mock, LibreTranslate, Groq), storage (thư mục local)
 app/workers/run.py    worker nền
 app/migrations/       Alembic
 app/tools/            create_user, export_openapi
@@ -41,15 +41,13 @@ khoản bằng trang **Tài khoản** trên CMS hoặc dòng lệnh:
 | `DATABASE_URL` | PostgreSQL, dạng `postgresql+asyncpg://...` |
 | `REDIS_URL` | Redis: rate limit đăng nhập và mốc thu hồi phiên |
 | `JWT_SECRET` | Khoá ký access token; thiếu thì app không khởi động |
-| `STORAGE_DIR` | Thư mục lưu audio/pack hoặc cache khi dùng S3 (mặc định `./var/storage`) |
-| `STORAGE_PROVIDER`, `S3_BUCKET`, `S3_ENDPOINT_URL` | `local` hoặc `s3`; endpoint để trống khi dùng AWS S3 |
+| `STORAGE_DIR` | Thư mục lưu audio/pack (mặc định `./var/storage`) |
 | `TRANSLATE_PROVIDER` | `mock`, `libretranslate` hoặc `groq` để dịch thật bằng Groq |
 | `LIBRETRANSLATE_URL`, `LIBRETRANSLATE_API_KEY` | Instance dịch phải hỗ trợ đủ vi → en/zh/ja/ko; thuật ngữ được QA kiểm tra trước khi duyệt |
 | `GROQ_API_KEY`, `GROQ_MODEL` | Khóa Groq chỉ đặt ở backend; model mặc định `openai/gpt-oss-20b`. Thuật ngữ CMS được đưa vào hướng dẫn dịch và vẫn qua bước duyệt |
-| `TTS_PROVIDER` | `edge`, `magpie` hoặc `azure` |
+| `TTS_PROVIDER` | `edge` hoặc `magpie` (MagpieTTS tự host, chạy offline) |
 | `MAGPIE_TTS_URL`, `MAGPIE_TTS_VOICE` | Máy chủ Magpie có endpoint `/v1/audio/speech`, trả WAV; cần ffmpeg để đổi MP3 |
-| `AZURE_SPEECH_KEY`, `AZURE_SPEECH_REGION` | Bắt buộc khi dùng Azure TTS |
-| `COMET_MODEL`, `WHISPER_MODEL` | Model QE và ASR tùy chọn; rỗng là chưa chấm, điểm lưu `NULL` |
+| `WHISPER_MODEL` | Model ASR tùy chọn; để rỗng để không chấm audio |
 | `CORS_ORIGINS` | Mảng JSON origin của CMS, ví dụ `["https://cms.example.com"]` |
 | `PUBLIC_RATE_LIMIT`, `PUBLIC_ACTIVATE_RATE_LIMIT`, `PUBLIC_RATE_WINDOW_S` | Theo IP: mặc định 300 request và 10 lần kích hoạt trong 60 giây |
 | `APP_ENV`, `DEV_ADMIN_EMAIL`, `DEV_ADMIN_PASSWORD` | Chỉ dev: tạo sẵn một tài khoản admin |
@@ -116,14 +114,9 @@ Tất cả nằm dưới `/api/v1`. Lỗi trả theo RFC 7807 (`application/prob
 
 ## Chất lượng nội dung
 
-Cài thêm `pip install -e '.[quality]'` trên worker và đặt `COMET_MODEL` thành model COMET QE không cần
-reference, `WHISPER_MODEL` thành tên hoặc thư mục model faster-whisper. Worker chạy model CPU trong thread;
-model được nạp một lần và có thể cần tải trọng số ở lần chạy đầu. Chọn model phù hợp tài nguyên và quyền sử dụng.
-Ví dụ CometKiwi yêu cầu chấp nhận điều kiện truy cập và giấy phép trên
-[model card](https://huggingface.co/Unbabel/wmt22-cometkiwi-da).
-
-Điểm QE được lưu cùng bản dịch, hiển thị trên CMS; dưới `COMET_QE_MIN` sẽ gắn cờ `low_comet_qe` để người dịch
-kiểm tra. Sửa bản dịch xoá điểm cũ vì điểm không còn khớp nội dung. Audio có ASR WER vượt `ASR_WER_MAX` sẽ
+Cài thêm `pip install -e '.[quality]'` trên worker và đặt `WHISPER_MODEL` thành tên hoặc thư mục model
+faster-whisper. Worker chạy model CPU trong thread; model được nạp một lần và có thể cần tải trọng số ở lần chạy đầu.
+Audio có ASR WER vượt `ASR_WER_MAX` sẽ
 làm job thất bại, không được đưa vào pack. Phép so sánh chuẩn hoá hoa/thường, dấu câu, Unicode; tiếng Trung/Nhật
 tách ký tự nên kết quả gần CER, cần hiệu chỉnh ngưỡng trên tập kiểm thử thực tế. Chưa bật model thì không chấm.
 Model lỗi sẽ làm job thử lại, không tự bỏ qua đánh giá đã cấu hình.
@@ -217,20 +210,8 @@ không tự downgrade schema đang có dữ liệu production. Không xoá volum
 Nếu bật model chất lượng trong Docker, đặt `PYTHON_EXTRAS=[quality]` trong `.env` trước khi build.
 Volume model được mount vào `HF_HOME`, có quyền ghi cho UID 10001. Image mặc định chỉ cài dependency nhẹ. Chưa triển khai lên máy chủ thật hay kiểm thử model/provider có tài khoản.
 
-## Kho S3
-
-Cài extra `cloud` (hoặc `PYTHON_EXTRAS=[cloud,quality]` khi build Docker), đặt `STORAGE_PROVIDER=s3`,
-`S3_BUCKET` và nếu cần `S3_ENDPOINT_URL` cho dịch vụ tương thích S3. SDK dùng IAM role hoặc biến môi trường
-AWS tiêu chuẩn; không đưa credential vào source. API và worker dùng cùng bucket. Cấp quyền đọc/ghi object
-và kiểm tra tồn tại; giữ bucket riêng tư. Các file vẫn đi qua API kiểm tra vé, không trả URL bucket công khai.
-
-Worker ghi lên S3 trước khi công nhận asset; API tải file về cache khi cần. Cache được ghi nguyên tử để tránh
-phục vụ file đang ghi dở. Khi chuyển từ local sang S3, sao chép cả cây storage lên bucket, giữ nguyên key trước
-khi đổi cấu hình. Tự quản lý dung lượng cache, lifecycle và versioning/backup bucket theo môi trường triển khai.
-Adapter đã có test với S3 giả, chưa chạy với tài khoản cloud thật.
-
 ## Giới hạn còn lại
 
-Cần cấu hình tài khoản dịch/TTS/cloud,
+Cần cấu hình tài khoản dịch/TTS,
 trọng số model, tên miền/TLS và sao lưu cho môi trường thật. GPS, QR, audio và offline cần nghiệm thu trên
 thiết bị; các test pipeline tự động dùng provider giả, không chứng minh chất lượng model hay dịch vụ thật.

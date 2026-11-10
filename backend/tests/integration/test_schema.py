@@ -98,7 +98,7 @@ def test_tour_cannot_be_deleted_while_it_has_pois() -> None:
 
     async def add_tour(conn: AsyncConnection) -> UUID:
         stmt = insert(schema.tours).values(name="Protected tour", status="draft", access="free")
-        tour = (await conn.execute(stmt.returning(schema.tours.c.id))).scalar_one()
+        tour = UUID(str((await conn.execute(stmt.returning(schema.tours.c.id))).scalar_one()))
         await conn.execute(insert(schema.tour_pois).values(tour_id=tour, poi_id=poi, position=0))
         return tour
 

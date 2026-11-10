@@ -100,13 +100,27 @@ class SqlAudioRepository:
             row = (await conn.execute(stmt)).mappings().one_or_none()
         return record(row) if row else None
 
-    async def create_pack(self, tour_id: str, lang: str, actor_id: str, now: datetime) -> str:
-        """Version và job tạo trong một transaction; khoá theo tour × ngôn ngữ để không trùng."""
+    async def create_pack(
+        self, tour_id: str, lang: str, actor_id: str, now: datetime
+    ) -> str | None:
+        """Version và job tạo trong một transaction; khoá theo tour × ngôn ngữ để không trùng.
+
+        Trả None khi đang có bản building: bấm build liên tục không sinh nhiều version.
+        """
         uid = parse_uuid(tour_id)
         async with connection(self._engine, write=True) as conn:
             await conn.execute(
                 select(func.pg_advisory_xact_lock(func.hashtext(f"pack:{tour_id}:{lang}")))
             )
+            building = await conn.execute(
+                select(audio_packs.c.id).where(
+                    audio_packs.c.tour_id == uid,
+                    audio_packs.c.lang == lang,
+                    audio_packs.c.status == "building",
+                )
+            )
+            if building.first() is not None:
+                return None
             current = await conn.execute(
                 select(func.coalesce(func.max(audio_packs.c.version), 0)).where(
                     audio_packs.c.tour_id == uid, audio_packs.c.lang == lang
@@ -141,13 +155,17 @@ class SqlAudioRepository:
             )
         return str(pack_id)
 
-    async def update_pack(self, pack_id: str, values: dict[str, Any], now: datetime) -> None:
+    async def update_pack(
+        self, pack_id: str, values: dict[str, Any], now: datetime, *, expected: str
+    ) -> bool:
+        """Chỉ đổi khi pack còn ở `expected`: job chạy lại không đè bản đã QA/phát hành."""
         async with connection(self._engine, write=True) as conn:
-            await conn.execute(
+            result = await conn.execute(
                 update(audio_packs)
-                .where(audio_packs.c.id == parse_uuid(pack_id))
+                .where(audio_packs.c.id == parse_uuid(pack_id), audio_packs.c.status == expected)
                 .values(**values, updated_at=now)
             )
+        return bool(result.rowcount)
 
     async def promote_pack(
         self, pack: dict[str, Any], expected: str, actor_id: str, now: datetime
@@ -162,6 +180,14 @@ class SqlAudioRepository:
                     )
                 )
             )
+            # Kiểm tra bản đích trước khi hạ bản đang phát hành: không phải hoàn tác giữa chừng
+            status = (
+                await conn.execute(
+                    select(audio_packs.c.status).where(audio_packs.c.id == uid).with_for_update()
+                )
+            ).scalar_one_or_none()
+            if status != expected:
+                return False
             await conn.execute(
                 update(audio_packs)
                 .where(
@@ -171,9 +197,9 @@ class SqlAudioRepository:
                 )
                 .values(status="superseded", updated_at=now)
             )
-            result = await conn.execute(
+            await conn.execute(
                 update(audio_packs)
-                .where(audio_packs.c.id == uid, audio_packs.c.status == expected)
+                .where(audio_packs.c.id == uid)
                 .values(
                     status="published",
                     published_by=parse_uuid(actor_id),
@@ -181,7 +207,4 @@ class SqlAudioRepository:
                     updated_at=now,
                 )
             )
-            if not result.rowcount:
-                await conn.rollback()
-                return False
         return True

@@ -1,5 +1,6 @@
 """Chạy nguyên chuỗi UC-02 đến UC-18 qua HTTP, với worker thật và TTS giả."""
 
+import json
 from collections.abc import Callable, Iterator
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -229,25 +230,41 @@ def test_audio_failure_retries_then_can_be_retried_by_admin(client: TestClient) 
     assert client.post(f"{API}/audio/retry", json=bad, headers=admin).status_code == 422
 
 
-def test_quality_scores_flag_translation_and_block_bad_audio(
-    client: TestClient, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    async def score(self: LocalQuality, source: str, text: str) -> float:
-        return 0.4
-
+def test_high_asr_wer_blocks_audio(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
     async def wer(self: LocalQuality, text: str, audio: bytes, lang: str) -> float:
         return 0.5
 
-    monkeypatch.setattr(LocalQuality, "translation_score", score)
     monkeypatch.setattr(LocalQuality, "audio_wer", wer)
     admin = _login(client, ADMIN)
     point = _approved_point(client, admin, "Điểm QA", "Nội dung cần kiểm tra.")
     _drain(client)
-    rows = client.get(f"{API}/translations", headers=admin).json()
-    assert all(row["comet_qe"] == 0.4 and "low_comet_qe" in row["qa_flags"] for row in rows)
     cells = client.get(f"{API}/audio/status", headers=admin).json()
     cell = next(row for row in cells if row["id"] == point)["langs"]["vi"]
     assert cell["state"] == "failed" and "ASR WER" in cell["error"]
+
+
+def test_pack_cannot_publish_until_checks_pass(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    admin = _login(client, ADMIN)
+    poi = _approved_point(client, admin, "Điểm kiểm tra pack", "Nội dung kiểm tra.")
+    tour = _published_tour(client, admin, "free", [poi])
+    moved = client.patch(f"{API}/pois/{poi}", json={"radius": 55}, headers=admin)
+    assert moved.status_code == 200  # nội dung khác bản đang phát hành thì mới build được
+    pack = client.post(f"{API}/packs/build", json={"tour_id": tour, "lang": "en"}, headers=admin)
+    assert pack.status_code == 201
+    pack_id = pack.json()["id"]
+    worker = deps.get_pipeline_service()
+    monkeypatch.setattr(worker, "_verify_pack_files", lambda files: False)
+    assert client.portal is not None
+    assert client.portal.call(worker.run_once)
+    rows = client.get(f"{API}/packs", headers=admin).json()
+    assert next(row for row in rows if row["id"] == pack_id)["status"] == "building"
+    assert client.post(f"{API}/packs/{pack_id}/publish", headers=admin).status_code == 409
+    assert client.portal.call(worker.run_once)
+    assert client.portal.call(worker.run_once)
+    rows = client.get(f"{API}/packs", headers=admin).json()
+    assert next(row for row in rows if row["id"] == pack_id)["status"] == "failed"
 
 
 def test_pack_publish_rollback_and_missing_audio(client: TestClient) -> None:
@@ -297,6 +314,72 @@ def test_pack_publish_rollback_and_missing_audio(client: TestClient) -> None:
     actions = [x["action"] for x in client.get(f"{API}/audit", headers=admin).json()]
     assert "pack.rollback" in actions
     assert "pack.publish" in actions
+
+
+def test_pack_build_dedupe_rerun_outdated_publish_and_corrupt_audio(client: TestClient) -> None:
+    admin = _login(client, ADMIN)
+    p1 = _approved_point(client, admin, "Điểm R", "Bài R.")
+    tour = _published_tour(client, admin, "free", [p1])
+    body = {"tour_id": tour, "lang": "en"}
+
+    def build() -> Any:
+        return client.post(f"{API}/packs/build", json=body, headers=admin)
+
+    def move(radius: int) -> None:
+        r = client.patch(f"{API}/pois/{p1}", json={"radius": radius}, headers=admin)
+        assert r.status_code == 200, r.text
+
+    # Nội dung giống bản đang phát hành: bấm build không sinh version mới
+    same = build()
+    assert same.status_code == 409
+    assert same.json()["title"] == "pack_unchanged"
+
+    move(60)
+    v2 = build().json()
+    spam = build()  # v2 còn building
+    assert spam.status_code == 409
+    assert spam.json()["title"] == "pack_building"
+    _drain(client)
+    assert build().json()["title"] == "pack_unchanged"  # giống v2 đang qa
+
+    move(70)
+    v3 = build().json()
+    _drain(client)
+    assert client.post(f"{API}/packs/{v3['id']}/publish", headers=admin).status_code == 200
+    packs = client.get(f"{API}/packs", params={"tour_id": tour, "lang": "en"}, headers=admin).json()
+    assert [p["version"] for p in packs] == [3, 2, 1]
+
+    # Bản QA cũ hơn bản đang phát hành: phải dùng rollback, không phát hành đè
+    older = client.post(f"{API}/packs/{v2['id']}/publish", headers=admin)
+    assert older.status_code == 409
+    assert older.json()["title"] == "pack_outdated"
+
+    # Job build chạy lại (worker kẹt bị đưa về hàng đợi) không được kéo bản published về qa
+    assert client.portal is not None
+    svc = deps.get_pipeline_service()
+    spec = job_repo.job_spec("pack_build", f"pack:{v3['id']}", {"pack_id": v3["id"]})
+    client.portal.call(svc._jobs.enqueue, [spec], None, datetime.now(UTC))
+    _drain(client)
+    packs = client.get(f"{API}/packs", params={"tour_id": tour, "lang": "en"}, headers=admin).json()
+    assert {p["version"]: p["status"] for p in packs}[3] == "published"
+
+    # File audio app tải bị hỏng: không phát hành, không rollback
+    move(80)
+    v4 = build().json()
+    _drain(client)
+    root = Path(get_settings().storage_dir)
+    manifest = json.loads((root / f"packs/{tour}/en/4/manifest.json").read_text())
+    audio = root / manifest["files"][0]["storage_key"]
+    original = audio.read_bytes()
+    audio.write_bytes(b"broken")
+    bad = client.post(f"{API}/packs/{v4['id']}/publish", headers=admin)
+    assert bad.status_code == 422
+    assert bad.json()["title"] == "pack_files_invalid"
+    v1 = next(p for p in packs if p["version"] == 1)
+    back = client.post(f"{API}/packs/{v1['id']}/rollback", json={"reason": "x"}, headers=admin)
+    assert back.status_code == 422
+    audio.write_bytes(original)
+    assert client.post(f"{API}/packs/{v4['id']}/publish", headers=admin).status_code == 200
 
 
 def test_tour_validation(client: TestClient) -> None:

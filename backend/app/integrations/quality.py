@@ -3,7 +3,6 @@
 import asyncio
 import importlib
 import io
-import math
 import re
 import unicodedata
 from functools import lru_cache
@@ -32,36 +31,14 @@ def word_error_rate(reference: str, hypothesis: str) -> float:
 
 
 @lru_cache(maxsize=1)
-def _comet_model(checkpoint: str) -> Any:
-    comet = importlib.import_module("comet")
-    return comet.load_from_checkpoint(comet.download_model(checkpoint))
-
-
-@lru_cache(maxsize=1)
 def _whisper_model(checkpoint: str) -> Any:
     whisper = importlib.import_module("faster_whisper")
     return whisper.WhisperModel(checkpoint, device="cpu", compute_type="int8")
 
 
 class LocalQuality:
-    def __init__(self, comet_model: str = "", whisper_model: str = "") -> None:
-        self._comet = comet_model
+    def __init__(self, whisper_model: str = "") -> None:
         self._whisper = whisper_model
-
-    async def translation_score(self, source: str, translation: str) -> float | None:
-        if not self._comet:
-            return None
-
-        def evaluate() -> float:
-            output = _comet_model(self._comet).predict(
-                [{"src": source, "mt": translation}], batch_size=1, gpus=0
-            )
-            score = float(output.scores[0])
-            if not math.isfinite(score):
-                raise RuntimeError("COMET trả về điểm không hợp lệ")
-            return score
-
-        return await asyncio.to_thread(evaluate)
 
     async def audio_wer(self, text: str, audio: bytes, lang: str) -> float | None:
         if not self._whisper:

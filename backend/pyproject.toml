@@ -20,8 +20,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-cloud = ["boto3>=1.35"]
-quality = ["unbabel-comet>=2.2", "faster-whisper>=1.1"]
+quality = ["faster-whisper>=1.1"]
 dev = [
   "pytest>=8",
   "pytest-asyncio>=0.24",

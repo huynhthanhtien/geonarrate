@@ -12,7 +12,6 @@ from app.core.permissions import Permission, permissions_for
 from app.core.security import Principal
 from app.integrations.quality import LocalQuality
 from app.integrations.storage.local import LocalStorage
-from app.integrations.storage.s3 import S3Storage
 from app.integrations.translate.base import TranslateProvider
 from app.integrations.translate.groq import GroqTranslate
 from app.integrations.translate.libretranslate import LibreTranslate
@@ -87,8 +86,6 @@ def _translator() -> TranslateProvider:
 
 def _tts() -> TTSProvider:
     settings = get_settings()
-    # if settings.tts_provider == "azure":
-    # return AzureTTS(settings.azure_speech_key, settings.azure_speech_region)
     if settings.tts_provider == "magpie":
         return MagpieTTS(settings.magpie_tts_url)
     return EdgeTTS()
@@ -106,14 +103,11 @@ def get_pipeline_service() -> PipelineService:
         SqlTourRepository(engine),
         SqlLanguageRepository(engine),
         get_audit_service(),
-        S3Storage(settings.storage_dir, settings.s3_bucket, settings.s3_endpoint_url)
-        if settings.storage_provider == "s3"
-        else LocalStorage(settings.storage_dir),
+        LocalStorage(settings.storage_dir),
         _translator(),
         _tts(),
         tts_voice=settings.magpie_tts_voice if settings.tts_provider == "magpie" else None,
-        quality=LocalQuality(settings.comet_model, settings.whisper_model),
-        comet_qe_min=settings.comet_qe_min,
+        quality=LocalQuality(settings.whisper_model),
         asr_wer_max=settings.asr_wer_max,
     )
 
