@@ -88,7 +88,7 @@ def client(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Iterator[TestClie
         await conn.execute(delete(schema.users).where(schema.users.c.email != ADMIN["email"]))
         await conn.execute(
             insert(schema.users).values(
-                email=TRANSLATOR["email"], password_hash=pw, role="translator"
+                email=TRANSLATOR["email"], password_hash=pw, roles=["translator"]
             )
         )
 
@@ -136,7 +136,7 @@ def _published_tour(c: TestClient, admin: dict[str, str], access: str, points: l
         "name": f"Tour {access}",
         "access": access,
         "status": "published",
-        "pois": [{"id": p, "is_preview": i == 0} for i, p in enumerate(points)],
+        "pois": [{"id": p} for p in points],
     }
     r = c.post(f"{API}/tours", json=body, headers=admin)
     assert r.status_code == 201, r.text
@@ -533,15 +533,10 @@ def test_ticket_mobile_flow_and_analytics(client: TestClient) -> None:
     blocked = client.get(url, params={"device_id": DEVICE})
     assert blocked.status_code == 403
     assert blocked.json()["title"] == "ticket_required"
-    preview = client.get(url, params={"device_id": DEVICE, "preview": True}).json()
-    assert preview["access"] == "preview"
-    assert [f["poi_id"] for f in preview["files"]] == [p1]
-    assert "storage_key" not in preview["files"][0]
-    assert client.get(f"{url}/files/{p1}", params={"device_id": DEVICE}).status_code == 200
+    # Cờ preview cũ không còn mở khoá điểm miễn phí.
+    assert client.get(url, params={"device_id": DEVICE, "preview": True}).status_code == 403
+    assert client.get(f"{url}/files/{p1}", params={"device_id": DEVICE}).status_code == 403
     assert client.get(f"{url}/files/{p2}", params={"device_id": DEVICE}).status_code == 403
-    pinned = {"device_id": DEVICE, "pack_id": preview["pack_id"]}
-    assert client.get(f"{url}/files/{p1}", params=pinned).status_code == 200
-    assert client.get(f"{url}/files/{p2}", params=pinned).status_code == 403
 
     until = (datetime.now(UTC) + timedelta(days=30)).isoformat()
     body = {"batch": "QUAY-1", "tour_ids": [tour], "valid_until": until, "count": 2}
@@ -559,9 +554,10 @@ def test_ticket_mobile_flow_and_analytics(client: TestClient) -> None:
     assert again["result"] == "already_active"
 
     full = client.get(url, params={"device_id": DEVICE}).json()
-    assert full["access"] == "full"
     assert len(full["files"]) == 2
-    got = client.get(f"{url}/files/{p2}", params={"device_id": DEVICE})
+    assert "storage_key" not in full["files"][0]
+    pinned = {"device_id": DEVICE, "pack_id": full["pack_id"]}
+    got = client.get(f"{url}/files/{p2}", params=pinned)
     assert got.headers["content-type"] == "audio/mpeg"
     assert b"Neural" in got.content
 
@@ -618,7 +614,14 @@ def test_analytics_by_day_uses_viewer_timezone(client: TestClient) -> None:
         days=1
     )
     events = [
-        {"event_id": f"d{i}", "poi_id": point, "lang": "vi", "event": e, "ts": late.isoformat()}
+        {
+            "event_id": f"d{i}",
+            "poi_id": point,
+            "lang": "vi",
+            "event": e,
+            "trigger": "manual" if i == 0 else "geofence",
+            "ts": late.isoformat(),
+        }
         for i, e in enumerate(["play", "play", "complete"])
     ]
     client.post(f"{API}/public/playback-events", json={"device_id": DEVICE, "events": events})
@@ -634,6 +637,16 @@ def test_analytics_by_day_uses_viewer_timezone(client: TestClient) -> None:
     utc_day, vn_day = late.date(), (late + timedelta(hours=7)).date()
     assert days("UTC") == [{"day": utc_day.isoformat(), "plays": 2, "completes": 1}]
     assert days("Asia/Ho_Chi_Minh") == [{"day": vn_day.isoformat(), "plays": 2, "completes": 1}]
+    detail = client.get(
+        f"{API}/analytics/summary", params={**window, "tz": "Asia/Ho_Chi_Minh"}, headers=admin
+    ).json()
+    assert detail["devices"] == 1
+    assert {item["trigger"]: item["plays"] for item in detail["by_trigger"]} == {
+        "manual": 1,
+        "geofence": 1,
+    }
+    assert detail["by_hour"] == [{"hour": 1, "plays": 2}]
+    assert detail["top_pois"][0]["completes"] == 1
     bad = client.get(f"{API}/analytics/summary", params={"tz": "Sao/Hoa"}, headers=admin)
     assert bad.status_code == 422
 
@@ -641,7 +654,7 @@ def test_analytics_by_day_uses_viewer_timezone(client: TestClient) -> None:
 def test_accounts(client: TestClient) -> None:
     admin = _login(client, ADMIN)
     me = client.post(f"{API}/auth/login", json=ADMIN).json()["user"]["id"]
-    body = {"email": " New@Test.vn ", "password": "mat-khau-moi", "role": "editor"}
+    body = {"email": " New@Test.vn ", "password": "mat-khau-moi", "roles": ["editor", "translator"]}
     created = client.post(f"{API}/admin/users", json=body, headers=admin)
     assert created.status_code == 201
     uid = created.json()["id"]
@@ -650,10 +663,13 @@ def test_accounts(client: TestClient) -> None:
     creds = {"email": "new@test.vn", "password": "mat-khau-moi"}
     token = client.post(f"{API}/auth/login", json=creds).json()
     h = {"Authorization": f"Bearer {token['access_token']}"}
+    assert set(token["user"]["roles"]) == {"editor", "translator"}
+    assert {"script:write", "translation:write"} <= set(token["user"]["permissions"])
     assert client.get(f"{API}/pois", headers=h).status_code == 200
+    assert client.get(f"{API}/translations", headers=h).status_code == 200
 
-    role = client.patch(f"{API}/admin/users/{uid}", json={"role": "translator"}, headers=admin)
-    assert role.json()["role"] == "translator"
+    role = client.patch(f"{API}/admin/users/{uid}", json={"roles": ["translator"]}, headers=admin)
+    assert role.json()["roles"] == ["translator"]
     # đổi vai trò thu hồi phiên ngay
     assert client.get(f"{API}/pois", headers=h).status_code == 401
     refreshed = client.post(f"{API}/auth/refresh", json={"refresh_token": token["refresh_token"]})
@@ -677,7 +693,12 @@ def test_accounts(client: TestClient) -> None:
 
 def test_admin_sets_password_and_old_sessions_end(client: TestClient) -> None:
     admin = _login(client, ADMIN)
-    body = {"email": "pw@test.vn", "password": "mat-khau-cu", "role": "editor", "full_name": "Pw"}
+    body = {
+        "email": "pw@test.vn",
+        "password": "mat-khau-cu",
+        "roles": ["editor"],
+        "full_name": "Pw",
+    }
     uid = client.post(f"{API}/admin/users", json=body, headers=admin).json()["id"]
     old = client.post(f"{API}/auth/login", json={"email": "pw@test.vn", "password": "mat-khau-cu"})
     h = {"Authorization": f"Bearer {old.json()['access_token']}"}
@@ -705,7 +726,7 @@ def test_admin_sets_password_and_old_sessions_end(client: TestClient) -> None:
 
 def test_staff_change_own_password_needs_current_one(client: TestClient) -> None:
     admin = _login(client, ADMIN)
-    body = {"email": "self@test.vn", "password": "mat-khau-cu", "role": "translator"}
+    body = {"email": "self@test.vn", "password": "mat-khau-cu", "roles": ["translator"]}
     client.post(f"{API}/admin/users", json={**body, "full_name": "Tự đổi"}, headers=admin)
     old = client.post(
         f"{API}/auth/login", json={"email": "self@test.vn", "password": "mat-khau-cu"}

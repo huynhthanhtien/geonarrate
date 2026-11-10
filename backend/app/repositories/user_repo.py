@@ -15,7 +15,7 @@ class UserRepository(Protocol):
     async def get_by_email(self, email: str) -> User | None: ...
     async def get_by_id(self, user_id: str) -> User | None: ...
     async def insert(
-        self, email: str, password_hash: str, role: Role, full_name: str, now: datetime
+        self, email: str, password_hash: str, roles: list[Role], full_name: str, now: datetime
     ) -> User: ...
     async def mark_login(self, user_id: str, now: datetime, password_hash: str | None) -> None: ...
     async def find_all(self) -> list[User]: ...
@@ -50,7 +50,7 @@ class SqlUserRepository:
         return _to_entity(row) if row else None
 
     async def insert(
-        self, email: str, password_hash: str, role: Role, full_name: str, now: datetime
+        self, email: str, password_hash: str, roles: list[Role], full_name: str, now: datetime
     ) -> User:
         stmt = (
             insert(users)
@@ -58,7 +58,7 @@ class SqlUserRepository:
                 email=email,
                 password_hash=password_hash,
                 full_name=full_name,
-                role=role.value,
+                roles=[role.value for role in roles],
                 created_at=now,
                 updated_at=now,
             )
@@ -103,7 +103,7 @@ def _to_entity(row: RowMapping) -> User:
         id=str(row["id"]),
         email=row["email"],
         password_hash=row["password_hash"],
-        role=Role(row["role"]),
+        roles=tuple(Role(role) for role in row["roles"]),
         full_name=row["full_name"],
         is_active=row["is_active"],
         last_login_at=row["last_login_at"],

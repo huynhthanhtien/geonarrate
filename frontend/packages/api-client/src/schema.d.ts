@@ -821,11 +821,8 @@ export interface components {
             email: string;
             /** Password */
             password: string;
-            /**
-             * Role
-             * @enum {string}
-             */
-            role: "admin" | "editor" | "translator";
+            /** Roles */
+            roles: ("admin" | "editor" | "translator" | "reviewer" | "operator")[];
             /**
              * Full Name
              * @default
@@ -840,8 +837,8 @@ export interface components {
             email: string;
             /** Full Name */
             full_name: string;
-            /** Role */
-            role: string;
+            /** Roles */
+            roles: string[];
             /** Is Active */
             is_active: boolean;
             /** Last Login At */
@@ -849,8 +846,8 @@ export interface components {
         };
         /** AccountUpdateIn */
         AccountUpdateIn: {
-            /** Role */
-            role?: ("admin" | "editor" | "translator") | null;
+            /** Roles */
+            roles?: ("admin" | "editor" | "translator" | "reviewer" | "operator")[] | null;
             /** Is Active */
             is_active?: boolean | null;
             /** Full Name */
@@ -887,6 +884,13 @@ export interface components {
             /** Completes */
             completes: number;
         };
+        /** AnalyticsHour */
+        AnalyticsHour: {
+            /** Hour */
+            hour: number;
+            /** Plays */
+            plays: number;
+        };
         /** AnalyticsLang */
         AnalyticsLang: {
             /** Lang */
@@ -902,6 +906,12 @@ export interface components {
             completes: number;
             /** Completion Rate */
             completion_rate: number | null;
+            /** Devices */
+            devices: number;
+            /** By Trigger */
+            by_trigger: components["schemas"]["AnalyticsTrigger"][];
+            /** By Hour */
+            by_hour: components["schemas"]["AnalyticsHour"][];
             /** Top Pois */
             top_pois: components["schemas"]["AnalyticsTop"][];
             /** By Lang */
@@ -915,6 +925,15 @@ export interface components {
             id: string;
             /** Name */
             name: string;
+            /** Plays */
+            plays: number;
+            /** Completes */
+            completes: number;
+        };
+        /** AnalyticsTrigger */
+        AnalyticsTrigger: {
+            /** Trigger */
+            trigger: string;
             /** Plays */
             plays: number;
         };
@@ -1079,8 +1098,6 @@ export interface components {
             radius: number;
             /** Priority */
             priority: number;
-            /** Is Preview */
-            is_preview: boolean;
             /** Sha256 */
             sha256: string;
             /** Bytes */
@@ -1098,11 +1115,6 @@ export interface components {
             lang: string;
             /** Version */
             version: number;
-            /**
-             * Access
-             * @enum {string}
-             */
-            access: "full" | "preview";
             /** Files */
             files: components["schemas"]["ManifestFile"][];
         };
@@ -1482,11 +1494,6 @@ export interface components {
         TourPoint: {
             /** Id */
             id: string;
-            /**
-             * Is Preview
-             * @default false
-             */
-            is_preview: boolean;
         };
         /** TourPointOut */
         TourPointOut: {
@@ -1496,8 +1503,6 @@ export interface components {
             name: string;
             /** Position */
             position: number;
-            /** Is Preview */
-            is_preview: boolean;
             /** Lat */
             lat: number;
             /** Lng */
@@ -1585,11 +1590,8 @@ export interface components {
             email: string;
             /** Full Name */
             full_name: string;
-            /**
-             * Role
-             * @enum {string}
-             */
-            role: "admin" | "editor" | "translator";
+            /** Roles */
+            roles: ("admin" | "editor" | "translator" | "reviewer" | "operator")[];
             /**
              * Permissions
              * @description Quyền suy ra từ vai trò, web dùng để ẩn/hiện menu
@@ -3093,7 +3095,6 @@ export interface operations {
         parameters: {
             query: {
                 device_id: string;
-                preview?: boolean;
             };
             header?: never;
             path: {

@@ -86,16 +86,16 @@ Tất cả nằm dưới `/api/v1`. Lỗi trả theo RFC 7807 (`application/prob
 | Nhóm | Endpoint | Quyền |
 |---|---|---|
 | Đăng nhập (UC-01) | `POST /auth/login`, `/refresh`, `/logout`, `/logout-all` | — |
-| Điểm, kịch bản (UC-02, 03, 04) | `GET/POST /pois`, `GET/PATCH /pois/{id}`, `PUT .../script`, `POST .../{submit,approve,reject}` | `poi:read`, `script:write`; duyệt cần `admin:manage` |
-| Bản dịch (UC-05) | `GET /translations`, `PUT /translations/{id}`, `POST .../{approve,reject}` | `translation:review` |
-| Thuật ngữ (UC-06) | `GET/POST /glossaries`, `DELETE /glossaries/{id}` | `translation:review` |
-| Audio (UC-07) | `GET /audio/status`, `POST /audio/retry` | `audio:build` |
-| Tour (UC-08) | `GET/POST /tours`, `GET/PATCH /tours/{id}` | `admin:manage` |
-| Pack (UC-09, 10) | `GET /packs`, `POST /packs/build`, `POST /packs/{id}/{publish,rollback}` | build cần `audio:build`, còn lại `pack:publish` |
-| Tài khoản (UC-11) | `GET/POST /admin/users`, `PATCH /admin/users/{id}` | `admin:manage` |
-| Nhật ký (UC-12) | `GET /audit` (người, hành động, loại/mã đối tượng, từ khoá, khoảng ngày) | `admin:manage` |
-| Vé QR (UC-13) | `POST /tickets`, `GET /tickets?q=`, `POST /tickets/revoke` | `admin:manage` |
-| Analytics (UC-14) | `GET /analytics/summary` | `analytics:view` |
+| Điểm, kịch bản (UC-02, 03, 04) | `GET/POST /pois`, `GET/PATCH /pois/{id}`, `PUT .../script`, `POST .../{submit,approve,reject}` | `poi:read`, `poi:write`, `script:write`, `script:approve` |
+| Bản dịch (UC-05) | `GET /translations`, `PUT /translations/{id}`, `POST .../{approve,reject}` | `translation:read`, `translation:write`, `translation:approve` |
+| Thuật ngữ (UC-06) | `GET/POST /glossaries`, `DELETE /glossaries/{id}` | `glossary:read`, `glossary:write` |
+| Audio (UC-07) | `GET /audio/status`, `POST /audio/retry` | `audio:read`, `audio:build` |
+| Tour (UC-08) | `GET/POST /tours`, `GET/PATCH /tours/{id}` | `tour:read`, `tour:write` |
+| Pack (UC-09, 10) | `GET /packs`, `POST /packs/build`, `POST /packs/{id}/{publish,rollback}` | `pack:read`, `pack:build`, `pack:publish` |
+| Tài khoản (UC-11) | `GET/POST /admin/users`, `PATCH /admin/users/{id}` | `user:manage` |
+| Nhật ký (UC-12) | `GET /audit` (người, hành động, loại/mã đối tượng, từ khoá, khoảng ngày) | `audit:read` |
+| Vé QR (UC-13) | `POST /tickets`, `GET /tickets?q=`, `POST /tickets/revoke` | `ticket:read`, `ticket:manage` |
+| Analytics (UC-14) | `GET /analytics/summary` | `analytics:read` |
 | App di động (UC-15 đến 18) | `GET /public/tours`, `POST /public/tickets/activate`, `GET /public/tours/{id}/packs/{lang}`, `GET .../files/{poi_id}`, `POST /public/playback-events` | Không đăng nhập; `device_id` do máy chủ cấp qua `POST /public/devices` |
 
 ## Pipeline nội dung

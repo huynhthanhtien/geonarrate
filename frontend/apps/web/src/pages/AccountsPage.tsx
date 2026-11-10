@@ -1,17 +1,17 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { KeyRound, Lock, LockOpen, Plus } from "lucide-react";
+import { KeyRound, Lock, LockOpen, Pencil, Plus } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { sendJson } from "../api";
 import { useSession } from "../auth/session";
 import { Badge, ConfirmDialog, Dialog, ErrorBox, Field, ghostBtn, inputClass, Page, primaryBtn, Table } from "../components/ui";
 import { formatDateTime, roleLabel, ROLES } from "../labels";
-import { Select } from "../components/Select";
+
 
 /** Thay đổi đang chờ xác nhận: đổi vai trò hoặc khoá/mở khoá đều thu hồi mọi phiên của người đó. */
-type Pending = { id: string; email: string; role?: string; is_active?: boolean };
+type Pending = { id: string; email: string; roles?: string[]; is_active?: boolean };
 type Account = { id: string; email: string };
 
-const EMPTY = { email: "", full_name: "", role: "editor", password: "", confirm: "" };
+const EMPTY = { email: "", full_name: "", roles: ["editor"] as string[], password: "", confirm: "" };
 const MIN_PASSWORD = 8;
 
 /** Lỗi nhập mật khẩu hiển thị ngay trong popup, trước khi gửi lên máy chủ. */
@@ -26,7 +26,7 @@ function CreateAccountDialog({ open, onClose, onCreated }: { open: boolean; onCl
   const [touched, setTouched] = useState(false);
   const create = useMutation({
     mutationFn: () => sendJson("/api/v1/admin/users", "POST", {
-      email: form.email, full_name: form.full_name, role: form.role, password: form.password,
+      email: form.email, full_name: form.full_name, roles: form.roles, password: form.password,
     }),
     onSuccess: () => { setForm(EMPTY); setTouched(false); onCreated(); },
   });
@@ -35,7 +35,7 @@ function CreateAccountDialog({ open, onClose, onCreated }: { open: boolean; onCl
   const submit = (e: FormEvent) => {
     e.preventDefault();
     setTouched(true);
-    if (!problem) create.mutate();
+    if (!problem && form.roles.length) create.mutate();
   };
   return (
     <Dialog open={open} title="Tạo tài khoản" onClose={close}>
@@ -43,8 +43,8 @@ function CreateAccountDialog({ open, onClose, onCreated }: { open: boolean; onCl
         <Field label="Email"><input required type="email" autoComplete="off" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className={inputClass} /></Field>
         <Field label="Họ tên"><input required value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} className={inputClass} /></Field>
         <Field label="Vai trò">
-          <Select ariaLabel="Vai trò" value={form.role} onChange={(v) => setForm({ ...form, role: v })}
-            options={ROLES.map((r) => ({ value: r, label: roleLabel(r) }))} />
+          <div className="flex flex-wrap gap-4">{ROLES.map((r) => <label key={r} className="flex items-center gap-1"><input type="checkbox" checked={form.roles.includes(r)} onChange={(e) => setForm({ ...form, roles: e.target.checked ? [...form.roles, r] : form.roles.filter((v) => v !== r) })} />{roleLabel(r)}</label>)}</div>
+          {form.roles.length === 0 && <p className="text-sm text-red-600">Chọn ít nhất một vai trò.</p>}
         </Field>
         <Field label={`Mật khẩu (tối thiểu ${MIN_PASSWORD} ký tự)`}><input required type="password" autoComplete="new-password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className={inputClass} /></Field>
         <Field label="Nhập lại mật khẩu"><input required type="password" autoComplete="new-password" value={form.confirm} onChange={(e) => setForm({ ...form, confirm: e.target.value })} className={inputClass} /></Field>
@@ -99,16 +99,46 @@ function PasswordDialog({ account, self, onClose }: { account: Account | null; s
   );
 }
 
+function RolesDialog({ account, onClose, onSaved }: { account: Account & { roles: string[] }; onClose: () => void; onSaved: () => void }) {
+  const [roles, setRoles] = useState<string[]>(account.roles);
+  const changed = roles.length !== account.roles.length || roles.some((role) => !account.roles.includes(role));
+  const save = useMutation({
+    mutationFn: () => sendJson(`/api/v1/admin/users/${account.id}`, "PATCH", { roles }),
+    onSuccess: onSaved,
+  });
+  return (
+    <Dialog open title={`Vai trò của ${account.email}`} onClose={onClose}>
+      <p className="mb-4 text-sm text-slate-600">Chọn một hoặc nhiều vai trò cho tài khoản này.</p>
+      <div className="grid gap-2 sm:grid-cols-2">
+        {ROLES.map((role) => (
+          <label key={role} className="flex cursor-pointer items-center gap-3 rounded-lg border border-slate-200 px-3 py-2.5 text-sm hover:bg-slate-50">
+            <input type="checkbox" className="accent-teal-700" checked={roles.includes(role)} onChange={(e) => setRoles(e.target.checked ? [...roles, role] : roles.filter((r) => r !== role))} />
+            {roleLabel(role)}
+          </label>
+        ))}
+      </div>
+      {roles.length === 0 && <p className="mt-2 text-sm text-red-600">Chọn ít nhất một vai trò.</p>}
+      <p className="mt-4 text-sm text-slate-500">Sau khi lưu, người này cần đăng nhập lại.</p>
+      <ErrorBox error={save.error} />
+      <div className="mt-5 flex justify-end gap-2">
+        <button type="button" className={ghostBtn} onClick={onClose}>Huỷ</button>
+        <button type="button" className={primaryBtn} disabled={!roles.length || !changed || save.isPending} onClick={() => save.mutate()}>{save.isPending ? "Đang lưu…" : "Lưu vai trò"}</button>
+      </div>
+    </Dialog>
+  );
+}
+
 export function AccountsPage() {
   const qc = useQueryClient();
   const me = useSession((s) => s.user?.id);
   const [creating, setCreating] = useState(false);
+  const [rolesFor, setRolesFor] = useState<(Account & { roles: string[] }) | null>(null);
   const [passwordFor, setPasswordFor] = useState<Account | null>(null);
   const { data, error } = useQuery({ queryKey: ["users"], queryFn: () => sendJson<any[]>("/api/v1/admin/users"), retry: false });
   const refresh = () => qc.invalidateQueries({ queryKey: ["users"] });
   const [pending, setPending] = useState<Pending | null>(null);
   const update = useMutation({
-    mutationFn: ({ id, role, is_active }: Pending) => sendJson(`/api/v1/admin/users/${id}`, "PATCH", { role, is_active }),
+    mutationFn: ({ id, roles, is_active }: Pending) => sendJson(`/api/v1/admin/users/${id}`, "PATCH", { roles, is_active }),
     onSuccess: () => { setPending(null); return refresh(); },
   });
   return (
@@ -127,9 +157,10 @@ export function AccountsPage() {
                 <td className="px-4 py-2.5 font-medium">{u.email}{self && " (bạn)"}</td>
                 <td className="px-4 py-2.5">{u.full_name}</td>
                 <td className="px-4 py-2.5">
-                  <Select ariaLabel={`Vai trò của ${u.email}`} size="sm" className="w-44" disabled={self} value={u.role}
-                    onChange={(v) => v !== u.role && setPending({ id: u.id, email: u.email, role: v })}
-                    options={ROLES.map((r) => ({ value: r, label: roleLabel(r) }))} />
+                  <div className="flex max-w-64 flex-wrap items-center gap-1.5">
+                    {u.roles.map((role: string) => <Badge key={role} tone="blue">{roleLabel(role)}</Badge>)}
+                    {!self && <button type="button" className="inline-flex items-center gap-1 rounded px-1.5 py-1 text-xs font-medium text-teal-700 hover:bg-teal-50" onClick={() => setRolesFor({ id: u.id, email: u.email, roles: u.roles })} aria-label={`Sửa vai trò của ${u.email}`}><Pencil size={13} aria-hidden /> Sửa</button>}
+                  </div>
                 </td>
                 <td className="px-4 py-2.5"><Badge tone={u.is_active ? "green" : "red"}>{u.is_active ? "Hoạt động" : "Đã khoá"}</Badge></td>
                 <td className="px-4 py-2.5 text-slate-500">{formatDateTime(u.last_login_at)}</td>
@@ -155,11 +186,12 @@ export function AccountsPage() {
         </Table>
       )}
       <CreateAccountDialog open={creating} onClose={() => setCreating(false)} onCreated={() => { setCreating(false); refresh(); }} />
+      {rolesFor && <RolesDialog account={rolesFor} onClose={() => setRolesFor(null)} onSaved={() => { setRolesFor(null); void refresh(); }} />}
       <PasswordDialog account={passwordFor} self={passwordFor?.id === me} onClose={() => setPasswordFor(null)} />
       <ConfirmDialog
         open={!!pending}
-        title={pending?.role ? `Đổi vai trò ${pending.email}` : pending?.is_active === false ? `Khoá ${pending?.email}` : `Mở khoá ${pending?.email ?? ""}`}
-        confirmLabel={pending?.role ? `Đổi thành ${roleLabel(pending.role)}` : pending?.is_active === false ? "Khoá tài khoản" : "Mở khoá"}
+        title={pending?.roles ? `Đổi vai trò ${pending.email}` : pending?.is_active === false ? `Khoá ${pending?.email}` : `Mở khoá ${pending?.email ?? ""}`}
+        confirmLabel={pending?.roles ? `Đổi thành ${pending.roles.map(roleLabel).join(", ")}` : pending?.is_active === false ? "Khoá tài khoản" : "Mở khoá"}
         danger={pending?.is_active === false}
         busy={update.isPending}
         onConfirm={() => pending && update.mutate(pending)}

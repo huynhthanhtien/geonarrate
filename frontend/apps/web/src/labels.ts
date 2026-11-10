@@ -14,6 +14,8 @@ export const ROLE_LABELS: Record<string, string> = {
   admin: "Quản trị viên",
   editor: "Biên tập viên",
   translator: "Biên dịch viên",
+  reviewer: "Duyệt nội dung",
+  operator: "Vận hành",
 };
 export const ROLES = Object.keys(ROLE_LABELS);
 export const roleLabel = (code: string) => ROLE_LABELS[code] ?? code;

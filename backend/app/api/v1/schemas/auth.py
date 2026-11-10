@@ -21,7 +21,7 @@ class UserOut(BaseModel):
     id: str
     email: str
     full_name: str
-    role: Literal["admin", "editor", "translator"]
+    roles: list[Literal["admin", "editor", "translator", "reviewer", "operator"]]
     permissions: list[str] = Field(description="Quyền suy ra từ vai trò, web dùng để ẩn/hiện menu")
 
 

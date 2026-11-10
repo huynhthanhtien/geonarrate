@@ -18,7 +18,7 @@ export function PoisPage() {
   const [status, setStatus] = useState("");
   const [view, setView] = useState<"list" | "map">("map");
   const [selectedId, setSelectedId] = useState<string>();
-  const canWrite = useCan()("script:write");
+  const canWrite = useCan()("poi:write");
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["pois", category, status],

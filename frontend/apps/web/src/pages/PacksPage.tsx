@@ -72,6 +72,7 @@ function LangCard({ status, name, onBuild, building, canBuild, onPublish, onRoll
   onRollback: (pack: Pack) => void;
 }) {
   const navigate = useNavigate();
+  const canPublish = useCan()("pack:publish");
   const { published, pending } = status;
   const diff = useQuery({
     queryKey: ["pack-diff", pending?.id],
@@ -106,7 +107,7 @@ function LangCard({ status, name, onBuild, building, canBuild, onPublish, onRoll
           <div className="rounded-lg border border-amber-200 bg-amber-50/60 p-3">
             <p className="flex items-center gap-2"><Badge tone="amber">Chờ phát hành</Badge><strong className="text-slate-800">v{pending.version}</strong></p>
             <p className="mt-1 text-xs text-slate-600">{diff.data ? <DiffSummary diff={diff.data} /> : "Đang so sánh…"}</p>
-            <button className={`${primaryBtn} mt-3`} onClick={() => onPublish(pending)}><Send size={14} aria-hidden /> Phát hành v{pending.version}</button>
+            {canPublish && <button className={`${primaryBtn} mt-3`} onClick={() => onPublish(pending)}><Send size={14} aria-hidden /> Phát hành v{pending.version}</button>}
           </div>
         )}
 
@@ -144,7 +145,7 @@ function LangCard({ status, name, onBuild, building, canBuild, onPublish, onRoll
                 <strong className="text-slate-700">v{p.version}</strong>
                 <Badge tone={STATUS[p.status as keyof typeof STATUS]?.tone ?? "gray"}>{STATUS[p.status as keyof typeof STATUS]?.label ?? p.status}</Badge>
                 <span className="text-slate-500">{when(p.published_at ?? p.created_at)}</span>
-                {p.status === "superseded" && (
+                {canPublish && p.status === "superseded" && (
                   <button className="ml-auto inline-flex items-center gap-1 font-medium text-teal-700 hover:underline" onClick={() => onRollback(p)}>
                     <History size={12} aria-hidden /> Quay về
                   </button>
@@ -166,7 +167,7 @@ function LangCard({ status, name, onBuild, building, canBuild, onPublish, onRoll
 export function PacksPage() {
   const qc = useQueryClient();
   // Build cần quyền audio:build; phát hành và rollback cần pack:publish
-  const canBuild = useCan()("audio:build");
+  const canBuild = useCan()("pack:build");
   const languages = useLanguages();
   const tours = useQuery({ queryKey: ["tours"], queryFn: () => sendJson<any[]>("/api/v1/tours"), retry: false });
   const [tourId, setTourId] = useState("");

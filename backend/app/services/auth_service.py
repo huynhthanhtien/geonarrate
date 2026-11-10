@@ -117,12 +117,14 @@ class AuthService:
         )
         await self.revoke_sessions(user_id)
 
-    async def create_user(self, email: str, password: str, role: Role, full_name: str = "") -> User:
+    async def create_user(
+        self, email: str, password: str, roles: list[Role], full_name: str = ""
+    ) -> User:
         email = normalize_email(email)
         if await self._users.get_by_email(email) is not None:
             raise ConflictError("email_taken", f"Email {email} đã có tài khoản")
         return await self._users.insert(
-            email, security.hash_password(password), role, full_name, self._clock()
+            email, security.hash_password(password), roles, full_name, self._clock()
         )
 
     async def seed_dev_admin(self) -> None:
@@ -135,7 +137,7 @@ class AuthService:
             await self._users.insert(
                 email,
                 security.hash_password(s.dev_admin_password),
-                Role.ADMIN,
+                [Role.ADMIN],
                 "Dev Admin",
                 self._clock(),
             )
@@ -151,7 +153,7 @@ class AuthService:
             now,
         )
         return TokenPair(
-            access_token=security.create_access_token(user.id, user.role.value, now),
+            access_token=security.create_access_token(user.id, tuple(user.roles), now),
             refresh_token=refresh_token,
             expires_in=settings.access_token_ttl_s,
             user=user,

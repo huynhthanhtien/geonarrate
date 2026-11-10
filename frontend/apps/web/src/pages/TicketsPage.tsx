@@ -3,6 +3,7 @@ import { Ban, Printer, Search, Ticket, X } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useState, type FormEvent } from "react";
 import { sendJson } from "../api";
+import { useCan } from "../auth/session";
 import { Badge, ConfirmDialog, dangerBtn, Dialog, Empty, ErrorBox, Field, ghostBtn, inputClass, Page, primaryBtn, Table } from "../components/ui";
 import { formatDate, formatDateTime } from "../labels";
 import { MultiPicker } from "../components/MultiPicker";
@@ -101,6 +102,7 @@ function IssueDialog({ open, tours, onClose, onIssued }: { open: boolean; tours:
 }
 
 export function TicketsPage() {
+  const canWrite = useCan()("ticket:manage");
   const qc = useQueryClient();
   const [issuing, setIssuing] = useState(false);
   const [issued, setIssued] = useState<Issued | null>(null);
@@ -128,7 +130,7 @@ export function TicketsPage() {
     <Page
       title="Vé QR"
       subtitle="Phát hành theo lô cho quầy hoặc đối tác, tra cứu và thu hồi"
-      action={<button className={primaryBtn} onClick={() => setIssuing(true)}><Ticket size={15} aria-hidden /> Phát hành lô vé</button>}
+      action={canWrite && <button className={primaryBtn} onClick={() => setIssuing(true)}><Ticket size={15} aria-hidden /> Phát hành lô vé</button>}
     >
       <ErrorBox error={tickets.error ?? revoke.error} />
       {issued && (
@@ -163,7 +165,7 @@ export function TicketsPage() {
           <button className={ghostBtn}>Tìm</button>
           {q && <button type="button" className={ghostBtn} onClick={() => { setSearch(""); setQ(""); }}>Bỏ lọc</button>}
         </form>
-        {q && rows.some((t) => t.batch === q && t.status === "active") && (
+        {canWrite && q && rows.some((t) => t.batch === q && t.status === "active") && (
           <button type="button" className={dangerBtn} onClick={() => setConfirming({ batch: q, label: `cả lô ${q}` })}><Ban size={14} aria-hidden /> Thu hồi lô {q}</button>
         )}
         {!!rows.length && <p className="ml-auto text-sm text-slate-500">{rows.length} vé · {active} hiệu lực · {used} đã kích hoạt</p>}
@@ -185,7 +187,7 @@ export function TicketsPage() {
               <td className="px-4 py-2.5">{t.transfers_left}</td>
               <td className="px-4 py-2.5"><Badge tone={t.status === "active" ? "green" : "red"}>{t.status === "active" ? "Hiệu lực" : "Đã thu hồi"}</Badge></td>
               <td className="px-4 py-2.5 text-right">
-                {t.status === "active" && (
+                {canWrite && t.status === "active" && (
                   <button className="text-sm font-medium text-red-700 hover:underline" onClick={() => setConfirming({ ticket_id: t.id, label: `vé …${t.code_hint}` })}>Thu hồi</button>
                 )}
               </td>

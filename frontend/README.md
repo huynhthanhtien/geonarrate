@@ -58,7 +58,7 @@ Khi nghe, app theo dõi GPS 5 giây một lần và tự phát khi ở trong vù
 10 phút mới phát lại (`GeofenceTracker` trong `packages/core`). Không có quyền vị trí thì chọn điểm thủ công.
 
 - Pack tải về `Paths.document`, tối đa 4 file song song, kiểm tra SHA-256 từng file; file đã tải đúng thì không
-  tải lại. Giới hạn 3 pack và 1,5 GB trên máy.
+  tải lại. Giới hạn 1,5 GB dung lượng pack trên máy.
 - SQLite lưu ngôn ngữ, `device_id`, pack đã tải và sự kiện nghe chờ gửi; sự kiện được gửi lại khi có mạng.
 - `device_id`: mã cài đặt ngẫu nhiên có chữ ký do `POST /public/devices` cấp; cần mạng ở lần đăng ký đầu.
   App lưu mã theo địa chỉ máy chủ và gộp các yêu cầu đăng ký đồng thời. Bản cũ dùng mã phần cứng cần kích hoạt lại vé.

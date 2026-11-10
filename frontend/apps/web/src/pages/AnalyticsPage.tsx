@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
 import { sendJson } from "../api";
-import { LineLegend, RankedBars, TrendChart } from "../components/charts";
+import { CHART, LineLegend, RankedBars, TrendChart } from "../components/charts";
 import { Empty, ErrorBox, Field, inputClass, Page, Table } from "../components/ui";
 import { useLanguages } from "../languages";
 import { Select } from "../components/Select";
@@ -9,8 +9,11 @@ import { Select } from "../components/Select";
 type Summary = {
   plays: number;
   completes: number;
+  devices: number;
+  by_trigger: { trigger: string; plays: number }[];
+  by_hour: { hour: number; plays: number }[];
   completion_rate: number | null;
-  top_pois: { id: string; name: string; plays: number }[];
+  top_pois: { id: string; name: string; plays: number; completes: number }[];
   by_lang: { lang: string; plays: number }[];
   by_day: { day: string; plays: number; completes: number }[];
 };
@@ -63,7 +66,8 @@ export function AnalyticsPage() {
   const stats = [
     ["Lượt nghe", data?.plays ?? 0],
     ["Nghe hết", data?.completes ?? 0],
-    ["Tỉ lệ nghe hết", data?.completion_rate != null ? `${Math.round(data.completion_rate * 100)}%` : "-"],
+    ["Thiết bị", data?.devices ?? 0],
+    ["Tỉ lệ nghe hết (ước tính)", data?.completion_rate != null ? `${Math.round(data.completion_rate * 100)}%` : "-"],
   ];
   const days = daysBetween(start, end);
   const byDay = new Map(data?.by_day.map((d) => [d.day, d]) ?? []);
@@ -75,7 +79,10 @@ export function AnalyticsPage() {
   const langRows = [...(data?.by_lang ?? [])]
     .sort((a, b) => b.plays - a.plays)
     .map((l) => ({ key: l.lang, label: `${langName(l.lang)} (${l.lang})`, value: l.plays }));
-  const poiRows = (data?.top_pois ?? []).map((p) => ({ key: p.id, label: p.name, value: p.plays }));
+  const triggerNames: Record<string, string> = { manual: "Thủ công", geofence: "Tự động theo vị trí", unknown: "Không xác định" };
+  const triggerRows = (data?.by_trigger ?? []).map((item) => ({ key: item.trigger, label: triggerNames[item.trigger] ?? item.trigger, value: item.plays }));
+  const hours = Array.from({ length: 24 }, (_, i) => i);
+  const hourCounts = new Map(data?.by_hour.map((item) => [item.hour, item.plays]) ?? []);
 
   return (
     <Page title="Analytics" subtitle="Số liệu nghe do ứng dụng gửi về">
@@ -92,7 +99,7 @@ export function AnalyticsPage() {
         </Field>
       </div>
       <ErrorBox error={languages.error ?? error} />
-      <div className="grid grid-cols-3 gap-4 mb-5">
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-5">
         {stats.map(([label, value]) => (
           <div key={label} className="bg-white border border-slate-200 rounded-xl p-5">
             <p className="text-3xl font-bold text-slate-800">{value}</p>
@@ -100,6 +107,8 @@ export function AnalyticsPage() {
           </div>
         ))}
       </div>
+      <p className="mb-5 text-sm text-slate-500">Thiết bị không đồng nghĩa với người nghe. Tỉ lệ nghe hết là ước tính từ số sự kiện, chưa ghép theo từng lượt nghe.</p>
+      {tour && <p className="mb-5 text-sm text-slate-500">Lọc tour dựa trên các điểm hiện thuộc tour; một điểm có thể thuộc nhiều tour.</p>}
       {data?.plays === 0 && <Empty>Chưa có dữ liệu trong khoảng đã chọn.</Empty>}
       {!!data?.plays && (
         <div className="space-y-5">
@@ -122,13 +131,44 @@ export function AnalyticsPage() {
             </details>
           </Card>
           <div className="grid gap-5 lg:grid-cols-2">
-            <Card title="Điểm được nghe nhiều nhất" subtitle="Lượt nghe, tối đa 10 điểm">
-              <RankedBars rows={poiRows} total={data.plays} />
+            <Card title="Cách bắt đầu phát" subtitle="Số lượt phát theo cách kích hoạt">
+              <RankedBars rows={triggerRows} total={data.plays} />
+            </Card>
+            <Card title="Lượt nghe theo giờ" subtitle={`Theo múi giờ ${timeZone}`}>
+              <TrendChart labels={hours.map((hour) => `${String(hour).padStart(2, "0")}h`)} series={[{ name: "Lượt nghe", values: hours.map((hour) => hourCounts.get(hour) ?? 0) }]} height={200} />
+            </Card>
+          </div>
+          <div className="grid gap-5 lg:grid-cols-2">
+            <Card title="Điểm được nghe nhiều nhất" subtitle="Số sự kiện trong khoảng chọn, tối đa 10 điểm">
+              <div className="mb-3"><LineLegend names={["Lượt nghe", "Nghe hết"]} /></div>
+              <ul className="space-y-3">
+                {data.top_pois.map((point) => {
+                  const max = Math.max(1, ...data.top_pois.flatMap((p) => [p.plays, p.completes]));
+                  return (
+                    <li key={point.id} className="grid grid-cols-[minmax(0,10rem)_1fr] items-center gap-3 px-1" aria-label={`${point.name}: ${point.plays} lượt nghe, ${point.completes} sự kiện nghe hết`}>
+                      <span className="truncate text-sm text-slate-700" title={point.name}>{point.name}</span>
+                      <div className="space-y-1">
+                        {[point.plays, point.completes].map((value, index) => (
+                          <div key={index} className="flex items-center gap-2">
+                            <span className="h-2.5 rounded-r" style={{ width: `${(value / max) * 85}%`, background: CHART.series[index] }} />
+                            <span className="text-xs font-semibold tabular-nums text-slate-900">{value}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
             </Card>
             <Card title="Lượt nghe theo ngôn ngữ">
               <RankedBars rows={langRows} total={data.plays} />
             </Card>
           </div>
+          <Card title="Chi tiết theo điểm" subtitle="Tối đa 10 điểm có lượt nghe cao nhất; số nghe hết được đếm riêng trong khoảng chọn">
+            <Table head={["Điểm tham quan", "Lượt nghe", "Sự kiện nghe hết"]}>
+              {data.top_pois.map((point) => <tr key={point.id}><td className="px-4 py-2">{point.name}</td><td className="px-4 py-2 tabular-nums">{point.plays}</td><td className="px-4 py-2 tabular-nums">{point.completes}</td></tr>)}
+            </Table>
+          </Card>
         </div>
       )}
     </Page>

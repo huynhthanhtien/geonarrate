@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Save } from "lucide-react";
 import { useMemo, useState } from "react";
 import { sendJson } from "../api";
+import { useCan } from "../auth/session";
 import { Badge, Empty, ErrorBox, Field, ghostBtn, inputClass, Page, primaryBtn, Table } from "../components/ui";
 import { PoisMap } from "../components/PoisMap";
 import { Select } from "../components/Select";
@@ -11,11 +12,12 @@ interface Form {
   name: string;
   access: string;
   status: string;
-  points: Record<string, boolean>; // id điểm -> nghe thử
+  points: Record<string, true>; // id điểm -> đã chọn
 }
 const EMPTY: Form = { name: "", access: "free", status: "draft", points: {} };
 
 export function ToursPage() {
+  const canWrite = useCan()("tour:write");
   const qc = useQueryClient();
   const [form, setForm] = useState<Form | null>(null);
   const tours = useQuery({ queryKey: ["tours"], queryFn: () => sendJson<any[]>("/api/v1/tours"), retry: false });
@@ -32,7 +34,7 @@ export function ToursPage() {
         name: t.name,
         access: t.access,
         status: t.status,
-        points: Object.fromEntries(t.pois.map((p: any) => [p.id, p.is_preview])),
+        points: Object.fromEntries(t.pois.map((p: any) => [p.id, true])),
       }),
   });
   const save = useMutation({
@@ -41,7 +43,7 @@ export function ToursPage() {
         name: f.name,
         access: f.access,
         status: f.status,
-        pois: Object.entries(f.points).map(([id, is_preview]) => ({ id, is_preview })),
+        pois: Object.keys(f.points).map((id) => ({ id })),
       };
       return f.id ? sendJson(`/api/v1/tours/${f.id}`, "PATCH", body) : sendJson("/api/v1/tours", "POST", body);
     },
@@ -50,8 +52,8 @@ export function ToursPage() {
   return (
     <Page
       title="Tour"
-      subtitle="Gom điểm thành tour, đặt miễn phí hoặc trả phí và chọn điểm nghe thử"
-      action={<button className={primaryBtn} onClick={() => setForm(EMPTY)}><Plus size={15} aria-hidden /> Thêm tour</button>}
+      subtitle="Gom điểm thành tour và đặt miễn phí hoặc trả phí"
+      action={canWrite && <button className={primaryBtn} onClick={() => setForm(EMPTY)}><Plus size={15} aria-hidden /> Thêm tour</button>}
     >
       <ErrorBox error={tours.error ?? open.error ?? save.error} />
       {form && (
@@ -82,18 +84,13 @@ export function ToursPage() {
                         checked={on}
                         onChange={(e) => {
                           const next = { ...form.points };
-                          if (e.target.checked) next[p.id] = false;
+                          if (e.target.checked) next[p.id] = true;
                           else delete next[p.id];
                           setForm({ ...form, points: next });
                         }}
                       />
                       {p.name}
                     </label>
-                    {on && form.access === "paid" && (
-                      <label className="flex items-center gap-1 text-xs text-slate-500">
-                        <input type="checkbox" checked={form.points[p.id]} onChange={(e) => setForm({ ...form, points: { ...form.points, [p.id]: e.target.checked } })} /> Nghe thử
-                      </label>
-                    )}
                   </div>
                 );
               })}
@@ -114,7 +111,7 @@ export function ToursPage() {
               <td className="px-4 py-2.5">{t.poi_count}</td>
               <td className="px-4 py-2.5"><Badge tone={t.access === "paid" ? "amber" : "green"}>{t.access === "paid" ? "Trả phí" : "Miễn phí"}</Badge></td>
               <td className="px-4 py-2.5"><Badge tone={t.status === "published" ? "green" : "gray"}>{t.status === "published" ? "Hiện trên app" : "Nháp"}</Badge></td>
-              <td className="px-4 py-2.5 text-right"><button className={ghostBtn} onClick={() => open.mutate(t.id)}>Sửa</button></td>
+              <td className="px-4 py-2.5 text-right">{canWrite && <button className={ghostBtn} onClick={() => open.mutate(t.id)}>Sửa</button>}</td>
             </tr>
           ))}
         </Table>

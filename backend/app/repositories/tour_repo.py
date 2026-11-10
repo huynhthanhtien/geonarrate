@@ -57,7 +57,6 @@ class SqlTourRepository:
                 literal_column("ST_Y(pois.geo::geometry)").label("lat"),
                 literal_column("ST_X(pois.geo::geometry)").label("lng"),
                 tour_pois.c.position,
-                tour_pois.c.is_preview,
             )
             .select_from(tour_pois.join(pois, tour_pois.c.poi_id == pois.c.id))
             .where(tour_pois.c.tour_id == uid)
@@ -100,7 +99,6 @@ class SqlTourRepository:
                             "tour_id": uid,
                             "poi_id": parse_uuid(p["id"]),
                             "position": i,
-                            "is_preview": p["is_preview"],
                         }
                         for i, p in enumerate(points)
                     ],

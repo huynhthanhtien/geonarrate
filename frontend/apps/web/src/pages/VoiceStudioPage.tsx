@@ -1,3 +1,4 @@
+import { useCan } from "../auth/session";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Play, RotateCw } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -54,6 +55,7 @@ function AudioPreview({ selection }: { selection: Preview }) {
 }
 
 export function VoiceStudioPage() {
+  const canWrite = useCan()("audio:build");
   const languages = useLanguages();
   const langName = useLangName();
   const qc = useQueryClient();
@@ -117,7 +119,7 @@ export function VoiceStudioPage() {
                     )}
                     {(cell.state === "failed" || (cell.state === "stale" && !cell.hint)
                       || cell.hint === "not_started" || cell.hint === "translate_failed") && (
-                      <button className={`${ghostBtn} mt-1 !py-0.5 !px-2 !text-xs`} disabled={retry.isPending} onClick={() => retry.mutate({ poi_id: row.id, lang })}>
+                      <button className={`${ghostBtn} mt-1 !py-0.5 !px-2 !text-xs`} disabled={!canWrite || retry.isPending} onClick={() => retry.mutate({ poi_id: row.id, lang })}>
                         <RotateCw size={12} aria-hidden /> {cell.hint === "not_started" ? "Chạy" : "Thử lại"}
                       </button>
                     )}

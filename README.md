@@ -7,7 +7,7 @@ khi không có mạng. Tour trả phí mở bằng vé QR, du khách không cầ
 ```
 backend/    FastAPI + PostgreSQL 16 (PostGIS) + Redis 7, worker nền   → backend/README.md
 frontend/   pnpm + Turborepo: apps/web (CMS), apps/mobile (Expo)      → frontend/README.md
-.github/    CI (.github/workflows/ci.yml)
+.github/    CI (.github/workflows/ci.yml) + phát hành APK (release.yml)
 ```
 
 ## Luồng chính
@@ -79,12 +79,30 @@ Lệnh đầu cập nhật `backend/openapi.json`; lệnh sau cập nhật `fron
 
 ## CI
 
-Một workflow; job `changes` quyết định chạy gì:
+Workflow `ci.yml`; job `changes` quyết định chạy gì:
 
 - sửa `backend/**` → job `backend`: ruff, mypy, lint-imports, pytest (có PostgreSQL + Redis), kiểm tra
   `openapi.json` khớp code, oasdiff chặn breaking change trên PR.
 - sửa `frontend/**` hoặc `backend/openapi.json` → job `frontend`: kiểm api-client khớp contract, typecheck, test, build.
 - job `ci-ok` luôn chạy và tổng hợp kết quả: đặt **chỉ job này** làm required check trong branch protection.
+
+## Phát hành APK (GitHub Releases)
+
+Workflow `.github/workflows/release.yml` build APK và tạo GitHub Release khi push tag `v*`, hoặc chạy tay từ
+tab Actions. VersionName lấy từ tag, versionCode lấy `github.run_number`.
+
+Cấu hình một lần ở **Settings → Secrets and variables → Actions**:
+
+- **Variable** `EXPO_PUBLIC_API_URL`: địa chỉ API đóng vào APK (dùng HTTPS khi phát hành thật).
+- **Secrets** (tuỳ chọn): `ANDROID_KEYSTORE_BASE64` (file `.jks` mã hoá base64), `ANDROID_STORE_PASSWORD`,
+  `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`. Không cấu hình thì APK ký bằng debug keystore — chỉ để thử nghiệm.
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+Release có `geonarrate-<version>.apk` và file `.sha256` để kiểm tra tải xuống.
 
 ## Tài liệu
 

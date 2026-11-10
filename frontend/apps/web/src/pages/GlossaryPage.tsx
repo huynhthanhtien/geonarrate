@@ -2,11 +2,13 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { sendJson } from "../api";
+import { useCan } from "../auth/session";
 import { Badge, dangerBtn, Empty, ErrorBox, Field, inputClass, Page, primaryBtn, Table } from "../components/ui";
 import { useLangName, useLanguages } from "../languages";
 import { Select } from "../components/Select";
 
 export function GlossaryPage() {
+  const canWrite = useCan()("glossary:write");
   const qc = useQueryClient();
   const [form, setForm] = useState({ term: "", target_lang: "", translation: "", is_required: true, poi_id: "" });
   const languages = useLanguages();
@@ -29,7 +31,7 @@ export function GlossaryPage() {
   const name = (id: string | null) => (id ? points.data?.find((p) => p.id === id)?.name ?? id : "Toàn hệ thống");
   return (
     <Page title="Thuật ngữ" subtitle="Cố định cách dịch tên riêng để máy không dịch mỗi lần một kiểu">
-      <form
+      {canWrite && <form
         className="bg-white border border-slate-200 rounded-xl p-5 mb-5 grid md:grid-cols-5 gap-3 items-end"
         onSubmit={(e) => { e.preventDefault(); add.mutate(); }}
       >
@@ -49,7 +51,7 @@ export function GlossaryPage() {
           </label>
           <button className={primaryBtn} disabled={add.isPending}><Plus size={15} aria-hidden /> Thêm</button>
         </div>
-      </form>
+      </form>}
       <ErrorBox error={languages.error ?? error ?? add.error ?? remove.error} />
       {data?.length === 0 && <Empty>Chưa có thuật ngữ nào.</Empty>}
       {!!data?.length && (
@@ -62,7 +64,7 @@ export function GlossaryPage() {
               <td className="px-4 py-2.5">{name(g.poi_id)}</td>
               <td className="px-4 py-2.5"><Badge tone={g.is_required ? "amber" : "gray"}>{g.is_required ? "Bắt buộc" : "Gợi ý"}</Badge></td>
               <td className="px-4 py-2.5 text-right">
-                <button className={dangerBtn} onClick={() => remove.mutate(g.id)} aria-label={`Xoá ${g.term}`}><Trash2 size={14} aria-hidden /></button>
+                {canWrite && <button className={dangerBtn} onClick={() => remove.mutate(g.id)} aria-label={`Xoá ${g.term}`}><Trash2 size={14} aria-hidden /></button>}
               </td>
             </tr>
           ))}

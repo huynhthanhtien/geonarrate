@@ -1,4 +1,4 @@
-"""Bảng vai trò → quyền (chương 06 "Route & phân quyền web"). CSDL v1 không có bảng `roles`."""
+"""Danh mục quyền và ma trận vai trò tập trung của CMS."""
 
 from enum import StrEnum
 
@@ -7,26 +7,88 @@ from app.models.user import Role
 
 class Permission(StrEnum):
     POI_READ = "poi:read"
+    POI_WRITE = "poi:write"
     SCRIPT_WRITE = "script:write"
-    TRANSLATION_REVIEW = "translation:review"
+    SCRIPT_APPROVE = "script:approve"
+    TRANSLATION_READ = "translation:read"
+    TRANSLATION_WRITE = "translation:write"
+    TRANSLATION_APPROVE = "translation:approve"
+    GLOSSARY_READ = "glossary:read"
+    GLOSSARY_WRITE = "glossary:write"
+    AUDIO_READ = "audio:read"
     AUDIO_BUILD = "audio:build"
+    TOUR_READ = "tour:read"
+    TOUR_WRITE = "tour:write"
+    PACK_READ = "pack:read"
+    PACK_BUILD = "pack:build"
     PACK_PUBLISH = "pack:publish"
-    ANALYTICS_VIEW = "analytics:view"
-    ADMIN_MANAGE = "admin:manage"
+    TICKET_READ = "ticket:read"
+    TICKET_MANAGE = "ticket:manage"
+    ANALYTICS_READ = "analytics:read"
+    USER_MANAGE = "user:manage"
+    AUDIT_READ = "audit:read"
 
 
-# Theo sơ đồ use case: editor soạn/gửi duyệt script, translator dịch & duyệt bản dịch,
-# admin gộp cả quản trị nội dung (build, publish, rollback) lẫn quản trị hệ thống
 ROLE_PERMISSIONS: dict[Role, frozenset[Permission]] = {
     Role.ADMIN: frozenset(Permission),
-    Role.EDITOR: frozenset({Permission.POI_READ, Permission.SCRIPT_WRITE}),
-    Role.TRANSLATOR: frozenset({Permission.POI_READ, Permission.TRANSLATION_REVIEW}),
+    Role.EDITOR: frozenset(
+        {
+            Permission.POI_READ,
+            Permission.POI_WRITE,
+            Permission.SCRIPT_WRITE,
+            Permission.TRANSLATION_READ,
+            Permission.GLOSSARY_READ,
+            Permission.AUDIO_READ,
+            Permission.TOUR_READ,
+            Permission.TOUR_WRITE,
+        }
+    ),
+    Role.REVIEWER: frozenset(
+        {
+            Permission.POI_READ,
+            Permission.SCRIPT_APPROVE,
+            Permission.TRANSLATION_READ,
+            Permission.GLOSSARY_READ,
+            Permission.AUDIO_READ,
+            Permission.TOUR_READ,
+            Permission.PACK_READ,
+        }
+    ),
+    Role.TRANSLATOR: frozenset(
+        {
+            Permission.POI_READ,
+            Permission.TRANSLATION_READ,
+            Permission.TRANSLATION_WRITE,
+            Permission.GLOSSARY_READ,
+            Permission.GLOSSARY_WRITE,
+            Permission.AUDIO_READ,
+            Permission.TOUR_READ,
+        }
+    ),
+    Role.OPERATOR: frozenset(
+        {
+            Permission.POI_READ,
+            Permission.TRANSLATION_READ,
+            Permission.AUDIO_READ,
+            Permission.AUDIO_BUILD,
+            Permission.TOUR_READ,
+            Permission.PACK_READ,
+            Permission.PACK_BUILD,
+            Permission.PACK_PUBLISH,
+            Permission.TICKET_READ,
+            Permission.TICKET_MANAGE,
+            Permission.ANALYTICS_READ,
+        }
+    ),
 }
 
 
-def permissions_for(role: str) -> frozenset[Permission]:
-    """Vai trò lạ (vd. token cũ sau khi đổi tên vai trò) thì không có quyền nào."""
-    try:
-        return ROLE_PERMISSIONS[Role(role)]
-    except ValueError:
-        return frozenset()
+def permissions_for(roles: tuple[str, ...]) -> frozenset[Permission]:
+    """Hợp quyền của các vai trò hợp lệ; vai trò lạ không cấp quyền."""
+    result: set[Permission] = set()
+    for role in roles:
+        try:
+            result.update(ROLE_PERMISSIONS[Role(role)])
+        except ValueError:
+            continue
+    return frozenset(result)

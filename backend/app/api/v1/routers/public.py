@@ -44,10 +44,9 @@ async def manifest(
     lang: str,
     svc: Catalog,
     device_id: Annotated[Device, Query()],
-    preview: bool = False,
 ) -> dict[str, Any]:
     verify_device_id(device_id)
-    return await svc.public_manifest(tour_id, lang, device_id, preview)
+    return await svc.public_manifest(tour_id, lang, device_id)
 
 
 @router.get(

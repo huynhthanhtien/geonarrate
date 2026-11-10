@@ -1,16 +1,9 @@
 import { http, HttpResponse } from "msw";
 
-const EDITOR_PERMISSIONS = ["poi:read", "script:write"];
 // Khớp ROLE_PERMISSIONS trong backend/app/core/permissions.py
 const USERS = {
-  editor: { id: "user-01", email: "editor@test.com", full_name: "Editor Mock", role: "editor", permissions: EDITOR_PERMISSIONS },
-  admin: {
-    id: "user-02",
-    email: "admin@test.com",
-    full_name: "Admin Mock",
-    role: "admin",
-    permissions: [...EDITOR_PERMISSIONS, "translation:review", "audio:build", "pack:publish", "analytics:view", "admin:manage"],
-  },
+  editor: { id: "user-01", email: "editor@test.com", full_name: "Editor Mock", roles: ["editor"], permissions: ["audio:read", "glossary:read", "poi:read", "poi:write", "script:write", "tour:read", "tour:write", "translation:read"] },
+  admin: { id: "user-02", email: "admin@test.com", full_name: "Admin Mock", roles: ["admin"], permissions: ["analytics:read", "audio:build", "audio:read", "audit:read", "glossary:read", "glossary:write", "pack:build", "pack:publish", "pack:read", "poi:read", "poi:write", "script:approve", "script:write", "ticket:manage", "ticket:read", "tour:read", "tour:write", "translation:approve", "translation:read", "translation:write", "user:manage"] },
 } as const;
 
 const REFRESH_PREFIX = "mock-refresh-";

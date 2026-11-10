@@ -37,7 +37,6 @@ from app.core.deps import (
     get_catalog_service,
     get_content_service,
     get_pipeline_service,
-    require_any_permission,
     require_permission,
 )
 from app.core.permissions import Permission
@@ -52,25 +51,29 @@ router = APIRouter(tags=["studio"])
 Content = Annotated[ContentService, Depends(get_content_service)]
 Pipeline = Annotated[PipelineService, Depends(get_pipeline_service)]
 Catalog = Annotated[CatalogService, Depends(get_catalog_service)]
-Translator = Annotated[Principal, Depends(require_permission(Permission.TRANSLATION_REVIEW))]
-AudioBuilder = Annotated[Principal, Depends(require_permission(Permission.AUDIO_BUILD))]
-Publisher = Annotated[Principal, Depends(require_permission(Permission.PACK_PUBLISH))]
-Admin = Annotated[Principal, Depends(require_permission(Permission.ADMIN_MANAGE))]
-Analyst = Annotated[Principal, Depends(require_permission(Permission.ANALYTICS_VIEW))]
-# Trang Pack, Analytics và Vé đều cần danh sách tour để chọn
-TourReader = Annotated[
-    Principal,
-    Depends(
-        require_any_permission(
-            Permission.ADMIN_MANAGE, Permission.PACK_PUBLISH, Permission.ANALYTICS_VIEW
-        )
-    ),
+TranslationReader = Annotated[Principal, Depends(require_permission(Permission.TRANSLATION_READ))]
+Translator = Annotated[Principal, Depends(require_permission(Permission.TRANSLATION_WRITE))]
+TranslationReviewer = Annotated[
+    Principal, Depends(require_permission(Permission.TRANSLATION_APPROVE))
 ]
+GlossaryReader = Annotated[Principal, Depends(require_permission(Permission.GLOSSARY_READ))]
+GlossaryWriter = Annotated[Principal, Depends(require_permission(Permission.GLOSSARY_WRITE))]
+AudioReader = Annotated[Principal, Depends(require_permission(Permission.AUDIO_READ))]
+AudioBuilder = Annotated[Principal, Depends(require_permission(Permission.AUDIO_BUILD))]
+TourReader = Annotated[Principal, Depends(require_permission(Permission.TOUR_READ))]
+TourWriter = Annotated[Principal, Depends(require_permission(Permission.TOUR_WRITE))]
+PackReader = Annotated[Principal, Depends(require_permission(Permission.PACK_READ))]
+PackBuilder = Annotated[Principal, Depends(require_permission(Permission.PACK_BUILD))]
+Publisher = Annotated[Principal, Depends(require_permission(Permission.PACK_PUBLISH))]
+Admin = Annotated[Principal, Depends(require_permission(Permission.USER_MANAGE))]
+TicketReader = Annotated[Principal, Depends(require_permission(Permission.TICKET_READ))]
+TicketManager = Annotated[Principal, Depends(require_permission(Permission.TICKET_MANAGE))]
+Analyst = Annotated[Principal, Depends(require_permission(Permission.ANALYTICS_READ))]
 
 
 # --- UC-05
 @router.get("/translation-jobs", response_model=list[TranslationJobOut])
-async def translation_jobs(svc: Pipeline, _: Translator) -> list[dict[str, Any]]:
+async def translation_jobs(svc: Pipeline, _: TranslationReader) -> list[dict[str, Any]]:
     return await svc.translation_progress()
 
 
@@ -81,7 +84,7 @@ async def retry_translation(body: AudioRetryIn, svc: Pipeline, user: Translator)
 
 @router.get("/translations", response_model=list[TranslationOut])
 async def list_translations(
-    svc: Content, _: Translator, lang: str | None = None, status: str | None = None
+    svc: Content, _: TranslationReader, lang: str | None = None, status: str | None = None
 ) -> list[dict[str, Any]]:
     return await svc.list_translations(lang, status)
 
@@ -95,14 +98,14 @@ async def edit_translation(
 
 @router.post("/translations/{translation_id}/approve", response_model=TranslationOut)
 async def approve_translation(
-    translation_id: str, svc: Content, user: Translator
+    translation_id: str, svc: Content, user: TranslationReviewer
 ) -> dict[str, Any]:
     return await svc.approve_translation(translation_id, user.user_id)
 
 
 @router.post("/translations/{translation_id}/reject", response_model=TranslationOut)
 async def reject_translation(
-    translation_id: str, body: NoteIn, svc: Content, user: Translator
+    translation_id: str, body: NoteIn, svc: Content, user: TranslationReviewer
 ) -> dict[str, Any]:
     return await svc.reject_translation(translation_id, body.review_note, user.user_id)
 
@@ -110,13 +113,13 @@ async def reject_translation(
 # --- UC-06
 @router.get("/glossaries", response_model=list[GlossaryOut])
 async def list_glossary(
-    svc: Content, _: Translator, lang: str | None = None
+    svc: Content, _: GlossaryReader, lang: str | None = None
 ) -> list[dict[str, Any]]:
     return await svc.list_glossary(lang)
 
 
 @router.post("/glossaries", response_model=GlossaryOut, status_code=status.HTTP_201_CREATED)
-async def add_term(body: GlossaryIn, svc: Content, user: Translator) -> dict[str, Any]:
+async def add_term(body: GlossaryIn, svc: Content, user: GlossaryWriter) -> dict[str, Any]:
     return await svc.add_term(
         body.term,
         body.target_lang,
@@ -128,13 +131,13 @@ async def add_term(body: GlossaryIn, svc: Content, user: Translator) -> dict[str
 
 
 @router.delete("/glossaries/{glossary_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_term(glossary_id: str, svc: Content, _: Translator) -> None:
+async def delete_term(glossary_id: str, svc: Content, _: GlossaryWriter) -> None:
     await svc.delete_term(glossary_id)
 
 
 # --- UC-07
 @router.get("/audio/status", response_model=list[AudioRow])
-async def audio_status(svc: Pipeline, _: AudioBuilder) -> list[dict[str, Any]]:
+async def audio_status(svc: Pipeline, _: AudioReader) -> list[dict[str, Any]]:
     return await svc.audio_status()
 
 
@@ -143,7 +146,7 @@ async def audio_status(svc: Pipeline, _: AudioBuilder) -> list[dict[str, Any]]:
     response_class=FileResponse,
     responses={200: {"content": {"audio/mpeg": {}}}},
 )
-async def preview_audio(poi_id: str, lang: str, svc: Pipeline, _: AudioBuilder) -> FileResponse:
+async def preview_audio(poi_id: str, lang: str, svc: Pipeline, _: AudioReader) -> FileResponse:
     path = await svc.audio_preview_path(poi_id, lang)
     return FileResponse(path, media_type="audio/mpeg", headers={"Cache-Control": "no-store"})
 
@@ -160,18 +163,18 @@ async def list_tours(svc: Catalog, _: TourReader) -> list[dict[str, Any]]:
 
 
 @router.post("/tours", response_model=TourDetailOut, status_code=status.HTTP_201_CREATED)
-async def create_tour(body: TourCreateIn, svc: Catalog, user: Admin) -> dict[str, Any]:
+async def create_tour(body: TourCreateIn, svc: Catalog, user: TourWriter) -> dict[str, Any]:
     return await svc.create_tour(body.model_dump(), user.user_id)
 
 
 @router.get("/tours/{tour_id}", response_model=TourDetailOut)
-async def get_tour(tour_id: str, svc: Catalog, _: Admin) -> dict[str, Any]:
+async def get_tour(tour_id: str, svc: Catalog, _: TourReader) -> dict[str, Any]:
     return await svc.get_tour(tour_id)
 
 
 @router.patch("/tours/{tour_id}", response_model=TourDetailOut)
 async def update_tour(
-    tour_id: str, body: TourUpdateIn, svc: Catalog, user: Admin
+    tour_id: str, body: TourUpdateIn, svc: Catalog, user: TourWriter
 ) -> dict[str, Any]:
     fields = body.model_dump(exclude_none=True)
     return await svc.update_tour(tour_id, fields, user.user_id)
@@ -180,23 +183,23 @@ async def update_tour(
 # --- UC-09, UC-10
 @router.get("/packs", response_model=list[PackOut])
 async def list_packs(
-    svc: Pipeline, _: Publisher, tour_id: str | None = None, lang: str | None = None
+    svc: Pipeline, _: PackReader, tour_id: str | None = None, lang: str | None = None
 ) -> list[dict[str, Any]]:
     return await svc.list_packs(tour_id, lang)
 
 
 @router.get("/packs/status", response_model=list[PackStatusOut])
-async def pack_status(tour_id: str, svc: Pipeline, _: Publisher) -> list[dict[str, Any]]:
+async def pack_status(tour_id: str, svc: Pipeline, _: PackReader) -> list[dict[str, Any]]:
     return await svc.pack_status(tour_id)
 
 
 @router.get("/packs/{pack_id}/diff", response_model=PackDiffOut)
-async def pack_diff(pack_id: str, svc: Pipeline, _: Publisher) -> dict[str, Any]:
+async def pack_diff(pack_id: str, svc: Pipeline, _: PackReader) -> dict[str, Any]:
     return await svc.pack_diff(pack_id)
 
 
 @router.post("/packs/build", response_model=PackOut, status_code=status.HTTP_201_CREATED)
-async def build_pack(body: PackBuildIn, svc: Pipeline, user: AudioBuilder) -> dict[str, Any]:
+async def build_pack(body: PackBuildIn, svc: Pipeline, user: PackBuilder) -> dict[str, Any]:
     return await svc.build_pack(body.tour_id, body.lang, user.user_id)
 
 
@@ -218,7 +221,7 @@ def _account(u: User) -> AccountOut:
         id=u.id,
         email=u.email,
         full_name=u.full_name,
-        role=u.role.value,
+        roles=list(u.roles),
         is_active=u.is_active,
         last_login_at=u.last_login_at,
     )
@@ -232,7 +235,7 @@ async def list_users(svc: Catalog, _: Admin) -> list[AccountOut]:
 @router.post("/admin/users", response_model=AccountOut, status_code=status.HTTP_201_CREATED)
 async def create_account(body: AccountCreateIn, svc: Catalog, user: Admin) -> AccountOut:
     created = await svc.create_account(
-        body.email, body.password, Role(body.role), body.full_name, user.user_id
+        body.email, body.password, [Role(role) for role in body.roles], body.full_name, user.user_id
     )
     return _account(created)
 
@@ -252,7 +255,7 @@ async def set_password(user_id: str, body: PasswordSetIn, svc: Catalog, user: Ad
 
 # --- UC-13
 @router.post("/tickets", response_model=TicketIssueOut, status_code=status.HTTP_201_CREATED)
-async def issue_tickets(body: TicketIssueIn, svc: Catalog, user: Admin) -> TicketIssueOut:
+async def issue_tickets(body: TicketIssueIn, svc: Catalog, user: TicketManager) -> TicketIssueOut:
     """Mã gốc chỉ trả về một lần này để in; CSDL chỉ lưu hash."""
     codes = await svc.issue_tickets(
         body.batch, body.tour_ids, body.valid_until, body.transfers_left, body.count, user.user_id
@@ -261,12 +264,14 @@ async def issue_tickets(body: TicketIssueIn, svc: Catalog, user: Admin) -> Ticke
 
 
 @router.get("/tickets", response_model=list[TicketOut])
-async def search_tickets(svc: Catalog, _: Admin, q: str | None = None) -> list[dict[str, Any]]:
+async def search_tickets(
+    svc: Catalog, _: TicketReader, q: str | None = None
+) -> list[dict[str, Any]]:
     return await svc.search_tickets(q)
 
 
 @router.post("/tickets/revoke", response_model=RevokeOut)
-async def revoke_tickets(body: RevokeIn, svc: Catalog, user: Admin) -> RevokeOut:
+async def revoke_tickets(body: RevokeIn, svc: Catalog, user: TicketManager) -> RevokeOut:
     return RevokeOut(revoked=await svc.revoke_tickets(body.ticket_id, body.batch, user.user_id))
 
 

@@ -2482,16 +2482,6 @@
               "maxLength": 128,
               "title": "Device Id"
             }
-          },
-          {
-            "name": "preview",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "boolean",
-              "default": false,
-              "title": "Preview"
-            }
           }
         ],
         "responses": {
@@ -2709,14 +2699,20 @@
             "minLength": 8,
             "title": "Password"
           },
-          "role": {
-            "type": "string",
-            "enum": [
-              "admin",
-              "editor",
-              "translator"
-            ],
-            "title": "Role"
+          "roles": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "admin",
+                "editor",
+                "translator",
+                "reviewer",
+                "operator"
+              ]
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Roles"
           },
           "full_name": {
             "type": "string",
@@ -2729,7 +2725,7 @@
         "required": [
           "email",
           "password",
-          "role"
+          "roles"
         ],
         "title": "AccountCreateIn"
       },
@@ -2747,9 +2743,12 @@
             "type": "string",
             "title": "Full Name"
           },
-          "role": {
-            "type": "string",
-            "title": "Role"
+          "roles": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Roles"
           },
           "is_active": {
             "type": "boolean",
@@ -2773,7 +2772,7 @@
           "id",
           "email",
           "full_name",
-          "role",
+          "roles",
           "is_active",
           "last_login_at"
         ],
@@ -2781,21 +2780,27 @@
       },
       "AccountUpdateIn": {
         "properties": {
-          "role": {
+          "roles": {
             "anyOf": [
               {
-                "type": "string",
-                "enum": [
-                  "admin",
-                  "editor",
-                  "translator"
-                ]
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "admin",
+                    "editor",
+                    "translator",
+                    "reviewer",
+                    "operator"
+                  ]
+                },
+                "type": "array",
+                "minItems": 1
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Role"
+            "title": "Roles"
           },
           "is_active": {
             "anyOf": [
@@ -2897,6 +2902,24 @@
         ],
         "title": "AnalyticsDay"
       },
+      "AnalyticsHour": {
+        "properties": {
+          "hour": {
+            "type": "integer",
+            "title": "Hour"
+          },
+          "plays": {
+            "type": "integer",
+            "title": "Plays"
+          }
+        },
+        "type": "object",
+        "required": [
+          "hour",
+          "plays"
+        ],
+        "title": "AnalyticsHour"
+      },
       "AnalyticsLang": {
         "properties": {
           "lang": {
@@ -2936,6 +2959,24 @@
             ],
             "title": "Completion Rate"
           },
+          "devices": {
+            "type": "integer",
+            "title": "Devices"
+          },
+          "by_trigger": {
+            "items": {
+              "$ref": "#/components/schemas/AnalyticsTrigger"
+            },
+            "type": "array",
+            "title": "By Trigger"
+          },
+          "by_hour": {
+            "items": {
+              "$ref": "#/components/schemas/AnalyticsHour"
+            },
+            "type": "array",
+            "title": "By Hour"
+          },
           "top_pois": {
             "items": {
               "$ref": "#/components/schemas/AnalyticsTop"
@@ -2963,6 +3004,9 @@
           "plays",
           "completes",
           "completion_rate",
+          "devices",
+          "by_trigger",
+          "by_hour",
           "top_pois",
           "by_lang",
           "by_day"
@@ -2982,15 +3026,38 @@
           "plays": {
             "type": "integer",
             "title": "Plays"
+          },
+          "completes": {
+            "type": "integer",
+            "title": "Completes"
           }
         },
         "type": "object",
         "required": [
           "id",
           "name",
-          "plays"
+          "plays",
+          "completes"
         ],
         "title": "AnalyticsTop"
+      },
+      "AnalyticsTrigger": {
+        "properties": {
+          "trigger": {
+            "type": "string",
+            "title": "Trigger"
+          },
+          "plays": {
+            "type": "integer",
+            "title": "Plays"
+          }
+        },
+        "type": "object",
+        "required": [
+          "trigger",
+          "plays"
+        ],
+        "title": "AnalyticsTrigger"
       },
       "AudioCell": {
         "properties": {
@@ -3457,10 +3524,6 @@
             "type": "integer",
             "title": "Priority"
           },
-          "is_preview": {
-            "type": "boolean",
-            "title": "Is Preview"
-          },
           "sha256": {
             "type": "string",
             "title": "Sha256"
@@ -3483,7 +3546,6 @@
           "lng",
           "radius",
           "priority",
-          "is_preview",
           "sha256",
           "bytes",
           "duration_ms"
@@ -3508,14 +3570,6 @@
             "type": "integer",
             "title": "Version"
           },
-          "access": {
-            "type": "string",
-            "enum": [
-              "full",
-              "preview"
-            ],
-            "title": "Access"
-          },
           "files": {
             "items": {
               "$ref": "#/components/schemas/ManifestFile"
@@ -3530,7 +3584,6 @@
           "tour_id",
           "lang",
           "version",
-          "access",
           "files"
         ],
         "title": "ManifestOut"
@@ -4709,11 +4762,6 @@
           "id": {
             "type": "string",
             "title": "Id"
-          },
-          "is_preview": {
-            "type": "boolean",
-            "title": "Is Preview",
-            "default": false
           }
         },
         "type": "object",
@@ -4736,10 +4784,6 @@
             "type": "integer",
             "title": "Position"
           },
-          "is_preview": {
-            "type": "boolean",
-            "title": "Is Preview"
-          },
           "lat": {
             "type": "number",
             "title": "Lat"
@@ -4758,7 +4802,6 @@
           "id",
           "name",
           "position",
-          "is_preview",
           "lat",
           "lng",
           "radius"
@@ -5005,14 +5048,19 @@
             "type": "string",
             "title": "Full Name"
           },
-          "role": {
-            "type": "string",
-            "enum": [
-              "admin",
-              "editor",
-              "translator"
-            ],
-            "title": "Role"
+          "roles": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "admin",
+                "editor",
+                "translator",
+                "reviewer",
+                "operator"
+              ]
+            },
+            "type": "array",
+            "title": "Roles"
           },
           "permissions": {
             "items": {
@@ -5028,7 +5076,7 @@
           "id",
           "email",
           "full_name",
-          "role",
+          "roles",
           "permissions"
         ],
         "title": "UserOut"

@@ -38,7 +38,6 @@ export interface PackFile {
   lng: number;
   radius: number;
   priority: number;
-  is_preview: boolean;
   sha256: string;
   bytes: number;
   duration_ms: number;
@@ -48,7 +47,6 @@ export interface Manifest {
   tour_id: string;
   lang: string;
   version: number;
-  access: "full" | "preview";
   files: PackFile[];
 }
 export class ApiError extends Error {
@@ -85,9 +83,9 @@ export async function checkBackend(server: string): Promise<void> {
 
 export const registerDevice = (server = backend) =>
   call<{ device_id: string }>("/public/devices", { method: "POST" }, server);
-export const getManifest = (tourId: string, lang: string, device: string, preview: boolean, server = backend) =>
+export const getManifest = (tourId: string, lang: string, device: string, server = backend) =>
   call<Manifest>(
-    `/public/tours/${tourId}/packs/${lang}?device_id=${encodeURIComponent(device)}&preview=${preview}`,
+    `/public/tours/${tourId}/packs/${lang}?device_id=${encodeURIComponent(device)}`,
     undefined, server,
   );
 export const fileUrl = (manifest: Manifest, poiId: string, device: string, server = backend) =>

@@ -142,7 +142,7 @@ def require_permission(permission: Permission) -> Callable[[Principal], Principa
     """Dependency guard: `Depends(require_permission(Permission.PACK_PUBLISH))` ở router."""
 
     def _check(principal: Annotated[Principal, Depends(get_current_principal)]) -> Principal:
-        if permission not in permissions_for(principal.role):
+        if permission not in permissions_for(principal.roles):
             raise ForbiddenError("forbidden", f"Cần quyền {permission}")
         return principal
 
@@ -153,7 +153,7 @@ def require_any_permission(*permissions: Permission) -> Callable[[Principal], Pr
     """Cho qua nếu có ít nhất một quyền (vd. danh sách tour mà nhiều trang cần)."""
 
     def _check(principal: Annotated[Principal, Depends(get_current_principal)]) -> Principal:
-        if not set(permissions) & permissions_for(principal.role):
+        if not set(permissions) & permissions_for(principal.roles):
             raise ForbiddenError("forbidden", f"Cần một trong các quyền {', '.join(permissions)}")
         return principal
 

@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, CheckCircle2, Loader2, MapPin, RotateCw, Save, TriangleAlert, Undo2, XCircle } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { sendJson } from "../api";
+import { useCan } from "../auth/session";
 import { Badge, Dialog, Empty, ErrorBox, ghostBtn, inputClass, Page, primaryBtn } from "../components/ui";
 import { useLangName, useLanguages } from "../languages";
 import { Select } from "../components/Select";
@@ -48,6 +49,8 @@ function flagText(flag: string) {
 
 function TranslationCard({ t, terms, showLang }: { t: Translation; terms: Term[]; showLang: boolean }) {
   const langName = useLangName();
+  const canWrite = useCan()("translation:write");
+  const canApprove = useCan()("translation:approve");
   const qc = useQueryClient();
   const [text, setText] = useState(t.text);
   const [rejecting, setRejecting] = useState(false);
@@ -97,7 +100,7 @@ function TranslationCard({ t, terms, showLang }: { t: Translation; terms: Term[]
             Bản dịch
             {dirty && <span className="text-amber-700">Đã sửa · chưa lưu</span>}
           </p>
-          {approved
+          {approved || !canWrite
             ? <p className="whitespace-pre-line text-sm leading-relaxed text-slate-700">{highlight(t.text, relevant.map((g) => g.translation))}</p>
             : <textarea aria-label={`Bản dịch ${t.title}`} value={text} onChange={(e) => setText(e.target.value)} rows={Math.min(12, Math.max(4, Math.ceil(t.source_text.length / 70)))} className={inputClass} />}
         </div>
@@ -122,13 +125,13 @@ function TranslationCard({ t, terms, showLang }: { t: Translation; terms: Term[]
       )}
       {!approved && (
         <footer className="flex flex-wrap items-center gap-2 border-t border-slate-100 px-5 py-3">
-          <button className={primaryBtn} disabled={approve.isPending} title={missingRequired ? "Còn thiếu thuật ngữ bắt buộc: hệ thống sẽ chặn duyệt" : undefined} onClick={() => approve.mutate()}>
+          {canApprove && <button className={primaryBtn} disabled={approve.isPending} title={missingRequired ? "Còn thiếu thuật ngữ bắt buộc: hệ thống sẽ chặn duyệt" : undefined} onClick={() => approve.mutate()}>
             <Check size={15} aria-hidden /> {dirty ? "Lưu và duyệt" : "Duyệt"}
-          </button>
-          <button className={ghostBtn} disabled={save.isPending || !dirty} onClick={() => save.mutate()}>
+          </button>}
+          {canWrite && <button className={ghostBtn} disabled={save.isPending || !dirty} onClick={() => save.mutate()}>
             <Save size={15} aria-hidden /> {t.review_status === "rejected" ? "Lưu và gửi duyệt lại" : "Lưu"}
-          </button>
-          {t.review_status === "pending" && (
+          </button>}
+          {canApprove && t.review_status === "pending" && (
             <button className={`${ghostBtn} ml-auto`} onClick={() => setRejecting(true)}>
               <Undo2 size={15} aria-hidden /> Trả lại
             </button>
@@ -153,6 +156,8 @@ function TranslationCard({ t, terms, showLang }: { t: Translation; terms: Term[]
 }
 
 export function TranslationsPage() {
+  const canWrite = useCan()("translation:write");
+  const canReadGlossary = useCan()("glossary:read");
   const qc = useQueryClient();
   const languages = useLanguages();
   const langName = useLangName();
@@ -165,7 +170,7 @@ export function TranslationsPage() {
     retry: false,
     refetchInterval: 5000,
   });
-  const glossary = useQuery({ queryKey: ["glossaries"], queryFn: () => sendJson<Term[]>("/api/v1/glossaries"), retry: false });
+  const glossary = useQuery({ queryKey: ["glossaries"], queryFn: () => sendJson<Term[]>("/api/v1/glossaries"), enabled: canReadGlossary, retry: false });
   const jobs = useQuery({
     queryKey: ["translation-jobs"],
     queryFn: () => sendJson<TranslationJob[]>("/api/v1/translation-jobs"),
@@ -215,7 +220,7 @@ export function TranslationsPage() {
               <li key={`${j.poi_id}:${j.lang}`} className="flex flex-wrap items-center gap-2 text-sm text-red-900">
                 <span className="font-medium">{j.title}</span> · {langName(j.lang)}
                 {j.error && <span className="text-xs text-red-700">— {j.error}</span>}
-                <button className={`${ghostBtn} ml-auto !py-1`} disabled={rerun.isPending} onClick={() => rerun.mutate(j)}>
+                <button className={`${ghostBtn} ml-auto !py-1`} disabled={!canWrite || rerun.isPending} onClick={() => rerun.mutate(j)}>
                   <RotateCw size={13} aria-hidden /> Chạy lại
                 </button>
               </li>

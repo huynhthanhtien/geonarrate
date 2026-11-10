@@ -51,7 +51,7 @@ export function UserMenu() {
         <span className="flex h-8 w-8 items-center justify-center rounded-full bg-teal-600 text-xs font-semibold text-white" aria-hidden>{initials(name)}</span>
         <span className="hidden text-left leading-tight sm:block">
           <span className="block text-sm font-medium text-slate-800">{name}</span>
-          <span className="block text-xs text-slate-500">{user?.role ? roleLabel(user.role) : ""}</span>
+          <span className="block text-xs text-slate-500">{user?.roles?.map(roleLabel).join(", ") ?? ""}</span>
         </span>
         <ChevronDown size={15} className={`text-slate-400 transition-transform ${open ? "rotate-180" : ""}`} aria-hidden />
       </button>

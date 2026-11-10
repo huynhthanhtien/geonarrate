@@ -221,7 +221,6 @@ class PipelineService:
                 "lng": point["lng"],
                 "radius": point["radius"],
                 "priority": point["priority"],
-                "is_preview": point["is_preview"],
                 "storage_key": asset["storage_key"],
                 "sha256": asset["sha256"],
                 "bytes": asset["bytes"],
@@ -519,7 +518,7 @@ class PipelineService:
         old: dict[str, Any] = {}
         if base is not None and base["id"] != pack["id"] and base["manifest_key"]:
             old = {f["poi_id"]: f for f in self.read_manifest(base).get("files", [])}
-        info = ("name", "summary", "lat", "lng", "radius", "priority", "is_preview")
+        info = ("name", "summary", "lat", "lng", "radius", "priority")
         changed = []
         for poi_id in files.keys() & old.keys():
             new, prev = files[poi_id], old[poi_id]

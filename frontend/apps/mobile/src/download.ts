@@ -1,4 +1,4 @@
-import { DEVICE_STORAGE_BUDGET_BYTES, DOWNLOAD_CONCURRENCY, PACK_MAX_INSTALLED } from "@geonarrate/core";
+import { DEVICE_STORAGE_BUDGET_BYTES, DOWNLOAD_CONCURRENCY } from "@geonarrate/core";
 import * as Crypto from "expo-crypto";
 import { Directory, File, Paths } from "expo-file-system";
 import { fileUrl, getBackend, type Manifest, type PackFile } from "./api";
@@ -18,10 +18,9 @@ async function matches(file: File, sha256: string): Promise<boolean> {
   return hex === sha256;
 }
 
-/** Trả về thông báo nếu vượt giới hạn trên máy (UC-17 E2), null nếu được tải. */
+/** Trả về thông báo nếu vượt giới hạn dung lượng trên máy (UC-17 E2), null nếu được tải. */
 export function limitProblem(m: Manifest): string | null {
   const others = installedPacks().filter((p) => !(p.tourId === m.tour_id && p.lang === m.lang));
-  if (others.length >= PACK_MAX_INSTALLED) return `Tối đa ${PACK_MAX_INSTALLED} pack. Hãy xoá bớt để tải thêm.`;
   const size = m.files.reduce((sum, f) => sum + f.bytes, 0);
   const used = others.reduce((sum, p) => sum + p.bytes, 0);
   if (used + size > DEVICE_STORAGE_BUDGET_BYTES) return "Vượt giới hạn 1,5 GB. Hãy xoá bớt pack để tải thêm.";

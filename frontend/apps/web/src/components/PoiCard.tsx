@@ -15,7 +15,7 @@ const CATEGORY_ICON: Record<string, LucideIcon> = {
 
 export function PoiCard({ poi }: { poi: any }) {
   // Người chỉ có quyền xem (vd. biên dịch viên) không thấy nút sửa
-  const canWrite = useCan()("script:write");
+  const canWrite = useCan()("poi:write");
   const navigate = useNavigate();
   const scriptStatus = poi.script_status as keyof typeof STATUS_CONFIG;
   const statusCfg = STATUS_CONFIG[scriptStatus] ?? STATUS_CONFIG.draft;

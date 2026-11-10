@@ -19,8 +19,8 @@ router = APIRouter(prefix="/pois", tags=["catalog"])
 Svc = Annotated[PoiService, Depends(get_poi_service)]
 Reader = Annotated[Principal, Depends(require_permission(Permission.POI_READ))]
 Writer = Annotated[Principal, Depends(require_permission(Permission.SCRIPT_WRITE))]
-# Chưa có quyền riêng cho duyệt script; theo use case người duyệt là admin
-Reviewer = Annotated[Principal, Depends(require_permission(Permission.ADMIN_MANAGE))]
+PoiWriter = Annotated[Principal, Depends(require_permission(Permission.POI_WRITE))]
+Reviewer = Annotated[Principal, Depends(require_permission(Permission.SCRIPT_APPROVE))]
 
 
 @router.get("", response_model=list[PoiOut])
@@ -33,7 +33,7 @@ async def list_pois(
 
 
 @router.post("", response_model=PoiOut, status_code=status.HTTP_201_CREATED)
-async def create_poi(body: PoiCreateIn, svc: Svc, user: Writer) -> PoiOut:
+async def create_poi(body: PoiCreateIn, svc: Svc, user: PoiWriter) -> PoiOut:
     created = await svc.create(**body.model_dump(), actor_id=user.user_id)
     return PoiOut.model_validate(created)
 
@@ -44,7 +44,7 @@ async def get_poi(poi_id: str, svc: Svc, _: Reader) -> PoiOut:
 
 
 @router.patch("/{poi_id}", response_model=PoiOut)
-async def update_poi(poi_id: str, body: PoiUpdateIn, svc: Svc, user: Writer) -> PoiOut:
+async def update_poi(poi_id: str, body: PoiUpdateIn, svc: Svc, user: PoiWriter) -> PoiOut:
     updated = await svc.update(poi_id, body.model_dump(exclude_unset=True), user.user_id)
     return PoiOut.model_validate(updated)
 

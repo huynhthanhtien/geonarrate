@@ -23,8 +23,8 @@ def _to_out(pair: TokenPair) -> TokenOut:
             id=u.id,
             email=u.email,
             full_name=u.full_name,
-            role=u.role.value,
-            permissions=sorted(permissions_for(u.role)),
+            roles=list(u.roles),
+            permissions=sorted(permissions_for(u.roles)),
         ),
     )
 

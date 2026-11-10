@@ -22,13 +22,13 @@ def test_verify_password_without_user_is_false() -> None:
 
 
 def test_access_token_round_trip() -> None:
-    token = security.create_access_token("u1", "editor")
-    assert security.decode_access_token(token) == security.Principal("u1", "editor")
+    token = security.create_access_token("u1", ("editor",))
+    assert security.decode_access_token(token) == security.Principal("u1", ("editor",))
 
 
 def test_expired_access_token_rejected() -> None:
     past = datetime.now(UTC) - timedelta(hours=1)
-    token = security.create_access_token("u1", "editor", now=past)
+    token = security.create_access_token("u1", ("editor",), now=past)
     with pytest.raises(UnauthorizedError) as e:
         security.decode_access_token(token)
     assert e.value.code == "token_expired"

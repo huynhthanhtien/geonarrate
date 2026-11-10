@@ -90,7 +90,6 @@ class AudioRetryIn(BaseModel):
 
 class TourPoint(BaseModel):
     id: str
-    is_preview: bool = False
 
 
 class TourCreateIn(BaseModel):
@@ -120,7 +119,6 @@ class TourPointOut(BaseModel):
     id: str
     name: str
     position: int
-    is_preview: bool
     lat: float
     lng: float
     radius: int
@@ -185,12 +183,16 @@ class PackDiffOut(BaseModel):
 class AccountCreateIn(BaseModel):
     email: str = Field(min_length=3, max_length=254)
     password: str = Field(min_length=8, max_length=256)
-    role: Literal["admin", "editor", "translator"]
+    roles: list[Literal["admin", "editor", "translator", "reviewer", "operator"]] = Field(
+        min_length=1
+    )
     full_name: Annotated[str, StringConstraints(strip_whitespace=True, max_length=200)] = ""
 
 
 class AccountUpdateIn(BaseModel):
-    role: Literal["admin", "editor", "translator"] | None = None
+    roles: list[Literal["admin", "editor", "translator", "reviewer", "operator"]] | None = Field(
+        default=None, min_length=1
+    )
     is_active: bool | None = None
     full_name: Annotated[str, StringConstraints(strip_whitespace=True, max_length=200)] | None = (
         None
@@ -205,7 +207,7 @@ class AccountOut(BaseModel):
     id: str
     email: str
     full_name: str
-    role: str
+    roles: list[str]
     is_active: bool
     last_login_at: datetime | None
 
@@ -248,6 +250,7 @@ class AnalyticsTop(BaseModel):
     id: str
     name: str
     plays: int
+    completes: int
 
 
 class AnalyticsLang(BaseModel):
@@ -261,10 +264,23 @@ class AnalyticsDay(BaseModel):
     completes: int
 
 
+class AnalyticsTrigger(BaseModel):
+    trigger: str
+    plays: int
+
+
+class AnalyticsHour(BaseModel):
+    hour: int
+    plays: int
+
+
 class AnalyticsOut(BaseModel):
     plays: int
     completes: int
     completion_rate: float | None
+    devices: int
+    by_trigger: list[AnalyticsTrigger]
+    by_hour: list[AnalyticsHour]
     top_pois: list[AnalyticsTop]
     by_lang: list[AnalyticsLang]
     by_day: list[AnalyticsDay]
@@ -298,7 +314,6 @@ class ManifestFile(BaseModel):
     lng: float
     radius: int
     priority: int
-    is_preview: bool
     sha256: str
     bytes: int
     duration_ms: int
@@ -309,7 +324,6 @@ class ManifestOut(BaseModel):
     tour_id: str
     lang: str
     version: int
-    access: Literal["full", "preview"]
     files: list[ManifestFile]
 
 

@@ -101,21 +101,21 @@ class CatalogService:
         return await self._users.find_all()
 
     async def create_account(
-        self, email: str, password: str, role: Role, full_name: str, actor_id: str
+        self, email: str, password: str, roles: list[Role], full_name: str, actor_id: str
     ) -> User:
-        user = await self._auth.create_user(email, password, role, full_name)
+        user = await self._auth.create_user(email, password, roles, full_name)
         await self._audit.record(actor_id, "user.create", AuditResource("user", user.id))
         return user
 
     async def update_account(self, user_id: str, fields: dict[str, Any], actor_id: str) -> User:
-        if user_id == actor_id and ("role" in fields or fields.get("is_active") is False):
+        if user_id == actor_id and ("roles" in fields or fields.get("is_active") is False):
             raise ForbiddenError("self_change", "Không thể đổi vai trò hoặc khoá chính mình")
-        if "role" in fields:
-            fields["role"] = Role(fields["role"]).value
+        if "roles" in fields:
+            fields["roles"] = [Role(role).value for role in fields["roles"]]
         user = await self._users.update_fields(user_id, fields, self._clock())
         if user is None:
             raise NotFoundError("user_not_found", "Không tìm thấy tài khoản")
-        if "role" in fields or fields.get("is_active") is False:
+        if "roles" in fields or fields.get("is_active") is False:
             await self._auth.revoke_sessions(user_id)
         locked = fields.get("is_active") is False
         action = "user.lock" if locked else "user.update"
@@ -199,22 +199,18 @@ class CatalogService:
                 out.append({**tour, "langs": langs})
         return out
 
-    async def public_manifest(
-        self, tour_id: str, lang: str, device_id: str, preview: bool
-    ) -> dict[str, Any]:
+    async def public_manifest(self, tour_id: str, lang: str, device_id: str) -> dict[str, Any]:
         pack, tour = await self._published(tour_id, lang)
         manifest = self._pipeline.read_manifest(pack)
         allowed = tour["access"] == "free" or await self._tickets.device_has_access(
             device_id, tour_id, self._clock()
         )
-        if not allowed and not preview:
+        if not allowed:
             raise ForbiddenError("ticket_required", "Tour này cần vé để tải")
         files = manifest["files"]
-        if not allowed:
-            files = [f for f in files if f["is_preview"]]
         for f in files:
             f.pop("storage_key", None)
-        return {**manifest, "files": files, "access": "full" if allowed else "preview"}
+        return {**manifest, "files": files}
 
     async def public_file(
         self,
@@ -229,10 +225,8 @@ class CatalogService:
         item = next((f for f in manifest["files"] if f["poi_id"] == poi_id), None)
         if item is None:
             raise NotFoundError("file_not_found", "Không có file này trong pack")
-        allowed = (
-            tour["access"] == "free"
-            or item["is_preview"]
-            or await self._tickets.device_has_access(device_id, tour_id, self._clock())
+        allowed = tour["access"] == "free" or await self._tickets.device_has_access(
+            device_id, tour_id, self._clock()
         )
         if not allowed:
             raise ForbiddenError("ticket_required", "Tour này cần vé để tải")
