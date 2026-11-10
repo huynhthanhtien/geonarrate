@@ -222,7 +222,6 @@ audio_assets = Table(
     _lang_fk("lang"),
     Column("text_hash", Text, nullable=False),
     Column("voice", Text, nullable=False),
-    Column("asr_wer", Double),
     Column("storage_key", Text, nullable=False),
     Column("bytes", BigInteger),
     Column("duration_ms", Integer),

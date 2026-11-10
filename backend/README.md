@@ -47,7 +47,6 @@ khoản bằng trang **Tài khoản** trên CMS hoặc dòng lệnh:
 | `GROQ_API_KEY`, `GROQ_MODEL` | Khóa Groq chỉ đặt ở backend; model mặc định `openai/gpt-oss-20b`. Thuật ngữ CMS được đưa vào hướng dẫn dịch và vẫn qua bước duyệt |
 | `TTS_PROVIDER` | `edge` hoặc `magpie` (MagpieTTS tự host, chạy offline) |
 | `MAGPIE_TTS_URL`, `MAGPIE_TTS_VOICE` | Máy chủ Magpie có endpoint `/v1/audio/speech`, trả WAV; cần ffmpeg để đổi MP3 |
-| `WHISPER_MODEL` | Model ASR tùy chọn; để rỗng để không chấm audio |
 | `CORS_ORIGINS` | Mảng JSON origin của CMS, ví dụ `["https://cms.example.com"]` |
 | `PUBLIC_RATE_LIMIT`, `PUBLIC_ACTIVATE_RATE_LIMIT`, `PUBLIC_RATE_WINDOW_S` | Theo IP: mặc định 300 request và 10 lần kích hoạt trong 60 giây |
 | `APP_ENV`, `DEV_ADMIN_EMAIL`, `DEV_ADMIN_PASSWORD` | Chỉ dev: tạo sẵn một tài khoản admin |
@@ -111,15 +110,6 @@ Tất cả nằm dưới `/api/v1`. Lỗi trả theo RFC 7807 (`application/prob
 - Phát hành và rollback đổi trạng thái pack trong một transaction; mỗi tour × ngôn ngữ chỉ có một bản `published`.
 - PostgreSQL không có TTL index: `MaintenanceService` chạy mỗi giờ trong tiến trình API để xoá refresh token hết
   hạn và sự kiện nghe quá 180 ngày.
-
-## Chất lượng nội dung
-
-Cài thêm `pip install -e '.[quality]'` trên worker và đặt `WHISPER_MODEL` thành tên hoặc thư mục model
-faster-whisper. Worker chạy model CPU trong thread; model được nạp một lần và có thể cần tải trọng số ở lần chạy đầu.
-Audio có ASR WER vượt `ASR_WER_MAX` sẽ
-làm job thất bại, không được đưa vào pack. Phép so sánh chuẩn hoá hoa/thường, dấu câu, Unicode; tiếng Trung/Nhật
-tách ký tự nên kết quả gần CER, cần hiệu chỉnh ngưỡng trên tập kiểm thử thực tế. Chưa bật model thì không chấm.
-Model lỗi sẽ làm job thử lại, không tự bỏ qua đánh giá đã cấu hình.
 
 Các request CMS dùng một transaction chung cho nghiệp vụ, job và nhật ký, commit trước khi gửi response.
 Lỗi ghi audit sẽ hoàn tác nghiệp vụ. Luồng auth có transaction riêng để việc thu hồi token khi phát hiện dùng
@@ -197,7 +187,7 @@ curl --fail http://127.0.0.1:8000/healthz
 ```
 
 Compose đợi PostgreSQL/Redis sẵn sàng và migration thành công rồi mới chạy API/worker. Dữ liệu DB, Redis và
-file nằm trong các named volume; model có volume cache riêng; API chỉ mở cổng loopback 8000. Đặt reverse proxy HTTPS phía trước; cấu hình
+file nằm trong các named volume; API chỉ mở cổng loopback 8000. Đặt reverse proxy HTTPS phía trước; cấu hình
 uvicorn chỉ tin `X-Forwarded-For` từ IP proxy thực tế để rate limit phân biệt được người dùng. Không tin header
 forwarded từ Internet. CMS build bằng `pnpm --filter web build`, phục vụ `frontend/apps/web/dist` dưới cùng
 origin với `/api/` và `/healthz` được proxy tới API. App mobile đặt `EXPO_PUBLIC_API_URL` thành URL HTTPS này
@@ -207,8 +197,7 @@ Sao lưu cả PostgreSQL và volume storage cùng đợt. Trước nâng cấp: 
 kiểm tra health và luồng phát hành/tải pack. Nếu cần quay lại, dùng image cũ cùng bản sao dữ liệu tương ứng;
 không tự downgrade schema đang có dữ liệu production. Không xoá volume khi dừng stack.
 
-Nếu bật model chất lượng trong Docker, đặt `PYTHON_EXTRAS=[quality]` trong `.env` trước khi build.
-Volume model được mount vào `HF_HOME`, có quyền ghi cho UID 10001. Image mặc định chỉ cài dependency nhẹ. Chưa triển khai lên máy chủ thật hay kiểm thử model/provider có tài khoản.
+Chưa triển khai lên máy chủ thật hay kiểm thử model/provider có tài khoản.
 
 ## Giới hạn còn lại
 

@@ -42,11 +42,9 @@ class SqlAudioRepository:
         duration_ms: int,
         sha256: str,
         now: datetime,
-        asr_wer: float | None = None,
     ) -> None:
         values = {
             "voice": voice,
-            "asr_wer": asr_wer,
             "storage_key": key,
             "bytes": size,
             "duration_ms": duration_ms,

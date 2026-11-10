@@ -25,7 +25,6 @@ class Settings(BaseSettings):
     libretranslate_api_key: str = ""
     groq_api_key: str = ""
     groq_model: str = "openai/gpt-oss-20b"
-    whisper_model: str = ""  # Model faster-whisper; rỗng = chưa chấm
     cors_origins: tuple[str, ...] = ("http://localhost:5173",)
     # Chỉ dùng khi APP_ENV=dev: seed sẵn 1 tài khoản admin để đăng nhập thử
     dev_admin_email: str | None = None
@@ -42,7 +41,6 @@ class Settings(BaseSettings):
     playback_retention_days: int = 180
     purge_interval_s: int = 3600
     tts_concurrency: int = 4
-    asr_wer_max: float = 0.08
     supported_langs: tuple[str, ...] = ("vi", "en", "zh", "ja", "ko")
 
     @model_validator(mode="after")

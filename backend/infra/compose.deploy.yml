@@ -4,8 +4,6 @@ x-app: &app
   image: geonarrate-api:local
   build:
     context: ..
-    args:
-      PYTHON_EXTRAS: ${PYTHON_EXTRAS:-}
   env_file: ../.env
   environment:
     APP_ENV: production
@@ -17,7 +15,6 @@ x-app: &app
   restart: unless-stopped
   volumes:
     - storage:/app/var/storage
-    - models:/app/var/models
   depends_on:
     postgres:
       condition: service_healthy
@@ -94,5 +91,4 @@ volumes:
   postgres:
   redis:
   storage:
-  models:
   magpie-models:

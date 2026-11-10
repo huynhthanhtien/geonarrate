@@ -58,10 +58,9 @@ Bảng quyền nằm ở `backend/app/core/permissions.py`. API là lớp kiểm
 ## Hiện trạng
 
 Cả 18 use case trong PRD đã có code. Đã bổ sung LibreTranslate, MagpieTTS tự host, rate limit API công khai,
-mã cài đặt có chữ ký và transaction chung cho thay đổi CMS + audit. ASR WER có thể bật bằng model
-cục bộ; không cấu hình thì giữ trạng thái chưa đánh giá. Audio và pack lưu trên volume local; Compose chạy API, worker, migration, volume chung.
+mã cài đặt có chữ ký và transaction chung cho thay đổi CMS + audit. Audio và pack lưu trên volume local; Compose chạy API, worker, migration, volume chung.
 
-Chưa thể xác nhận sẵn sàng production: cần tài khoản provider, model đã được cấp quyền và hiệu chỉnh ngưỡng,
+Chưa thể xác nhận sẵn sàng production: cần tài khoản provider dịch,
 kiểm thử GPS/QR/audio/offline trên thiết bị thật, tên miền/TLS và sao lưu. Xem hướng dẫn cấu hình và triển khai trong `backend/README.md`.
 
 ## Hợp đồng API

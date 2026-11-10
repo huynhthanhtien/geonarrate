@@ -10,7 +10,6 @@ from app.core.database import get_engine
 from app.core.exceptions import ForbiddenError, UnauthorizedError
 from app.core.permissions import Permission, permissions_for
 from app.core.security import Principal
-from app.integrations.quality import LocalQuality
 from app.integrations.storage.local import LocalStorage
 from app.integrations.translate.base import TranslateProvider
 from app.integrations.translate.groq import GroqTranslate
@@ -107,8 +106,6 @@ def get_pipeline_service() -> PipelineService:
         _translator(),
         _tts(),
         tts_voice=settings.magpie_tts_voice if settings.tts_provider == "magpie" else None,
-        quality=LocalQuality(settings.whisper_model),
-        asr_wer_max=settings.asr_wer_max,
     )
 
 

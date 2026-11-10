@@ -17,7 +17,6 @@ from app.core import deps, schema
 from app.core.config import get_settings
 from app.core.device import issue_device_id
 from app.core.security import hash_password
-from app.integrations.quality import LocalQuality
 from app.main import app
 from app.repositories import job_repo
 from app.services.language_service import DEFAULT_LANGUAGES
@@ -228,19 +227,6 @@ def test_audio_failure_retries_then_can_be_retried_by_admin(client: TestClient) 
     assert "Nội dung".encode() in audio.content
     bad = {"poi_id": point, "lang": "en"}
     assert client.post(f"{API}/audio/retry", json=bad, headers=admin).status_code == 422
-
-
-def test_high_asr_wer_blocks_audio(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
-    async def wer(self: LocalQuality, text: str, audio: bytes, lang: str) -> float:
-        return 0.5
-
-    monkeypatch.setattr(LocalQuality, "audio_wer", wer)
-    admin = _login(client, ADMIN)
-    point = _approved_point(client, admin, "Điểm QA", "Nội dung cần kiểm tra.")
-    _drain(client)
-    cells = client.get(f"{API}/audio/status", headers=admin).json()
-    cell = next(row for row in cells if row["id"] == point)["langs"]["vi"]
-    assert cell["state"] == "failed" and "ASR WER" in cell["error"]
 
 
 def test_pack_cannot_publish_until_checks_pass(

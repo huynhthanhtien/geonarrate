@@ -9,7 +9,6 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from app.core.exceptions import ConflictError, InvalidContentError, NotFoundError
-from app.integrations.quality import LocalQuality
 from app.integrations.storage.local import LocalStorage
 from app.integrations.translate.base import GlossaryTerm, TranslateProvider
 from app.integrations.tts.base import TTSProvider
@@ -61,8 +60,6 @@ class PipelineService:
         clock: Callable[[], datetime] = _utcnow,
         *,
         tts_voice: str | None = None,
-        quality: LocalQuality | None = None,
-        asr_wer_max: float = 0.08,
     ) -> None:
         self._jobs = jobs
         self._pois = pois
@@ -76,8 +73,6 @@ class PipelineService:
         self._translator = translator
         self._tts = tts
         self._tts_voice = tts_voice
-        self._quality = quality or LocalQuality()
-        self._asr_wer_max = asr_wer_max
         self._clock = clock
 
     # --- worker
@@ -174,9 +169,6 @@ class PipelineService:
         data = await self._tts.synthesize(text, voice, lang=lang)
         if not data:
             raise RuntimeError("TTS không trả về âm thanh")
-        wer = await self._quality.audio_wer(text, data, lang)
-        if wer is not None and wer > self._asr_wer_max:
-            raise RuntimeError(f"ASR WER {wer:.3f} vượt ngưỡng {self._asr_wer_max:.3f}")
         key = f"audio/{aid}/{lang}/{h}.mp3"
         self._storage.put(key, data)
         await self._audio.upsert_asset(
@@ -189,7 +181,6 @@ class PipelineService:
             len(data) * 1000 // MP3_BYTES_PER_SECOND,
             _sha(data),
             self._clock(),
-            asr_wer=wer,
         )
 
     async def _tour_assets(
