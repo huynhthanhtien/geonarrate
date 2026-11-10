@@ -114,9 +114,13 @@ class PipelineService:
         rows = await self._jobs.translation_progress()
         return [
             {
-                "poi_id": row["poi_id"], "title": row["title"],
-                "lang": row["lang"], "status": row["status"], "attempts": row["attempts"],
-                "error": (row["error"] or {}).get("message"), "updated_at": row["updated_at"],
+                "poi_id": row["poi_id"],
+                "title": row["title"],
+                "lang": row["lang"],
+                "status": row["status"],
+                "attempts": row["attempts"],
+                "error": (row["error"] or {}).get("message"),
+                "updated_at": row["updated_at"],
             }
             for row in rows
         ]

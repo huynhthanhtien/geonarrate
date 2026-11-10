@@ -52,14 +52,24 @@ class SqlJobRepository:
             jobs.c.payload["poi_id"].astext, jobs.c.payload["attraction_id"].astext
         )
         lang = jobs.c.payload["lang"].astext
-        ranked = select(
-            poi_id.label("poi_id"), lang.label("lang"), jobs.c.status,
-            jobs.c.error, jobs.c.attempts, jobs.c.updated_at,
-            func.row_number().over(
-                partition_by=(poi_id, lang),
-                order_by=(jobs.c.created_at.desc(), jobs.c.id.desc()),
-            ).label("rank"),
-        ).where(jobs.c.type == "translate").subquery()
+        ranked = (
+            select(
+                poi_id.label("poi_id"),
+                lang.label("lang"),
+                jobs.c.status,
+                jobs.c.error,
+                jobs.c.attempts,
+                jobs.c.updated_at,
+                func.row_number()
+                .over(
+                    partition_by=(poi_id, lang),
+                    order_by=(jobs.c.created_at.desc(), jobs.c.id.desc()),
+                )
+                .label("rank"),
+            )
+            .where(jobs.c.type == "translate")
+            .subquery()
+        )
         stmt = (
             select(ranked, pois.c.title)
             .join(pois, cast(pois.c.id, Text) == ranked.c.poi_id)

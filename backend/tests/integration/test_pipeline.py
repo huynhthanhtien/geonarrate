@@ -72,13 +72,16 @@ def client(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Iterator[TestClie
         await clear_test_pois(conn)
         for lang in DEFAULT_LANGUAGES:
             values = {
-                "code": lang.code, "bcp47": lang.bcp47, "native_name": lang.native_name,
-                "is_source": lang.is_source, "is_active": lang.is_active,
+                "code": lang.code,
+                "bcp47": lang.bcp47,
+                "native_name": lang.native_name,
+                "is_source": lang.is_source,
+                "is_active": lang.is_active,
             }
             await conn.execute(
-                pg_insert(schema.languages).values(**values).on_conflict_do_update(
-                    index_elements=[schema.languages.c.code], set_=values
-                )
+                pg_insert(schema.languages)
+                .values(**values)
+                .on_conflict_do_update(index_elements=[schema.languages.c.code], set_=values)
             )
         await conn.execute(delete(schema.users).where(schema.users.c.email != ADMIN["email"]))
         await conn.execute(
@@ -253,9 +256,7 @@ def test_pack_publish_rollback_and_missing_audio(client: TestClient) -> None:
     tour = _published_tour(client, admin, "free", [p1])
 
     p2 = _approved_point(client, admin, "Điểm B", "Bài B.")
-    r = client.patch(
-        f"{API}/tours/{tour}", json={"pois": [{"id": p1}, {"id": p2}]}, headers=admin
-    )
+    r = client.patch(f"{API}/tours/{tour}", json={"pois": [{"id": p1}, {"id": p2}]}, headers=admin)
     assert r.json()["poi_count"] == 2
     missing = client.post(f"{API}/packs/build", json={"tour_id": tour, "lang": "en"}, headers=admin)
     assert missing.status_code == 422

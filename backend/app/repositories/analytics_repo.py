@@ -75,8 +75,6 @@ class SqlAnalyticsRepository:
             "plays": play_count,
             "completes": done,
             "completion_rate": round(done / play_count, 4) if play_count else None,
-            "top_pois": [
-                {"id": str(r[0]), "name": r[1], "plays": int(r[2])} for r in top if r[2]
-            ],
+            "top_pois": [{"id": str(r[0]), "name": r[1], "plays": int(r[2])} for r in top if r[2]],
             "by_lang": [{"lang": r[0], "plays": int(r[1])} for r in by_lang],
         }

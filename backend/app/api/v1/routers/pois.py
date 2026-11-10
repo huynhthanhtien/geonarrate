@@ -44,18 +44,14 @@ async def get_poi(poi_id: str, svc: Svc, _: Reader) -> PoiOut:
 
 
 @router.patch("/{poi_id}", response_model=PoiOut)
-async def update_poi(
-    poi_id: str, body: PoiUpdateIn, svc: Svc, user: Writer
-) -> PoiOut:
+async def update_poi(poi_id: str, body: PoiUpdateIn, svc: Svc, user: Writer) -> PoiOut:
     updated = await svc.update(poi_id, body.model_dump(exclude_unset=True), user.user_id)
     return PoiOut.model_validate(updated)
 
 
 @router.put("/{poi_id}/script", response_model=PoiOut)
 async def save_script(poi_id: str, body: ScriptIn, svc: Svc, user: Writer) -> PoiOut:
-    return PoiOut.model_validate(
-        await svc.save_script(poi_id, body.script, user.user_id)
-    )
+    return PoiOut.model_validate(await svc.save_script(poi_id, body.script, user.user_id))
 
 
 @router.post("/{poi_id}/submit", response_model=PoiOut)
@@ -69,9 +65,5 @@ async def approve_script(poi_id: str, svc: Svc, user: Reviewer) -> PoiOut:
 
 
 @router.post("/{poi_id}/reject", response_model=PoiOut)
-async def reject_script(
-    poi_id: str, body: RejectIn, svc: Svc, user: Reviewer
-) -> PoiOut:
-    return PoiOut.model_validate(
-        await svc.reject(poi_id, body.review_note, user.user_id)
-    )
+async def reject_script(poi_id: str, body: RejectIn, svc: Svc, user: Reviewer) -> PoiOut:
+    return PoiOut.model_validate(await svc.reject(poi_id, body.review_note, user.user_id))

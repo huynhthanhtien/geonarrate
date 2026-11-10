@@ -3,12 +3,15 @@ import pytest
 from app.services.content_service import qa_flags
 
 
-@pytest.mark.parametrize("translated", [
-    "Ben Thanh Market",
-    "Ben\u202fThanh\u202fMarket",
-    "BEN\u00a0THANH   MARKET",
-    "Ben\u200b Thanh Market",
-])
+@pytest.mark.parametrize(
+    "translated",
+    [
+        "Ben Thanh Market",
+        "Ben\u202fThanh\u202fMarket",
+        "BEN\u00a0THANH   MARKET",
+        "Ben\u200b Thanh Market",
+    ],
+)
 def test_glossary_matches_unicode_whitespace_and_case(translated: str) -> None:
     terms = [{"term": "Chợ Bến Thành", "translation": "Ben Thanh Market"}]
     assert qa_flags("Chợ Bến Thành", translated, terms, "groq") == []

@@ -130,9 +130,7 @@ class FakeLanguages:
 
 def _svc() -> tuple[PoiService, FakeAudit]:
     audit = FakeAudit()
-    return PoiService(
-        FakeRepo(), AuditService(audit), FakeLanguages(), clock=lambda: NOW
-    ), audit
+    return PoiService(FakeRepo(), AuditService(audit), FakeLanguages(), clock=lambda: NOW), audit
 
 
 async def _create(svc: PoiService, name: str = "Chùa Đức Bà") -> Poi:

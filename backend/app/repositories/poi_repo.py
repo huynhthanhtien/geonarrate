@@ -23,9 +23,7 @@ _MAX_LIST = 500
 
 
 class PoiRepository(Protocol):
-    async def find_all(
-        self, category: str | None, script_status: str | None
-    ) -> list[Poi]: ...
+    async def find_all(self, category: str | None, script_status: str | None) -> list[Poi]: ...
     async def get(self, poi_id: str) -> Poi | None: ...
     async def insert(
         self,

@@ -170,9 +170,7 @@ class PoiService:
             poi_id, expected, patch, actor_id, self._clock(), jobs
         )
         if updated is None:
-            await self.get(
-                poi_id
-            )  # không có điểm này thì báo 404, còn lại là sai trạng thái
+            await self.get(poi_id)  # không có điểm này thì báo 404, còn lại là sai trạng thái
             raise ConflictError("invalid_script_status", conflict_detail)
         return updated
 

@@ -66,9 +66,7 @@ def get_audit_service() -> AuditService:
 
 def get_poi_service() -> PoiService:
     engine = get_engine()
-    return PoiService(
-        SqlPoiRepository(engine), get_audit_service(), SqlLanguageRepository(engine)
-    )
+    return PoiService(SqlPoiRepository(engine), get_audit_service(), SqlLanguageRepository(engine))
 
 
 def get_content_service() -> ContentService:
@@ -90,7 +88,7 @@ def _translator() -> TranslateProvider:
 def _tts() -> TTSProvider:
     settings = get_settings()
     # if settings.tts_provider == "azure":
-        # return AzureTTS(settings.azure_speech_key, settings.azure_speech_region)
+    # return AzureTTS(settings.azure_speech_key, settings.azure_speech_region)
     if settings.tts_provider == "magpie":
         return MagpieTTS(settings.magpie_tts_url)
     return EdgeTTS()

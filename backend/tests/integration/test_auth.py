@@ -202,9 +202,7 @@ def test_audit_independent_filters_search_and_stable_pagination(client: TestClie
     assert portal is not None
     portal.call(svc.record, admin["user"]["id"], "tour.update", AuditResource("tour", "tour-1"))
     portal.call(svc.record, admin["user"]["id"], "tour.create", AuditResource("tour", "tour-2"))
-    portal.call(
-        svc.record, editor["user"]["id"], "script.submit", AuditResource("poi", "a-1")
-    )
+    portal.call(svc.record, editor["user"]["id"], "script.submit", AuditResource("poi", "a-1"))
     portal.call(
         svc.record,
         editor["user"]["id"],

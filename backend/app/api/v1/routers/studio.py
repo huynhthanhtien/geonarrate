@@ -125,9 +125,7 @@ async def audio_status(svc: Pipeline, _: AudioBuilder) -> list[dict[str, Any]]:
     response_class=FileResponse,
     responses={200: {"content": {"audio/mpeg": {}}}},
 )
-async def preview_audio(
-    poi_id: str, lang: str, svc: Pipeline, _: AudioBuilder
-) -> FileResponse:
+async def preview_audio(poi_id: str, lang: str, svc: Pipeline, _: AudioBuilder) -> FileResponse:
     path = await svc.audio_preview_path(poi_id, lang)
     return FileResponse(path, media_type="audio/mpeg", headers={"Cache-Control": "no-store"})
 
