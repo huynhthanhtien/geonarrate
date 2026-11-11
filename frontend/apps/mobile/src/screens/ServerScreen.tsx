@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useI18n } from "../i18n";
-import { getBackend, parseBackend, setBackend, checkBackend } from "../api";
+import { BackendAddressError, getBackend, parseBackend, setBackend, checkBackend } from "../api";
 import { colors, space } from "../theme";
 import { Button, Card, Header, Screen, TextField, Txt } from "../ui";
 import { setPref } from "../store";
@@ -16,8 +16,8 @@ export function ServerScreen({ onBack, onSave }: { onBack: () => void; onSave: (
     let server: string;
     try {
       server = parseBackend(address);
-    } catch {
-      setError(t("server.invalid"));
+    } catch (reason) {
+      setError(t(reason instanceof BackendAddressError && reason.reason === "cleartext" ? "server.cleartext" : "server.invalid"));
       return;
     }
     setBusy(true);
