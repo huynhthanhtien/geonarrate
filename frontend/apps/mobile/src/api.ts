@@ -7,17 +7,32 @@ let backend = DEFAULT_BACKEND;
 export const getBackend = () => backend;
 export const setBackend = (value: string) => { backend = value; };
 
+/** Lỗi nhập địa chỉ máy chủ: `format` = sai định dạng; `cleartext` = HTTP tới địa chỉ mà bản Android này không được phép. */
+export class BackendAddressError extends Error {
+  constructor(public readonly reason: "format" | "cleartext", message: string) {
+    super(message);
+  }
+}
+
+const PRIVATE_HOST = /^(localhost|10\.0\.2\.2|127\.\d+\.\d+\.\d+|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+)$/i;
+
 export function parseBackend(value: string): string {
-  const match = /^(https?):\/\/([a-z0-9.-]+)(?::(\d{1,5}))?\/*$/i.exec(value.trim());
+  let text = value.trim();
+  // Quên gõ http:// hoặc https://: địa chỉ mạng nội bộ dùng http, còn lại dùng https
+  if (text && !/^[a-z][a-z0-9+.-]*:\/\//i.test(text)) {
+    const host = /^([^:/]+)/.exec(text)?.[1] ?? "";
+    text = `${PRIVATE_HOST.test(host) ? "http" : "https"}://${text}`;
+  }
+  const match = /^(https?):\/\/([a-z0-9.-]+)(?::(\d{1,5}))?\/*$/i.exec(text);
   if (!match || (match[3] && (+match[3] === 0 || +match[3] > 65535))) {
-    throw new Error("Nhập địa chỉ máy chủ, ví dụ https://tour.example.com hoặc địa chỉ LAN đã cấu hình.");
+    throw new BackendAddressError("format", "Nhập địa chỉ máy chủ, ví dụ https://tour.example.com hoặc http://192.168.1.10:8000.");
   }
   const [, scheme, host, port] = match;
   if (Platform.OS === "android" && scheme?.toLowerCase() === "http") {
     const defaultHost = /^http:\/\/([^:/]+)/i.exec(DEFAULT_BACKEND)?.[1];
     const localHosts = ["localhost", "127.0.0.1", "10.0.2.2", defaultHost];
     if (!localHosts.includes(host?.toLowerCase())) {
-      throw new Error("Bản Android này chỉ cho phép HTTP tới máy dev đã cấu hình. Hãy dùng HTTPS hoặc kết nối USB.");
+      throw new BackendAddressError("cleartext", "Bản Android này chỉ cho phép HTTP tới máy dev đã cấu hình. Hãy dùng HTTPS hoặc kết nối USB.");
     }
   }
   return `${scheme?.toLowerCase()}://${host?.toLowerCase()}${port ? `:${port}` : ""}`;

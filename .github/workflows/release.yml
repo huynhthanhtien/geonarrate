@@ -67,6 +67,9 @@ jobs:
           distribution: temurin
           java-version: '17'
       - uses: android-actions/setup-android@v3
+        with:
+          # Runner đã có SDK; mặc định action cài thêm gói `tools` đã bị Google gỡ nên sdkmanager lỗi
+          packages: ''
       - name: Cài Android SDK
         run: |
           yes | sdkmanager --licenses >/dev/null || true

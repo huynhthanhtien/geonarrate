@@ -181,6 +181,7 @@ const vi = {
   "server.connect": "Kết nối và lưu",
   "server.connecting": "Đang kiểm tra…",
   "server.invalid": "Địa chỉ máy chủ không hợp lệ.",
+  "server.cleartext": "Bản ứng dụng này không cho phép kết nối HTTP tới địa chỉ đó. Dùng địa chỉ HTTPS, hoặc cài bản được build cho địa chỉ máy chủ này.",
   "server.unreachable": "Không kết nối được GeoNarrate. Kiểm tra địa chỉ, backend và Wi-Fi.",
 
   "lang.title": "Ngôn ngữ thuyết minh",
@@ -405,6 +406,7 @@ const en: Record<MessageKey, string> = {
   "server.connect": "Connect and save",
   "server.connecting": "Checking…",
   "server.invalid": "That server address isn't valid.",
+  "server.cleartext": "This app build can't use plain HTTP for that address. Use an HTTPS address, or install a build made for this server.",
   "server.unreachable": "Couldn't reach GeoNarrate. Check the address, backend, and Wi-Fi.",
 
   "lang.title": "Narration language",
@@ -627,6 +629,7 @@ const zh: Record<MessageKey, string> = {
   "server.connect": "连接并保存",
   "server.connecting": "正在检查…",
   "server.invalid": "服务器地址无效。",
+  "server.cleartext": "此应用版本不允许对该地址使用 HTTP。请使用 HTTPS 地址，或安装针对该服务器构建的版本。",
   "server.unreachable": "无法连接 GeoNarrate，请检查地址、后端和 Wi-Fi。",
 
   "lang.title": "讲解语言",
@@ -849,6 +852,7 @@ const ja: Record<MessageKey, string> = {
   "server.connect": "接続して保存",
   "server.connecting": "確認中…",
   "server.invalid": "サーバーアドレスが正しくありません。",
+  "server.cleartext": "このアプリでは、そのアドレスへの HTTP 接続は許可されていません。HTTPS のアドレスを使うか、このサーバー用にビルドされた版をインストールしてください。",
   "server.unreachable": "GeoNarrate に接続できません。アドレス、バックエンド、Wi-Fi を確認してください。",
 
   "lang.title": "音声ガイドの言語",
@@ -1071,6 +1075,7 @@ const ko: Record<MessageKey, string> = {
   "server.connect": "연결 및 저장",
   "server.connecting": "확인 중…",
   "server.invalid": "서버 주소가 올바르지 않습니다.",
+  "server.cleartext": "이 앱 버전은 해당 주소로의 HTTP 연결을 허용하지 않습니다. HTTPS 주소를 사용하거나 이 서버용으로 빌드된 버전을 설치하세요.",
   "server.unreachable": "GeoNarrate에 연결할 수 없습니다. 주소, 백엔드, Wi-Fi를 확인하세요.",
 
   "lang.title": "해설 언어",
