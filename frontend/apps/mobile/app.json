@@ -11,9 +11,11 @@
       "bundleIdentifier": "app.geonarrate.mobile"
     },
     "android": {
-      "permissions": ["android.permission.RECEIVE_BOOT_COMPLETED"],
+      "permissions": [
+        "android.permission.RECEIVE_BOOT_COMPLETED"
+      ],
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#E6F4F1",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -40,10 +42,18 @@
           "recordAudioAndroid": false
         }
       ],
-      ["expo-audio", { "enableBackgroundPlayback": true, "recordAudioAndroid": false }],
+      [
+        "expo-audio",
+        {
+          "enableBackgroundPlayback": true,
+          "recordAudioAndroid": false
+        }
+      ],
       "@maplibre/maplibre-react-native",
       "./plugins/android-map-network",
-      "./plugins/android-dev-network"
+      "./plugins/android-dev-network",
+      "./plugins/android-release-signing",
+      "expo-font"
     ],
     "scheme": "geonarrate"
   }

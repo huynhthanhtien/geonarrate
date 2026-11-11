@@ -13,8 +13,16 @@ class LibreTranslate:
         self._api_key = api_key
 
     async def translate(
-        self, text: str, source: str, target: str, terms: list[GlossaryTerm]
+        self,
+        text: str,
+        source: str,
+        target: str,
+        terms: list[GlossaryTerm],
+        *,
+        source_tag: str | None = None,
+        target_tag: str | None = None,
     ) -> str:
+        # LibreTranslate dùng mã ngắn (vi, en, zh...), không cần mã BCP 47
         payload = {"q": text, "source": source, "target": target, "format": "text"}
         if self._api_key:
             payload["api_key"] = self._api_key

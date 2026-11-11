@@ -28,14 +28,14 @@ async def main() -> int:
     await database.connect()
     try:
         user = await get_auth_service().create_user(
-            args.email, password, Role(args.role), args.name
+            args.email, password, [Role(args.role)], args.name
         )
     except DomainError as e:
         print(e.detail, file=sys.stderr)
         return 1
     finally:
         await database.disconnect()
-    print(f"Đã tạo {user.email} ({user.role.value})")
+    print(f"Đã tạo {user.email} ({', '.join(user.roles)})")
     return 0
 
 

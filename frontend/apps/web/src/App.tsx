@@ -53,7 +53,7 @@ const router = createBrowserRouter([
           {
             path: "/pois/new",
             element: (
-              <RequirePermission permission="script:write">
+              <RequirePermission permission="poi:write">
                 <PoiFormPage />
               </RequirePermission>
             ),
@@ -61,7 +61,7 @@ const router = createBrowserRouter([
           {
             path: "/pois/:id/edit",
             element: (
-              <RequirePermission permission="script:write">
+              <RequirePermission permission="poi:write">
                 <PoiFormPage />
               </RequirePermission>
             ),
@@ -77,7 +77,7 @@ const router = createBrowserRouter([
           {
             path: "/admin",
             element: (
-              <RequirePermission permission="admin:manage">
+              <RequirePermission permission="audit:read">
                 <Outlet />
               </RequirePermission>
             ),

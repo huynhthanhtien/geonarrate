@@ -25,7 +25,7 @@ class Principal:
     """Người gọi API, lấy từ access token."""
 
     user_id: str
-    role: str
+    roles: tuple[str, ...]
     # `iat` của token (giây, có phần thập phân) — so với mốc thu hồi trong AuthService.authenticate
     issued_at: float = field(default=0.0, compare=False)
 
@@ -47,11 +47,11 @@ def password_needs_rehash(password_hash: str) -> bool:
     return _hasher.check_needs_rehash(password_hash)
 
 
-def create_access_token(user_id: str, role: str, now: datetime | None = None) -> str:
+def create_access_token(user_id: str, roles: tuple[str, ...], now: datetime | None = None) -> str:
     now = now or datetime.now(UTC)
     claims = {
         "sub": user_id,
-        "role": role,
+        "roles": roles,
         "type": "access",
         # NumericDate cho phép số lẻ (RFC 7519): cần độ chính xác dưới giây để so với mốc thu hồi
         "iat": now.timestamp(),
@@ -75,7 +75,9 @@ def decode_access_token(token: str) -> Principal:
     if claims["type"] != "access":
         raise UnauthorizedError("invalid_token", "Không phải access token")
     return Principal(
-        user_id=claims["sub"], role=claims.get("role", ""), issued_at=float(claims["iat"])
+        user_id=claims["sub"],
+        roles=tuple(claims.get("roles", [claims.get("role", "")])),
+        issued_at=float(claims["iat"]),
     )
 
 

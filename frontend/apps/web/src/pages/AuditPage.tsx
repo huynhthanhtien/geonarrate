@@ -3,6 +3,8 @@ import { RotateCcw, Search } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { api, sendJson } from "../api";
 import { Empty, ErrorBox, Field, Page, Table, ghostBtn, inputClass, primaryBtn } from "../components/ui";
+import { formatDateTime } from "../labels";
+import { Select } from "../components/Select";
 
 const PAGE_SIZE = 50;
 const INITIAL_FILTERS = { actor_id: "", resource_type: "", resource_id: "", action: "", q: "", from: "", to: "" };
@@ -11,7 +13,7 @@ const ACTIONS: Record<string, string> = {
   "script.submit": "Gửi duyệt kịch bản", "script.approve": "Duyệt kịch bản", "script.reject": "Từ chối kịch bản",
   "translation.approve": "Duyệt bản dịch", "translation.reject": "Từ chối bản dịch",
   "tour.create": "Tạo tour", "tour.update": "Sửa tour", "pack.publish": "Phát hành pack", "pack.rollback": "Khôi phục pack",
-  "ticket.issue": "Phát hành vé", "ticket.revoke": "Thu hồi vé", "user.create": "Tạo tài khoản", "user.update": "Sửa tài khoản", "user.lock": "Khoá tài khoản",
+  "ticket.issue": "Phát hành vé", "ticket.revoke": "Thu hồi vé", "user.create": "Tạo tài khoản", "user.update": "Sửa tài khoản", "user.lock": "Khoá tài khoản", "user.password": "Đổi mật khẩu",
 };
 const RESOURCES: Record<string, string> = { poi: "Điểm tham quan", translation: "Bản dịch", tour: "Tour", pack: "Pack", ticket: "Vé", ticket_batch: "Lô vé", user: "Tài khoản" };
 interface User { id: string; full_name: string; email: string; }
@@ -76,16 +78,12 @@ export function AuditPage() {
       <form className="mb-5 rounded-xl border border-slate-200 bg-white p-5 space-y-4" onSubmit={submit}>
         <div className="grid items-end gap-3 md:grid-cols-2 xl:grid-cols-4">
           <Field label="Tìm kiếm"><input maxLength={200} className={inputClass} value={draft.q} onChange={(e) => setDraft({ ...draft, q: e.target.value })} placeholder="Tên, email, mã đối tượng, ghi chú…" /></Field>
-          <Field label="Người thực hiện"><select aria-label="Người thực hiện" className={inputClass} value={draft.actor_id} onChange={(e) => setDraft({ ...draft, actor_id: e.target.value })} disabled={users.isPending}>
-            <option value="">Tất cả người thực hiện</option>
-            {users.data?.map((user) => <option key={user.id} value={user.id}>{user.full_name ? `${user.full_name} · ` : ""}{user.email}</option>)}
-          </select></Field>
-          <Field label="Hành động"><select aria-label="Hành động" className={inputClass} value={draft.action} onChange={(e) => setDraft({ ...draft, action: e.target.value })}>
-            <option value="">Tất cả hành động</option>{Object.entries(ACTIONS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-          </select></Field>
-          <Field label="Đối tượng"><select aria-label="Đối tượng" className={inputClass} value={draft.resource_type} onChange={(e) => setDraft({ ...draft, resource_type: e.target.value, resource_id: "" })}>
-            <option value="">Tất cả đối tượng</option>{Object.entries(RESOURCES).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-          </select></Field>
+          <Field label="Người thực hiện"><Select ariaLabel="Người thực hiện" value={draft.actor_id} onChange={(v) => setDraft({ ...draft, actor_id: v })} disabled={users.isPending}
+            options={[{ value: "", label: "Tất cả người thực hiện" }, ...(users.data ?? []).map((user) => ({ value: user.id, label: user.full_name ? `${user.full_name} · ${user.email}` : user.email }))]} /></Field>
+          <Field label="Hành động"><Select ariaLabel="Hành động" value={draft.action} onChange={(v) => setDraft({ ...draft, action: v })}
+            options={[{ value: "", label: "Tất cả hành động" }, ...Object.entries(ACTIONS).map(([value, label]) => ({ value, label }))]} /></Field>
+          <Field label="Đối tượng"><Select ariaLabel="Đối tượng" value={draft.resource_type} onChange={(v) => setDraft({ ...draft, resource_type: v, resource_id: "" })}
+            options={[{ value: "", label: "Tất cả đối tượng" }, ...Object.entries(RESOURCES).map(([value, label]) => ({ value, label }))]} /></Field>
         </div>
         <div className="flex flex-wrap items-end gap-3">
           <Field label="Từ ngày"><input type="date" className={inputClass} value={draft.from} onChange={(e) => setDraft({ ...draft, from: e.target.value })} /></Field>
@@ -119,7 +117,7 @@ export function AuditPage() {
           {rows.map((log) => {
             const user = userById.get(log.actor_id);
             return <tr key={log.id}>
-              <td className="whitespace-nowrap px-4 py-3">{new Date(log.ts).toLocaleString("vi-VN")}</td>
+              <td className="whitespace-nowrap px-4 py-3">{formatDateTime(log.ts)}</td>
               <td className="px-4 py-3" title={log.actor_id}>{user ? <><span className="font-medium">{user.full_name || user.email}</span>{user.full_name && <span className="block text-xs text-slate-500">{user.email}</span>}</> : <span className="text-slate-500">Tài khoản {log.actor_id.slice(0, 8)}…</span>}</td>
               <td className="px-4 py-3">{ACTIONS[log.action] ?? log.action}</td>
               <td className="px-4 py-3"><span>{RESOURCES[log.resource.type] ?? log.resource.type}</span><code className="block text-xs text-slate-400" title={log.resource.id}>{log.resource.id}</code></td>

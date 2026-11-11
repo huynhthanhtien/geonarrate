@@ -2,7 +2,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, status
 
-from app.api.v1.schemas.auth import LoginIn, RefreshIn, TokenOut, UserOut
+from app.api.v1.schemas.auth import LoginIn, PasswordChangeIn, RefreshIn, TokenOut, UserOut
 from app.core.deps import get_auth_service, get_current_principal
 from app.core.permissions import permissions_for
 from app.core.security import Principal
@@ -23,8 +23,8 @@ def _to_out(pair: TokenPair) -> TokenOut:
             id=u.id,
             email=u.email,
             full_name=u.full_name,
-            role=u.role.value,
-            permissions=sorted(permissions_for(u.role)),
+            roles=list(u.roles),
+            permissions=sorted(permissions_for(u.roles)),
         ),
     )
 
@@ -43,6 +43,16 @@ async def refresh(body: RefreshIn, svc: AuthSvc) -> TokenOut:
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
 async def logout(body: RefreshIn, svc: AuthSvc) -> None:
     await svc.logout(body.refresh_token)
+
+
+@router.post("/change-password", status_code=status.HTTP_204_NO_CONTENT)
+async def change_password(
+    body: PasswordChangeIn,
+    principal: Annotated[Principal, Depends(get_current_principal)],
+    svc: AuthSvc,
+) -> None:
+    """Tự đổi mật khẩu (cần mật khẩu hiện tại); mọi phiên, kể cả phiên này, bị thu hồi."""
+    await svc.change_password(principal.user_id, body.current_password, body.new_password)
 
 
 @router.post("/logout-all", status_code=status.HTTP_204_NO_CONTENT)

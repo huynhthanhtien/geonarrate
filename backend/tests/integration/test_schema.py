@@ -185,7 +185,7 @@ def test_only_one_published_pack_per_tour_and_language() -> None:
 def test_user_role_and_tour_access_are_constrained() -> None:
     async def bad_role(conn: AsyncConnection) -> None:
         await conn.execute(
-            insert(schema.users).values(email="x@test", password_hash="h", role="hacker")
+            insert(schema.users).values(email="x@test", password_hash="h", roles=["hacker"])
         )
 
     async def bad_access(conn: AsyncConnection) -> None:
@@ -242,7 +242,7 @@ def test_purge_replaces_mongo_ttl_indexes() -> None:
         user_id = (
             await conn.execute(
                 insert(schema.users)
-                .values(email="purge@test", password_hash="h", role="editor")
+                .values(email="purge@test", password_hash="h", roles=["editor"])
                 .returning(schema.users.c.id)
             )
         ).scalar_one()

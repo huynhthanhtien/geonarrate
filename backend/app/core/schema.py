@@ -76,11 +76,15 @@ users = Table(
     Column("email", Text, nullable=False, unique=True),
     Column("password_hash", Text, nullable=False),
     Column("full_name", Text, nullable=False, server_default=""),
-    Column("role", Text, nullable=False),
+    Column("roles", ARRAY(Text), nullable=False),
     Column("is_active", Boolean, nullable=False, server_default=text("true")),
     Column("last_login_at", DateTime(timezone=True)),
     *_timestamps(),
-    CheckConstraint("role IN ('admin', 'editor', 'translator')", name="role"),
+    CheckConstraint(
+        "cardinality(roles) > 0 AND roles <@ "
+        "ARRAY['admin', 'editor', 'translator', 'reviewer', 'operator']::text[]",
+        name="roles",
+    ),
 )
 
 refresh_tokens = Table(
@@ -149,14 +153,13 @@ tours = Table(
     CheckConstraint("access IN ('free', 'paid')", name="access"),
 )
 
-# Thay cho tours.poi_ids + preview_poi_ids; position giữ thứ tự điểm trong tour
+# Thay cho tours.poi_ids; position giữ thứ tự điểm trong tour
 tour_pois = Table(
     "tour_pois",
     metadata,
     Column("tour_id", Uuid, ForeignKey("tours.id", ondelete="RESTRICT"), nullable=False),
     Column("poi_id", Uuid, ForeignKey("pois.id", ondelete="RESTRICT"), nullable=False),
     Column("position", Integer, nullable=False),
-    Column("is_preview", Boolean, nullable=False, server_default=text("false")),
     PrimaryKeyConstraint("tour_id", "poi_id"),
     Index("ix_tour_pois_poi_id", "poi_id"),
 )

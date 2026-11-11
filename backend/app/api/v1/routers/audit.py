@@ -14,7 +14,7 @@ from app.services.audit_service import AuditService
 router = APIRouter(
     prefix="/audit",
     tags=["identity"],
-    dependencies=[Depends(require_permission(Permission.ADMIN_MANAGE))],
+    dependencies=[Depends(require_permission(Permission.AUDIT_READ))],
 )
 
 

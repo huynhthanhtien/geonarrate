@@ -1,6 +1,6 @@
 import { randomUUID } from "expo-crypto";
 import * as SQLite from "expo-sqlite";
-import { ApiError, DEFAULT_BACKEND, getBackend, registerDevice, sendEvents, type Manifest } from "./api";
+import { ApiError, DEFAULT_BACKEND, getBackend, packBytes, registerDevice, sendEvents, type Manifest } from "./api";
 
 const db = SQLite.openDatabaseSync("geonarrate.db");
 db.execSync(`
@@ -90,7 +90,7 @@ export function installedPacks(): InstalledPack[] {
   return db.getAllSync<PackRow>("SELECT * FROM packs").map(toPack);
 }
 export function savePack(m: Manifest, tourName: string): void {
-  const bytes = m.files.reduce((sum, f) => sum + f.bytes, 0);
+  const bytes = packBytes(m);
   db.runSync(
     "INSERT OR REPLACE INTO packs (tour_id, lang, manifest, bytes, tour_name) VALUES (?, ?, ?, ?, ?)",
     m.tour_id,

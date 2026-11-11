@@ -55,6 +55,10 @@ class ScriptIn(BaseModel):
     script: ScriptBody
 
 
+class ImageOut(BaseModel):
+    url: str
+
+
 class RejectIn(BaseModel):
     review_note: ReviewNote
 

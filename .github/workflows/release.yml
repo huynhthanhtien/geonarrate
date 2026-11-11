@@ -1,0 +1,124 @@
+name: release
+
+# Phát hành APK Android lên GitHub Releases.
+# - Push tag dạng v1.2.3 → build đúng commit của tag.
+# - Chạy tay (workflow_dispatch) → nhập version, tag v<version> được tạo khi phát hành.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Phiên bản phát hành (vd 1.2.0)'
+        required: true
+        type: string
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    env:
+      VERSION: ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
+      # Đặt repository variable EXPO_PUBLIC_API_URL (hoặc secret cùng tên) trước khi phát hành.
+      EXPO_PUBLIC_API_URL: ${{ vars.EXPO_PUBLIC_API_URL || secrets.EXPO_PUBLIC_API_URL }}
+      EXPO_NO_TELEMETRY: '1'
+      CI: '1'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Chuẩn hoá phiên bản
+        run: |
+          version="${VERSION#v}"
+          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::Phiên bản không hợp lệ: '$VERSION' (cần dạng 1.2.3 hoặc v1.2.3)"
+            exit 1
+          fi
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+          echo "APK=geonarrate-$version.apk" >> "$GITHUB_ENV"
+
+      - name: Kiểm tra URL API
+        run: |
+          if [ -z "${EXPO_PUBLIC_API_URL:-}" ]; then
+            echo "::error::Chưa đặt EXPO_PUBLIC_API_URL. Thêm repository variable EXPO_PUBLIC_API_URL (vd https://api.example.com) rồi chạy lại."
+            exit 1
+          fi
+
+      - uses: pnpm/action-setup@v4
+        with: { package_json_file: frontend/package.json }
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm turbo run typecheck
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - name: Cài Android SDK
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0" "ndk;27.1.12297006" "cmake;3.22.1"
+
+      - name: Chuẩn bị keystore ký release
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            printf '%s' "$KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/release.keystore"
+            echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/release.keystore" >> "$GITHUB_ENV"
+          else
+            echo "::notice::Chưa cấu hình ANDROID_KEYSTORE_BASE64 — APK sẽ ký bằng debug keystore."
+          fi
+
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Sinh project Android
+        working-directory: frontend/apps/mobile
+        env:
+          EXPO_ANDROID_VERSION_CODE: ${{ github.run_number }}
+          EXPO_ANDROID_VERSION_NAME: ${{ env.VERSION }}
+        run: pnpm exec expo prebuild --platform android --no-install
+
+      - name: Build APK release
+        working-directory: frontend/apps/mobile/android
+        env:
+          ANDROID_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: ./gradlew --no-daemon assembleRelease
+
+      - name: Đóng gói artifact
+        run: |
+          cp "apps/mobile/android/app/build/outputs/apk/release/app-release.apk" "$GITHUB_WORKSPACE/$APK"
+          sha256sum "$GITHUB_WORKSPACE/$APK" > "$GITHUB_WORKSPACE/$APK.sha256"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-release-${{ env.VERSION }}
+          path: |
+            ${{ env.APK }}
+            ${{ env.APK }}.sha256
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ env.VERSION }}
+          name: GeoNarrate v${{ env.VERSION }}
+          target_commitish: ${{ github.sha }}
+          generate_release_notes: true
+          prerelease: ${{ contains(env.VERSION, '-') }}
+          fail_on_unmatched_files: true
+          files: |
+            ${{ env.APK }}
+            ${{ env.APK }}.sha256

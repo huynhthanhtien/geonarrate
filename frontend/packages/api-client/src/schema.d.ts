@@ -58,6 +58,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/change-password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Change Password
+         * @description Tự đổi mật khẩu (cần mật khẩu hiện tại); mọi phiên, kể cả phiên này, bị thu hồi.
+         */
+        post: operations["change_password_api_v1_auth_change_password_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/logout-all": {
         parameters: {
             query?: never;
@@ -130,6 +150,26 @@ export interface paths {
         put?: never;
         /** Create Poi */
         post: operations["create_poi_api_v1_pois_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/pois/images": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Upload Image
+         * @description Tải 1 ảnh (body là file ảnh thô: JPEG, PNG, WebP hoặc GIF, tối đa 8 MB) lên Cloudinary.
+         */
+        post: operations["upload_image_api_v1_pois_images_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -233,6 +273,23 @@ export interface paths {
         get: operations["translation_jobs_api_v1_translation_jobs_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/translation-jobs/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Retry Translation */
+        post: operations["retry_translation_api_v1_translation_jobs_retry_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -446,6 +503,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/packs/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Pack Status */
+        get: operations["pack_status_api_v1_packs_status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/packs/{pack_id}/diff": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Pack Diff */
+        get: operations["pack_diff_api_v1_packs__pack_id__diff_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/packs/build": {
         parameters: {
             query?: never;
@@ -530,6 +621,23 @@ export interface paths {
         head?: never;
         /** Update Account */
         patch: operations["update_account_api_v1_admin_users__user_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/admin/users/{user_id}/password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Set Password */
+        post: operations["set_password_api_v1_admin_users__user_id__password_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/tickets": {
@@ -672,6 +780,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/public/tours/{tour_id}/packs/{lang}/files/{poi_id}/images/{index}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Pack Image */
+        get: operations["pack_image_api_v1_public_tours__tour_id__packs__lang__files__poi_id__images__index__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/public/playback-events": {
         parameters: {
             query?: never;
@@ -733,11 +858,8 @@ export interface components {
             email: string;
             /** Password */
             password: string;
-            /**
-             * Role
-             * @enum {string}
-             */
-            role: "admin" | "editor" | "translator";
+            /** Roles */
+            roles: ("admin" | "editor" | "translator" | "reviewer" | "operator")[];
             /**
              * Full Name
              * @default
@@ -752,8 +874,8 @@ export interface components {
             email: string;
             /** Full Name */
             full_name: string;
-            /** Role */
-            role: string;
+            /** Roles */
+            roles: string[];
             /** Is Active */
             is_active: boolean;
             /** Last Login At */
@@ -761,8 +883,8 @@ export interface components {
         };
         /** AccountUpdateIn */
         AccountUpdateIn: {
-            /** Role */
-            role?: ("admin" | "editor" | "translator") | null;
+            /** Roles */
+            roles?: ("admin" | "editor" | "translator" | "reviewer" | "operator")[] | null;
             /** Is Active */
             is_active?: boolean | null;
             /** Full Name */
@@ -787,6 +909,25 @@ export interface components {
              */
             valid_until: string;
         };
+        /** AnalyticsDay */
+        AnalyticsDay: {
+            /**
+             * Day
+             * Format: date
+             */
+            day: string;
+            /** Plays */
+            plays: number;
+            /** Completes */
+            completes: number;
+        };
+        /** AnalyticsHour */
+        AnalyticsHour: {
+            /** Hour */
+            hour: number;
+            /** Plays */
+            plays: number;
+        };
         /** AnalyticsLang */
         AnalyticsLang: {
             /** Lang */
@@ -802,10 +943,18 @@ export interface components {
             completes: number;
             /** Completion Rate */
             completion_rate: number | null;
+            /** Devices */
+            devices: number;
+            /** By Trigger */
+            by_trigger: components["schemas"]["AnalyticsTrigger"][];
+            /** By Hour */
+            by_hour: components["schemas"]["AnalyticsHour"][];
             /** Top Pois */
             top_pois: components["schemas"]["AnalyticsTop"][];
             /** By Lang */
             by_lang: components["schemas"]["AnalyticsLang"][];
+            /** By Day */
+            by_day: components["schemas"]["AnalyticsDay"][];
         };
         /** AnalyticsTop */
         AnalyticsTop: {
@@ -813,6 +962,15 @@ export interface components {
             id: string;
             /** Name */
             name: string;
+            /** Plays */
+            plays: number;
+            /** Completes */
+            completes: number;
+        };
+        /** AnalyticsTrigger */
+        AnalyticsTrigger: {
+            /** Trigger */
+            trigger: string;
             /** Plays */
             plays: number;
         };
@@ -827,6 +985,8 @@ export interface components {
             error: string | null;
             /** Duration Ms */
             duration_ms: number | null;
+            /** Hint */
+            hint?: ("script_draft" | "script_in_review" | "translating" | "translation_pending" | "translation_rejected" | "translate_failed" | "not_started") | null;
         };
         /** AudioRetryIn */
         AudioRetryIn: {
@@ -941,6 +1101,11 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /** ImageOut */
+        ImageOut: {
+            /** Url */
+            url: string;
+        };
         /** LanguageOut */
         LanguageOut: {
             /** Code */
@@ -975,14 +1140,29 @@ export interface components {
             radius: number;
             /** Priority */
             priority: number;
-            /** Is Preview */
-            is_preview: boolean;
             /** Sha256 */
             sha256: string;
             /** Bytes */
             bytes: number;
             /** Duration Ms */
             duration_ms: number;
+            /**
+             * Images
+             * @default []
+             */
+            images: components["schemas"]["ManifestImage"][];
+        };
+        /** ManifestImage */
+        ManifestImage: {
+            /** Sha256 */
+            sha256: string;
+            /** Bytes */
+            bytes: number;
+            /**
+             * Ext
+             * @enum {string}
+             */
+            ext: "jpg" | "png" | "webp" | "gif";
         };
         /** ManifestOut */
         ManifestOut: {
@@ -994,11 +1174,6 @@ export interface components {
             lang: string;
             /** Version */
             version: number;
-            /**
-             * Access
-             * @enum {string}
-             */
-            access: "full" | "preview";
             /** Files */
             files: components["schemas"]["ManifestFile"][];
         };
@@ -1013,6 +1188,26 @@ export interface components {
             tour_id: string;
             /** Lang */
             lang: string;
+        };
+        /** PackChange */
+        PackChange: {
+            /** Name */
+            name: string;
+            /** What */
+            what: string[];
+        };
+        /** PackDiffOut */
+        PackDiffOut: {
+            /** Against Version */
+            against_version: number | null;
+            /** Added */
+            added: string[];
+            /** Removed */
+            removed: string[];
+            /** Changed */
+            changed: components["schemas"]["PackChange"][];
+            /** Bytes Delta */
+            bytes_delta: number;
         };
         /** PackOut */
         PackOut: {
@@ -1034,11 +1229,54 @@ export interface components {
             file_count: number | null;
             /** Published At */
             published_at: string | null;
+            /** Published By Email */
+            published_by_email?: string | null;
             /**
              * Created At
              * Format: date-time
              */
             created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** PackStatusOut */
+        PackStatusOut: {
+            /** Lang */
+            lang: string;
+            /** Total Pois */
+            total_pois: number;
+            /** Ready Pois */
+            ready_pois: number;
+            /** Missing */
+            missing: string[];
+            /** Can Build */
+            can_build: boolean;
+            /** Blocker */
+            blocker: ("tour_empty" | "audio_missing" | "pack_building" | "pack_unchanged") | null;
+            /** Reason */
+            reason: string | null;
+            /** Same Version */
+            same_version: number | null;
+            published: components["schemas"]["PackOut"] | null;
+            pending: components["schemas"]["PackOut"] | null;
+            building: components["schemas"]["PackOut"] | null;
+            /** History */
+            history: components["schemas"]["PackOut"][];
+        };
+        /** PasswordChangeIn */
+        PasswordChangeIn: {
+            /** Current Password */
+            current_password: string;
+            /** New Password */
+            new_password: string;
+        };
+        /** PasswordSetIn */
+        PasswordSetIn: {
+            /** Password */
+            password: string;
         };
         /** PoiCreateIn */
         PoiCreateIn: {
@@ -1315,11 +1553,6 @@ export interface components {
         TourPoint: {
             /** Id */
             id: string;
-            /**
-             * Is Preview
-             * @default false
-             */
-            is_preview: boolean;
         };
         /** TourPointOut */
         TourPointOut: {
@@ -1329,8 +1562,6 @@ export interface components {
             name: string;
             /** Position */
             position: number;
-            /** Is Preview */
-            is_preview: boolean;
             /** Lat */
             lat: number;
             /** Lng */
@@ -1418,11 +1649,8 @@ export interface components {
             email: string;
             /** Full Name */
             full_name: string;
-            /**
-             * Role
-             * @enum {string}
-             */
-            role: "admin" | "editor" | "translator";
+            /** Roles */
+            roles: ("admin" | "editor" | "translator" | "reviewer" | "operator")[];
             /**
              * Permissions
              * @description Quyền suy ra từ vai trò, web dùng để ẩn/hiện menu
@@ -1527,6 +1755,37 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["RefreshIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    change_password_api_v1_auth_change_password_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasswordChangeIn"];
             };
         };
         responses: {
@@ -1688,6 +1947,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upload_image_api_v1_pois_images_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImageOut"];
                 };
             };
         };
@@ -1906,6 +2185,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TranslationJobOut"][];
+                };
+            };
+        };
+    };
+    retry_translation_api_v1_translation_jobs_retry_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AudioRetryIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -2370,6 +2680,68 @@ export interface operations {
             };
         };
     };
+    pack_status_api_v1_packs_status_get: {
+        parameters: {
+            query: {
+                tour_id: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PackStatusOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    pack_diff_api_v1_packs__pack_id__diff_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pack_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PackDiffOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     build_pack_api_v1_packs_build_post: {
         parameters: {
             query?: never;
@@ -2557,6 +2929,39 @@ export interface operations {
             };
         };
     };
+    set_password_api_v1_admin_users__user_id__password_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasswordSetIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     search_tickets_api_v1_tickets_get: {
         parameters: {
             query?: {
@@ -2661,6 +3066,8 @@ export interface operations {
                 end?: string | null;
                 tour_id?: string | null;
                 lang?: string | null;
+                /** @description Múi giờ IANA để chia ngày */
+                tz?: string;
             };
             header?: never;
             path?: never;
@@ -2767,7 +3174,6 @@ export interface operations {
         parameters: {
             query: {
                 device_id: string;
-                preview?: boolean;
             };
             header?: never;
             path: {
@@ -2821,6 +3227,43 @@ export interface operations {
                 };
                 content: {
                     "audio/mpeg": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    pack_image_api_v1_public_tours__tour_id__packs__lang__files__poi_id__images__index__get: {
+        parameters: {
+            query: {
+                device_id: string;
+                pack_id?: string | null;
+            };
+            header?: never;
+            path: {
+                tour_id: string;
+                lang: string;
+                poi_id: string;
+                index: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/*": unknown;
                 };
             };
             /** @description Validation Error */

@@ -38,7 +38,7 @@ class SqlAnalyticsRepository:
         return int(result.rowcount)
 
     async def summary(
-        self, start: datetime, end: datetime, tour_id: str | None, lang: str | None
+        self, start: datetime, end: datetime, tour_id: str | None, lang: str | None, tz: str
     ) -> dict[str, Any]:
         p = playback_events
         conds = [p.c.ts >= start, p.c.ts < end]
@@ -53,10 +53,20 @@ class SqlAnalyticsRepository:
         plays = func.sum(case((p.c.event == "play", 1), else_=0))
         completes = func.sum(case((p.c.event == "complete", 1), else_=0))
         async with connection(self._engine) as conn:
-            total = (await conn.execute(select(plays, completes).where(*conds))).one()
+            total = (
+                await conn.execute(
+                    select(
+                        plays,
+                        completes,
+                        func.count(func.distinct(case((p.c.event == "play", p.c.device_id)))),
+                    ).where(*conds)
+                )
+            ).one()
             top = (
                 await conn.execute(
-                    select(pois.c.id, pois.c.title, plays.label("plays"))
+                    select(
+                        pois.c.id, pois.c.title, plays.label("plays"), completes.label("completes")
+                    )
                     .select_from(p.join(pois, p.c.poi_id == pois.c.id))
                     .where(*conds)
                     .group_by(pois.c.id, pois.c.title)
@@ -69,12 +79,47 @@ class SqlAnalyticsRepository:
                     select(p.c.lang, plays.label("plays")).where(*conds).group_by(p.c.lang)
                 )
             ).all()
+            # Chia ngày theo múi giờ người xem: ts lưu UTC, ngày ở Việt Nam bắt đầu lúc 17h UTC
+            day = func.date(func.timezone(tz, p.c.ts)).label("day")
+            by_day = (
+                await conn.execute(
+                    select(day, plays, completes).where(*conds).group_by(day).order_by(day)
+                )
+            ).all()
+            trigger_rows = (
+                await conn.execute(
+                    select(p.c.trigger, plays.label("plays"))
+                    .where(*conds, p.c.event == "play")
+                    .group_by(p.c.trigger)
+                )
+            ).all()
+            hour = func.extract("hour", func.timezone(tz, p.c.ts)).label("hour")
+            hour_rows = (
+                await conn.execute(
+                    select(hour, plays.label("plays"))
+                    .where(*conds, p.c.event == "play")
+                    .group_by(hour)
+                    .order_by(hour)
+                )
+            ).all()
         play_count = int(total[0] or 0)
         done = int(total[1] or 0)
         return {
             "plays": play_count,
             "completes": done,
+            "devices": int(total[2] or 0),
             "completion_rate": round(done / play_count, 4) if play_count else None,
-            "top_pois": [{"id": str(r[0]), "name": r[1], "plays": int(r[2])} for r in top if r[2]],
+            "top_pois": [
+                {"id": str(r[0]), "name": r[1], "plays": int(r[2]), "completes": int(r[3] or 0)}
+                for r in top
+                if r[2]
+            ],
+            "by_trigger": [
+                {"trigger": r[0] or "unknown", "plays": int(r[1])} for r in trigger_rows
+            ],
+            "by_hour": [{"hour": int(r[0]), "plays": int(r[1])} for r in hour_rows],
             "by_lang": [{"lang": r[0], "plays": int(r[1])} for r in by_lang],
+            "by_day": [
+                {"day": r[0], "plays": int(r[1] or 0), "completes": int(r[2] or 0)} for r in by_day
+            ],
         }

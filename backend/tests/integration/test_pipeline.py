@@ -5,6 +5,7 @@ from collections.abc import Callable, Iterator
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
+from uuid import UUID
 
 import pytest
 from fastapi.testclient import TestClient
@@ -17,6 +18,7 @@ from app.core import deps, schema
 from app.core.config import get_settings
 from app.core.device import issue_device_id
 from app.core.security import hash_password
+from app.integrations.translate.mock import MockTranslate
 from app.main import app
 from app.repositories import job_repo
 from app.services.language_service import DEFAULT_LANGUAGES
@@ -86,7 +88,7 @@ def client(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Iterator[TestClie
         await conn.execute(delete(schema.users).where(schema.users.c.email != ADMIN["email"]))
         await conn.execute(
             insert(schema.users).values(
-                email=TRANSLATOR["email"], password_hash=pw, role="translator"
+                email=TRANSLATOR["email"], password_hash=pw, roles=["translator"]
             )
         )
 
@@ -134,7 +136,7 @@ def _published_tour(c: TestClient, admin: dict[str, str], access: str, points: l
         "name": f"Tour {access}",
         "access": access,
         "status": "published",
-        "pois": [{"id": p, "is_preview": i == 0} for i, p in enumerate(points)],
+        "pois": [{"id": p} for p in points],
     }
     r = c.post(f"{API}/tours", json=body, headers=admin)
     assert r.status_code == 201, r.text
@@ -219,7 +221,9 @@ def test_audio_failure_retries_then_can_be_retried_by_admin(client: TestClient) 
     assert cell["langs"]["vi"]["state"] == "ready"
     assert client.get(preview).status_code == 401
     translator = _login(client, TRANSLATOR)
-    assert client.get(preview, headers=translator).status_code == 403
+    # biên dịch viên được nghe thử (audio:read) nhưng không được sinh lại audio (audio:build)
+    assert client.get(preview, headers=translator).status_code == 200
+    assert client.post(f"{API}/audio/retry", json=body, headers=translator).status_code == 403
     audio = client.get(preview, headers=admin)
     assert audio.status_code == 200
     assert audio.headers["content-type"] == "audio/mpeg"
@@ -368,6 +372,134 @@ def test_pack_build_dedupe_rerun_outdated_publish_and_corrupt_audio(client: Test
     assert client.post(f"{API}/packs/{v4['id']}/publish", headers=admin).status_code == 200
 
 
+def test_pack_status_explains_build_and_diff_shows_changes(client: TestClient) -> None:
+    admin = _login(client, ADMIN)
+    p1 = _approved_point(client, admin, "Điểm S1", "Bài S1.")
+    tour = _published_tour(client, admin, "free", [p1])
+
+    def status() -> dict[str, Any]:
+        r = client.get(f"{API}/packs/status", params={"tour_id": tour}, headers=admin)
+        assert r.status_code == 200, r.text
+        return {row["lang"]: row for row in r.json()}
+
+    en = status()["en"]
+    assert (en["can_build"], en["blocker"], en["same_version"]) == (False, "pack_unchanged", 1)
+    assert en["published"]["version"] == 1
+    assert en["published"]["published_by_email"] == ADMIN["email"]
+    assert status()["ja"]["can_build"] is True  # đủ audio, chưa có pack
+
+    # Điểm mới chưa có audio tiếng Anh: thẻ báo thiếu, nêu tên điểm
+    p2 = _approved_point(client, admin, "Điểm S2", "Bài S2.")
+    pois = [{"id": p1}, {"id": p2}]
+    client.patch(f"{API}/tours/{tour}", json={"pois": pois}, headers=admin)
+    en = status()["en"]
+    assert (en["blocker"], en["ready_pois"], en["total_pois"]) == ("audio_missing", 1, 2)
+    assert en["missing"] == ["Điểm S2"]
+
+    _drain(client)
+    _approve_all(client, admin)
+    _drain(client)
+    client.patch(f"{API}/pois/{p1}", json={"radius": 90}, headers=admin)
+    assert status()["en"]["can_build"] is True
+    v2 = client.post(f"{API}/packs/build", json={"tour_id": tour, "lang": "en"}, headers=admin)
+    assert status()["en"]["blocker"] == "pack_building"
+    _drain(client)
+    en = status()["en"]
+    assert en["pending"]["id"] == v2.json()["id"]
+
+    diff = client.get(f"{API}/packs/{v2.json()['id']}/diff", headers=admin).json()
+    assert diff["against_version"] == 1
+    assert diff["added"] == ["Điểm S2"] and diff["removed"] == []
+    assert diff["changed"] == [{"name": "Điểm S1", "what": ["thông tin"]}]
+    assert diff["bytes_delta"] > 0
+    missing = client.get(f"{API}/packs/status", params={"tour_id": str(UUID(int=0))}, headers=admin)
+    assert missing.status_code == 404
+
+
+def test_translate_job_passes_bcp47_tags_from_languages_table(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    seen: list[tuple[str | None, str | None]] = []
+    original = MockTranslate.translate
+
+    async def spy(self: MockTranslate, *args: Any, **kwargs: Any) -> str:
+        seen.append((kwargs.get("source_tag"), kwargs.get("target_tag")))
+        return await original(self, *args, **kwargs)
+
+    monkeypatch.setattr(MockTranslate, "translate", spy)
+    admin = _login(client, ADMIN)
+    _approved_point(client, admin, "Điểm BCP", "Bài BCP.")
+    _drain(client)
+    assert ("vi-VN", "zh-CN") in seen and ("vi-VN", "en-US") in seen
+
+
+def test_audio_status_explains_why_audio_is_missing(client: TestClient) -> None:
+    admin = _login(client, ADMIN)
+    body = {"name": "Điểm lý do", "category": "museum", "lat": 10.77, "lng": 106.69, "radius": 40}
+    poi = client.post(f"{API}/pois", json={**body, "script": "Bài."}, headers=admin).json()["id"]
+
+    def hints() -> dict[str, Any]:
+        rows = client.get(f"{API}/audio/status", headers=admin).json()
+        cells = next(r for r in rows if r["id"] == poi)["langs"]
+        return {lang: (c["state"], c["hint"]) for lang, c in cells.items() if lang in ("vi", "en")}
+
+    assert hints() == {"vi": ("none", "script_draft"), "en": ("none", "script_draft")}
+    client.post(f"{API}/pois/{poi}/submit", headers=admin)
+    assert hints()["vi"] == ("none", "script_in_review")
+    client.post(f"{API}/pois/{poi}/approve", headers=admin)
+    assert hints()["en"] == ("none", "translating")
+    _drain(client)
+    assert hints() == {"vi": ("ready", None), "en": ("none", "translation_pending")}
+
+
+def test_stuck_poi_without_jobs_can_be_restarted_from_voice_studio(client: TestClient) -> None:
+    """Script duyệt nhưng không có job (dữ liệu nhập tay): báo "chưa chạy", không báo đang dịch."""
+    admin = _login(client, ADMIN)
+    poi = _approved_point(client, admin, "Điểm kẹt", "Bài kẹt.")
+
+    async def drop_jobs(conn: AsyncConnection) -> None:
+        await conn.execute(delete(schema.jobs).where(schema.jobs.c.payload["poi_id"].astext == poi))
+
+    run_sql(drop_jobs)
+
+    def cell(lang: str) -> dict[str, Any]:
+        rows = client.get(f"{API}/audio/status", headers=admin).json()
+        found: dict[str, Any] = next(r for r in rows if r["id"] == poi)["langs"][lang]
+        return found
+
+    assert (cell("vi")["state"], cell("vi")["hint"]) == ("none", "not_started")
+    assert cell("en")["hint"] == "not_started"
+
+    retry = f"{API}/audio/retry"
+    assert client.post(retry, json={"poi_id": poi, "lang": "en"}, headers=admin).status_code == 204
+    assert cell("en")["hint"] == "translating"
+    assert client.post(retry, json={"poi_id": poi, "lang": "vi"}, headers=admin).status_code == 204
+    _drain(client)
+    assert cell("vi")["state"] == "ready"
+    assert cell("en")["hint"] == "translation_pending"
+    # Đã có bản dịch chờ duyệt: không tạo job dịch nữa, phải duyệt bản dịch
+    assert client.post(retry, json={"poi_id": poi, "lang": "en"}, headers=admin).status_code == 422
+
+    async def fail_translation(conn: AsyncConnection) -> None:
+        now = datetime.now(UTC)
+        await conn.execute(
+            insert(schema.jobs).values(
+                type="translate",
+                dedupe_key=f"translate:{poi}:ja:abc",
+                payload={"poi_id": poi, "lang": "ja"},
+                status="failed",
+                attempts=3,
+                error={"message": "Groq 429"},
+                created_at=now,
+                updated_at=now,
+            )
+        )
+
+    run_sql(fail_translation)
+    ja = cell("ja")
+    assert (ja["hint"], ja["error"]) == ("translate_failed", "Groq 429")
+
+
 def test_tour_validation(client: TestClient) -> None:
     admin = _login(client, ADMIN)
     p1 = _approved_point(client, admin, "Điểm C", "Bài.")
@@ -387,7 +519,9 @@ def test_tour_validation(client: TestClient) -> None:
     assert client.get(f"{API}/tours/khong-co", headers=admin).status_code == 404
     assert len(client.get(f"{API}/tours", headers=admin).json()) == 2
     tr = _login(client, TRANSLATOR)
-    assert client.get(f"{API}/tours", headers=tr).status_code == 403
+    # biên dịch viên xem được tour (tour:read) nhưng không tạo được (tour:write)
+    assert client.get(f"{API}/tours", headers=tr).status_code == 200
+    assert client.post(f"{API}/tours", json=body, headers=tr).status_code == 403
 
 
 def test_ticket_mobile_flow_and_analytics(client: TestClient) -> None:
@@ -403,15 +537,10 @@ def test_ticket_mobile_flow_and_analytics(client: TestClient) -> None:
     blocked = client.get(url, params={"device_id": DEVICE})
     assert blocked.status_code == 403
     assert blocked.json()["title"] == "ticket_required"
-    preview = client.get(url, params={"device_id": DEVICE, "preview": True}).json()
-    assert preview["access"] == "preview"
-    assert [f["poi_id"] for f in preview["files"]] == [p1]
-    assert "storage_key" not in preview["files"][0]
-    assert client.get(f"{url}/files/{p1}", params={"device_id": DEVICE}).status_code == 200
+    # Cờ preview cũ không còn mở khoá điểm miễn phí.
+    assert client.get(url, params={"device_id": DEVICE, "preview": True}).status_code == 403
+    assert client.get(f"{url}/files/{p1}", params={"device_id": DEVICE}).status_code == 403
     assert client.get(f"{url}/files/{p2}", params={"device_id": DEVICE}).status_code == 403
-    pinned = {"device_id": DEVICE, "pack_id": preview["pack_id"]}
-    assert client.get(f"{url}/files/{p1}", params=pinned).status_code == 200
-    assert client.get(f"{url}/files/{p2}", params=pinned).status_code == 403
 
     until = (datetime.now(UTC) + timedelta(days=30)).isoformat()
     body = {"batch": "QUAY-1", "tour_ids": [tour], "valid_until": until, "count": 2}
@@ -429,9 +558,10 @@ def test_ticket_mobile_flow_and_analytics(client: TestClient) -> None:
     assert again["result"] == "already_active"
 
     full = client.get(url, params={"device_id": DEVICE}).json()
-    assert full["access"] == "full"
     assert len(full["files"]) == 2
-    got = client.get(f"{url}/files/{p2}", params={"device_id": DEVICE})
+    assert "storage_key" not in full["files"][0]
+    pinned = {"device_id": DEVICE, "pack_id": full["pack_id"]}
+    got = client.get(f"{url}/files/{p2}", params=pinned)
     assert got.headers["content-type"] == "audio/mpeg"
     assert b"Neural" in got.content
 
@@ -476,12 +606,59 @@ def test_ticket_mobile_flow_and_analytics(client: TestClient) -> None:
     assert (summary["plays"], summary["completes"], summary["completion_rate"]) == (2, 1, 0.5)
     assert len(summary["top_pois"]) == 2
     assert summary["by_lang"] == [{"lang": "en", "plays": 2}]
+    today = datetime.now(UTC).date().isoformat()
+    assert summary["by_day"] == [{"day": today, "plays": 2, "completes": 1}]
+
+
+def test_analytics_by_day_uses_viewer_timezone(client: TestClient) -> None:
+    admin = _login(client, ADMIN)
+    point = _approved_point(client, admin, "Điểm theo ngày", "Bài.")
+    # 18:30 UTC hôm qua là 01:30 sáng nay ở Việt Nam
+    late = datetime.now(UTC).replace(hour=18, minute=30, second=0, microsecond=0) - timedelta(
+        days=1
+    )
+    events = [
+        {
+            "event_id": f"d{i}",
+            "poi_id": point,
+            "lang": "vi",
+            "event": e,
+            "trigger": "manual" if i == 0 else "geofence",
+            "ts": late.isoformat(),
+        }
+        for i, e in enumerate(["play", "play", "complete"])
+    ]
+    client.post(f"{API}/public/playback-events", json={"device_id": DEVICE, "events": events})
+    window = {
+        "start": (late - timedelta(hours=1)).isoformat(),
+        "end": (late + timedelta(hours=1)).isoformat(),
+    }
+
+    def days(tz: str) -> Any:
+        r = client.get(f"{API}/analytics/summary", params={**window, "tz": tz}, headers=admin)
+        return r.json()["by_day"]
+
+    utc_day, vn_day = late.date(), (late + timedelta(hours=7)).date()
+    assert days("UTC") == [{"day": utc_day.isoformat(), "plays": 2, "completes": 1}]
+    assert days("Asia/Ho_Chi_Minh") == [{"day": vn_day.isoformat(), "plays": 2, "completes": 1}]
+    detail = client.get(
+        f"{API}/analytics/summary", params={**window, "tz": "Asia/Ho_Chi_Minh"}, headers=admin
+    ).json()
+    assert detail["devices"] == 1
+    assert {item["trigger"]: item["plays"] for item in detail["by_trigger"]} == {
+        "manual": 1,
+        "geofence": 1,
+    }
+    assert detail["by_hour"] == [{"hour": 1, "plays": 2}]
+    assert detail["top_pois"][0]["completes"] == 1
+    bad = client.get(f"{API}/analytics/summary", params={"tz": "Sao/Hoa"}, headers=admin)
+    assert bad.status_code == 422
 
 
 def test_accounts(client: TestClient) -> None:
     admin = _login(client, ADMIN)
     me = client.post(f"{API}/auth/login", json=ADMIN).json()["user"]["id"]
-    body = {"email": " New@Test.vn ", "password": "mat-khau-moi", "role": "editor"}
+    body = {"email": " New@Test.vn ", "password": "mat-khau-moi", "roles": ["editor", "translator"]}
     created = client.post(f"{API}/admin/users", json=body, headers=admin)
     assert created.status_code == 201
     uid = created.json()["id"]
@@ -490,10 +667,13 @@ def test_accounts(client: TestClient) -> None:
     creds = {"email": "new@test.vn", "password": "mat-khau-moi"}
     token = client.post(f"{API}/auth/login", json=creds).json()
     h = {"Authorization": f"Bearer {token['access_token']}"}
+    assert set(token["user"]["roles"]) == {"editor", "translator"}
+    assert {"script:write", "translation:write"} <= set(token["user"]["permissions"])
     assert client.get(f"{API}/pois", headers=h).status_code == 200
+    assert client.get(f"{API}/translations", headers=h).status_code == 200
 
-    role = client.patch(f"{API}/admin/users/{uid}", json={"role": "translator"}, headers=admin)
-    assert role.json()["role"] == "translator"
+    role = client.patch(f"{API}/admin/users/{uid}", json={"roles": ["translator"]}, headers=admin)
+    assert role.json()["roles"] == ["translator"]
     # đổi vai trò thu hồi phiên ngay
     assert client.get(f"{API}/pois", headers=h).status_code == 401
     refreshed = client.post(f"{API}/auth/refresh", json={"refresh_token": token["refresh_token"]})
@@ -515,6 +695,87 @@ def test_accounts(client: TestClient) -> None:
     assert "user.lock" in actions
 
 
+def test_admin_sets_password_and_old_sessions_end(client: TestClient) -> None:
+    admin = _login(client, ADMIN)
+    body = {
+        "email": "pw@test.vn",
+        "password": "mat-khau-cu",
+        "roles": ["editor"],
+        "full_name": "Pw",
+    }
+    uid = client.post(f"{API}/admin/users", json=body, headers=admin).json()["id"]
+    old = client.post(f"{API}/auth/login", json={"email": "pw@test.vn", "password": "mat-khau-cu"})
+    h = {"Authorization": f"Bearer {old.json()['access_token']}"}
+    url = f"{API}/admin/users/{uid}/password"
+
+    assert client.post(url, json={"password": "ngan"}, headers=admin).status_code == 422
+    assert client.post(url, json={"password": "mat-khau-moi-1"}, headers=h).status_code == 403
+    assert client.post(url, json={"password": "mat-khau-moi-1"}, headers=admin).status_code == 204
+    assert client.get(f"{API}/pois", headers=h).status_code == 401  # phiên cũ bị thu hồi
+    again = client.post(f"{API}/auth/refresh", json={"refresh_token": old.json()["refresh_token"]})
+    assert again.status_code == 401
+    wrong = client.post(
+        f"{API}/auth/login", json={"email": "pw@test.vn", "password": "mat-khau-cu"}
+    )
+    assert wrong.status_code == 401
+    ok = client.post(
+        f"{API}/auth/login", json={"email": "pw@test.vn", "password": "mat-khau-moi-1"}
+    )
+    assert ok.status_code == 200
+    ghost = f"{API}/admin/users/00000000-0000-0000-0000-000000000000/password"
+    assert client.post(ghost, json={"password": "mat-khau-moi-1"}, headers=admin).status_code == 404
+    actions = [x["action"] for x in client.get(f"{API}/audit", headers=admin).json()]
+    assert "user.password" in actions
+
+
+def test_staff_change_own_password_needs_current_one(client: TestClient) -> None:
+    admin = _login(client, ADMIN)
+    body = {"email": "self@test.vn", "password": "mat-khau-cu", "roles": ["translator"]}
+    client.post(f"{API}/admin/users", json={**body, "full_name": "Tự đổi"}, headers=admin)
+    old = client.post(
+        f"{API}/auth/login", json={"email": "self@test.vn", "password": "mat-khau-cu"}
+    )
+    h = {"Authorization": f"Bearer {old.json()['access_token']}"}
+    url = f"{API}/auth/change-password"
+
+    wrong = client.post(
+        url, json={"current_password": "sai", "new_password": "moi-12345"}, headers=h
+    )
+    assert (wrong.status_code, wrong.json()["title"]) == (422, "wrong_password")
+    same = {"current_password": "mat-khau-cu", "new_password": "mat-khau-cu"}
+    assert client.post(url, json=same, headers=h).json()["title"] == "same_password"
+    short = {"current_password": "mat-khau-cu", "new_password": "ngan"}
+    assert client.post(url, json=short, headers=h).status_code == 422
+    assert (
+        client.post(url, json={"current_password": "x", "new_password": "y" * 8}).status_code == 401
+    )
+
+    ok = {"current_password": "mat-khau-cu", "new_password": "moi-12345"}
+    assert client.post(url, json=ok, headers=h).status_code == 204
+    assert client.get(f"{API}/translations", headers=h).status_code == 401  # phải đăng nhập lại
+    creds = {"email": "self@test.vn", "password": "moi-12345"}
+    assert client.post(f"{API}/auth/login", json=creds).status_code == 200
+
+
+def test_translator_can_rerun_machine_translation(client: TestClient) -> None:
+    admin = _login(client, ADMIN)
+    tr = _login(client, TRANSLATOR)
+    poi = _approved_point(client, admin, "Điểm dịch lại", "Bài dịch lại.")
+
+    async def drop_jobs(conn: AsyncConnection) -> None:
+        await conn.execute(delete(schema.jobs).where(schema.jobs.c.payload["poi_id"].astext == poi))
+
+    run_sql(drop_jobs)
+    url = f"{API}/translation-jobs/retry"
+    assert client.post(url, json={"poi_id": poi, "lang": "en"}, headers=tr).status_code == 204
+    _drain(client)
+    rows = client.get(f"{API}/translations", params={"lang": "en"}, headers=tr).json()
+    assert any(r["poi_id"] == poi for r in rows)
+    # Đã có bản dịch: không dịch đè, phải duyệt hoặc sửa
+    assert client.post(url, json={"poi_id": poi, "lang": "en"}, headers=tr).status_code == 422
+    assert client.post(url, json={"poi_id": poi, "lang": "vi"}, headers=tr).status_code == 422
+
+
 def test_failed_job_waits_before_next_attempt(
     client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -525,3 +786,98 @@ def test_failed_job_waits_before_next_attempt(
     _drain(client)  # lần 1 lỗi, job còn hàng đợi nhưng chưa tới giờ nên không chạy lại ngay
     cell = {x["id"]: x for x in client.get(f"{API}/audio/status", headers=admin).json()}[point]
     assert cell["langs"]["vi"]["state"] == "queued"
+
+
+PNG = b"\x89PNG\r\n\x1a\n" + b"fake-image" * 50
+CDN = "https://res.cloudinary.com/demo/image/upload/v1/geonarrate/a.png"
+
+
+def test_upload_image_needs_config_and_valid_file(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.integrations.images.cloudinary import CloudinaryImages
+
+    admin = _login(client, ADMIN)
+    url = f"{API}/pois/images"
+    monkeypatch.setattr(get_settings(), "cloudinary_url", "")  # .env local có thể đã bật
+    off = client.post(url, content=PNG, headers=admin)
+    assert (off.status_code, off.json()["title"]) == (503, "image_upload_disabled")
+
+    uploaded: list[tuple[int, str]] = []
+
+    async def fake_upload(self: CloudinaryImages, data: bytes, content_type: str) -> str:
+        uploaded.append((len(data), content_type))
+        return CDN
+
+    monkeypatch.setattr(get_settings(), "cloudinary_url", "cloudinary://k:s@demo")
+    monkeypatch.setattr(CloudinaryImages, "upload", fake_upload)
+    ok = client.post(url, content=PNG, headers=admin)
+    assert ok.status_code == 201 and ok.json() == {"url": CDN}
+    assert uploaded == [(len(PNG), "image/png")]
+    bad = client.post(url, content=b"not an image", headers=admin)
+    assert (bad.status_code, bad.json()["title"]) == (422, "image_invalid")
+    assert client.post(url, content=PNG).status_code == 401
+
+    async def failing_upload(self: CloudinaryImages, data: bytes, content_type: str) -> str:
+        raise RuntimeError("Cloudinary từ chối ảnh (400)")
+
+    monkeypatch.setattr(CloudinaryImages, "upload", failing_upload)
+    down = client.post(url, content=PNG, headers=admin)
+    assert (down.status_code, down.json()["title"]) == (503, "image_upload_failed")
+
+
+def test_pack_bundles_images_for_offline(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    fetched: list[str] = []
+
+    async def fake_fetch(url: str) -> tuple[bytes, str]:
+        fetched.append(url)
+        return PNG, "png"
+
+    from app.services.pipeline_service import PipelineService
+
+    real = PipelineService
+    monkeypatch.setattr(
+        deps, "PipelineService", lambda *a, **kw: real(*a, **kw, fetch_image=fake_fetch)
+    )
+    admin = _login(client, ADMIN)
+    body = {"name": "Có ảnh", "category": "museum", "lat": 10.77, "lng": 106.69, "radius": 40}
+    poi = client.post(
+        f"{API}/pois",
+        json={**body, "script": "Bài.", "images": [CDN, "https://example.com/other.jpg"]},
+        headers=admin,
+    ).json()["id"]
+    client.post(f"{API}/pois/{poi}/submit", headers=admin)
+    client.post(f"{API}/pois/{poi}/approve", headers=admin)
+    tour = _published_tour(client, admin, "free", [poi])
+    assert fetched == [CDN]  # ảnh ngoài Cloudinary không được kéo về
+
+    manifest = client.get(
+        f"{API}/public/tours/{tour}/packs/en", params={"device_id": DEVICE}
+    ).json()
+    images = manifest["files"][0]["images"]
+    assert [set(i) for i in images] == [{"sha256", "bytes", "ext"}]
+    assert images[0]["ext"] == "png" and images[0]["bytes"] == len(PNG)
+    img_url = f"{API}/public/tours/{tour}/packs/en/files/{poi}/images"
+    got = client.get(f"{img_url}/0", params={"device_id": DEVICE})
+    assert got.status_code == 200 and got.content == PNG
+    assert got.headers["content-type"] == "image/png"
+    assert client.get(f"{img_url}/1", params={"device_id": DEVICE}).status_code == 404
+
+    # đổi ảnh thì pack coi là nội dung mới; không đổi thì không build lại
+    again = client.post(f"{API}/packs/build", json={"tour_id": tour, "lang": "en"}, headers=admin)
+    assert again.status_code == 409
+    client.patch(f"{API}/pois/{poi}", json={"images": []}, headers=admin)
+    v2 = client.post(f"{API}/packs/build", json={"tour_id": tour, "lang": "en"}, headers=admin)
+    assert v2.status_code in (200, 201), v2.text
+
+
+def test_upload_image_rejects_oversize_body(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(get_settings(), "cloudinary_url", "cloudinary://k:s@demo")
+    admin = _login(client, ADMIN)
+    big = PNG + b"0" * (8 * 1024 * 1024)
+    r = client.post(f"{API}/pois/images", content=big, headers=admin)
+    assert (r.status_code, r.json()["title"]) == (422, "image_invalid")

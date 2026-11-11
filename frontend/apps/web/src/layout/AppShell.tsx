@@ -2,12 +2,11 @@ import { color, font, space } from "@geonarrate/tokens";
 import { Headphones } from "lucide-react";
 import { useLayoutEffect, useRef } from "react";
 import { NavLink, Outlet, useLocation } from "react-router";
-import { api } from "../api";
-import { logout, useCan, useSession } from "../auth/session";
+import { useCan } from "../auth/session";
+import { UserMenu } from "../components/UserMenu";
 import { NAV } from "../routes";
 
 export function AppShell() {
-  const user = useSession((s) => s.user);
   const can = useCan();
   const { pathname } = useLocation();
   const content = useRef<HTMLElement>(null);
@@ -15,17 +14,6 @@ export function AppShell() {
   useLayoutEffect(() => {
     content.current?.scrollTo(0, 0);
   }, [pathname]);
-
-  async function logoutAll() {
-    if (!confirm("Đăng xuất khỏi mọi thiết bị?")) return;
-    const { response } = await api.POST("/api/v1/auth/logout-all").catch(() => ({ response: null }));
-    // Chưa thu hồi được thì giữ phiên và báo lỗi, tránh tưởng các thiết bị khác đã bị đăng xuất
-    if (!response?.ok) {
-      alert("Không đăng xuất được các thiết bị khác, thử lại sau");
-      return;
-    }
-    await logout();
-  }
 
   return (
     <div
@@ -67,11 +55,7 @@ export function AppShell() {
             borderBottom: `1px solid ${color.surfaceMuted}`,
           }}
         >
-          <span>
-            {user?.full_name || user?.email} <span style={{ color: color.textMuted }}>· {user?.role}</span>
-          </span>
-          <button onClick={() => void logout()}>Đăng xuất</button>
-          <button onClick={() => void logoutAll()}>Đăng xuất mọi nơi</button>
+          <UserMenu />
         </header>
         <main ref={content} className="min-h-0 flex-1 overflow-auto overscroll-contain" style={{ padding: space.xl }}>
           <Outlet />

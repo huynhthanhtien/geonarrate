@@ -25,6 +25,9 @@ class Settings(BaseSettings):
     libretranslate_api_key: str = ""
     groq_api_key: str = ""
     groq_model: str = "openai/gpt-oss-20b"
+    # Ảnh điểm: cloudinary://api_key:api_secret@cloud_name (bỏ trống thì tắt tính năng tải ảnh lên)
+    cloudinary_url: str = ""
+    cloudinary_folder: str = "geonarrate"
     cors_origins: tuple[str, ...] = ("http://localhost:5173",)
     # Chỉ dùng khi APP_ENV=dev: seed sẵn 1 tài khoản admin để đăng nhập thử
     dev_admin_email: str | None = None

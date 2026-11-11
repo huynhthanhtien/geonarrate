@@ -33,6 +33,10 @@ class InvalidContentError(DomainError):
     status = 422
 
 
+class UnavailableError(DomainError):
+    status = 503
+
+
 class RateLimitedError(DomainError):
     status = 429
 

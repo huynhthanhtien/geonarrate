@@ -24,6 +24,8 @@ BASE = "/api/v1/pois"
 ADMIN = {"email": "admin@geonarrate.test", "password": "admin-test-password"}
 EDITOR = {"email": "editor@geonarrate.test", "password": "editor-test-password"}
 TRANSLATOR = {"email": "translator@geonarrate.test", "password": "translator-test-password"}
+REVIEWER = {"email": "reviewer@geonarrate.test", "password": "reviewer-test-password"}
+OPERATOR = {"email": "operator@geonarrate.test", "password": "operator-test-password"}
 NEW = {
     "name": "Chùa Ngọc Hoàng",
     "category": "temple",
@@ -35,8 +37,15 @@ NEW = {
 
 @pytest.fixture
 def client() -> Iterator[TestClient]:
-    hashes = {u["email"]: hash_password(u["password"]) for u in (EDITOR, TRANSLATOR)}
-    roles = {EDITOR["email"]: "editor", TRANSLATOR["email"]: "translator"}
+    hashes = {
+        u["email"]: hash_password(u["password"]) for u in (EDITOR, TRANSLATOR, REVIEWER, OPERATOR)
+    }
+    roles = {
+        EDITOR["email"]: "editor",
+        TRANSLATOR["email"]: "translator",
+        REVIEWER["email"]: "reviewer",
+        OPERATOR["email"]: "operator",
+    }
 
     async def reset(conn: AsyncConnection) -> None:
         await conn.execute(delete(audit_logs))
@@ -45,10 +54,14 @@ def client() -> Iterator[TestClient]:
         for email, password_hash in hashes.items():
             await conn.execute(
                 pg_insert(users)
-                .values(email=email, password_hash=password_hash, role=roles[email])
+                .values(email=email, password_hash=password_hash, roles=[roles[email]])
                 .on_conflict_do_update(
                     index_elements=[users.c.email],
-                    set_={"password_hash": password_hash, "role": roles[email], "is_active": True},
+                    set_={
+                        "password_hash": password_hash,
+                        "roles": [roles[email]],
+                        "is_active": True,
+                    },
                 )
             )
 
@@ -280,3 +293,59 @@ def test_update_poi_keeps_id_and_moves_point(client: TestClient) -> None:
     assert client.patch(url, json={"summary": "x"}, headers=translator).status_code == 403
     missing = f"{BASE}/00000000-0000-0000-0000-000000000000"
     assert client.patch(missing, json={"summary": "x"}, headers=editor).status_code == 404
+
+
+# (method, path, quyền cần) — mọi API của CMS. Thêm API mới thì thêm vào đây.
+GHOST = "00000000-0000-0000-0000-000000000000"
+CMS_ENDPOINTS: list[tuple[str, str, set[str]]] = [
+    ("GET", "/api/v1/pois", {"poi:read"}),
+    ("POST", "/api/v1/pois", {"poi:write"}),
+    ("PATCH", f"/api/v1/pois/{GHOST}", {"poi:write"}),
+    ("PUT", f"/api/v1/pois/{GHOST}/script", {"script:write"}),
+    ("POST", f"/api/v1/pois/{GHOST}/submit", {"script:write"}),
+    ("POST", f"/api/v1/pois/{GHOST}/approve", {"script:approve"}),
+    ("POST", f"/api/v1/pois/{GHOST}/reject", {"script:approve"}),
+    ("GET", "/api/v1/translations", {"translation:read"}),
+    ("PUT", f"/api/v1/translations/{GHOST}", {"translation:write"}),
+    ("POST", f"/api/v1/translations/{GHOST}/approve", {"translation:approve"}),
+    ("GET", "/api/v1/translation-jobs", {"translation:read"}),
+    ("POST", "/api/v1/translation-jobs/retry", {"translation:write"}),
+    ("GET", "/api/v1/glossaries", {"glossary:read"}),
+    ("POST", "/api/v1/glossaries", {"glossary:write"}),
+    ("GET", "/api/v1/audio/status", {"audio:read"}),
+    ("POST", "/api/v1/audio/retry", {"audio:build"}),
+    ("GET", f"/api/v1/audio/{GHOST}/vi/preview", {"audio:read"}),
+    ("GET", "/api/v1/tours", {"tour:read"}),
+    ("POST", "/api/v1/tours", {"tour:write"}),
+    ("GET", "/api/v1/packs", {"pack:read"}),
+    ("GET", f"/api/v1/packs/status?tour_id={GHOST}", {"pack:read"}),
+    ("POST", "/api/v1/packs/build", {"pack:build"}),
+    ("POST", f"/api/v1/packs/{GHOST}/publish", {"pack:publish"}),
+    ("POST", f"/api/v1/packs/{GHOST}/rollback", {"pack:publish"}),
+    ("GET", "/api/v1/tickets", {"ticket:read"}),
+    ("POST", "/api/v1/tickets/revoke", {"ticket:manage"}),
+    ("GET", "/api/v1/admin/users", {"user:manage"}),
+    ("POST", f"/api/v1/admin/users/{GHOST}/password", {"user:manage"}),
+    ("GET", "/api/v1/audit", {"audit:read"}),
+    ("GET", "/api/v1/analytics/summary", {"analytics:read"}),
+]
+
+
+@pytest.mark.parametrize(
+    "creds",
+    [EDITOR, TRANSLATOR, REVIEWER, OPERATOR],
+    ids=["editor", "translator", "reviewer", "operator"],
+)
+def test_every_cms_endpoint_enforces_its_permission(
+    client: TestClient, creds: dict[str, str]
+) -> None:
+    login = client.post("/api/v1/auth/login", json=creds).json()
+    held = set(login["user"]["permissions"])
+    h = {"Authorization": f"Bearer {login['access_token']}"}
+    wrong = []
+    for method, path, needs in CMS_ENDPOINTS:
+        code = client.request(method, path, headers=h, json={}).status_code
+        allowed = bool(needs & held)
+        if (code == 403) == allowed or code == 401:
+            wrong.append(f"{method} {path}: {code} (được phép={allowed})")
+    assert wrong == []

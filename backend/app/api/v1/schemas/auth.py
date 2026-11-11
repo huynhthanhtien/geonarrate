@@ -3,6 +3,11 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
+class PasswordChangeIn(BaseModel):
+    current_password: str = Field(min_length=1, max_length=256)
+    new_password: str = Field(min_length=8, max_length=256)
+
+
 class LoginIn(BaseModel):
     email: str = Field(min_length=3, max_length=254)
     password: str = Field(min_length=1, max_length=256)
@@ -16,7 +21,7 @@ class UserOut(BaseModel):
     id: str
     email: str
     full_name: str
-    role: Literal["admin", "editor", "translator"]
+    roles: list[Literal["admin", "editor", "translator", "reviewer", "operator"]]
     permissions: list[str] = Field(description="Quyền suy ra từ vai trò, web dùng để ẩn/hiện menu")
 
 

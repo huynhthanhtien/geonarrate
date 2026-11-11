@@ -5,6 +5,7 @@ import secrets
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from typing import Any
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from app.core.exceptions import (
     ConflictError,
@@ -12,6 +13,7 @@ from app.core.exceptions import (
     InvalidContentError,
     NotFoundError,
 )
+from app.core.security import hash_password
 from app.models.audit import AuditResource
 from app.models.user import Role, User
 from app.repositories.analytics_repo import SqlAnalyticsRepository
@@ -99,26 +101,37 @@ class CatalogService:
         return await self._users.find_all()
 
     async def create_account(
-        self, email: str, password: str, role: Role, full_name: str, actor_id: str
+        self, email: str, password: str, roles: list[Role], full_name: str, actor_id: str
     ) -> User:
-        user = await self._auth.create_user(email, password, role, full_name)
+        user = await self._auth.create_user(email, password, roles, full_name)
         await self._audit.record(actor_id, "user.create", AuditResource("user", user.id))
         return user
 
     async def update_account(self, user_id: str, fields: dict[str, Any], actor_id: str) -> User:
-        if user_id == actor_id and ("role" in fields or fields.get("is_active") is False):
+        if user_id == actor_id and ("roles" in fields or fields.get("is_active") is False):
             raise ForbiddenError("self_change", "Không thể đổi vai trò hoặc khoá chính mình")
-        if "role" in fields:
-            fields["role"] = Role(fields["role"]).value
+        if "roles" in fields:
+            fields["roles"] = [Role(role).value for role in fields["roles"]]
         user = await self._users.update_fields(user_id, fields, self._clock())
         if user is None:
             raise NotFoundError("user_not_found", "Không tìm thấy tài khoản")
-        if "role" in fields or fields.get("is_active") is False:
+        if "roles" in fields or fields.get("is_active") is False:
             await self._auth.revoke_sessions(user_id)
         locked = fields.get("is_active") is False
         action = "user.lock" if locked else "user.update"
         await self._audit.record(actor_id, action, AuditResource("user", user_id))
         return user
+
+    async def set_password(self, user_id: str, password: str, actor_id: str) -> None:
+        """Quản trị viên đặt mật khẩu mới; người khác phải đăng nhập lại bằng mật khẩu mới."""
+        user = await self._users.update_fields(
+            user_id, {"password_hash": hash_password(password)}, self._clock()
+        )
+        if user is None:
+            raise NotFoundError("user_not_found", "Không tìm thấy tài khoản")
+        if user_id != actor_id:
+            await self._auth.revoke_sessions(user_id)
+        await self._audit.record(actor_id, "user.password", AuditResource("user", user_id))
 
     # --- UC-13
     async def issue_tickets(
@@ -186,22 +199,36 @@ class CatalogService:
                 out.append({**tour, "langs": langs})
         return out
 
-    async def public_manifest(
-        self, tour_id: str, lang: str, device_id: str, preview: bool
-    ) -> dict[str, Any]:
+    async def public_manifest(self, tour_id: str, lang: str, device_id: str) -> dict[str, Any]:
         pack, tour = await self._published(tour_id, lang)
         manifest = self._pipeline.read_manifest(pack)
         allowed = tour["access"] == "free" or await self._tickets.device_has_access(
             device_id, tour_id, self._clock()
         )
-        if not allowed and not preview:
+        if not allowed:
             raise ForbiddenError("ticket_required", "Tour này cần vé để tải")
         files = manifest["files"]
-        if not allowed:
-            files = [f for f in files if f["is_preview"]]
         for f in files:
             f.pop("storage_key", None)
-        return {**manifest, "files": files, "access": "full" if allowed else "preview"}
+            for img in f.get("images", []):
+                img.pop("storage_key", None)
+                img.pop("url", None)
+        return {**manifest, "files": files}
+
+    async def _allowed_item(
+        self, tour_id: str, lang: str, poi_id: str, device_id: str, pack_id: str | None
+    ) -> dict[str, Any]:
+        pack, tour = await self._published(tour_id, lang, pack_id)
+        manifest = self._pipeline.read_manifest(pack)
+        item = next((f for f in manifest["files"] if f["poi_id"] == poi_id), None)
+        if item is None:
+            raise NotFoundError("file_not_found", "Không có file này trong pack")
+        allowed = tour["access"] == "free" or await self._tickets.device_has_access(
+            device_id, tour_id, self._clock()
+        )
+        if not allowed:
+            raise ForbiddenError("ticket_required", "Tour này cần vé để tải")
+        return dict(item)
 
     async def public_file(
         self,
@@ -211,19 +238,24 @@ class CatalogService:
         device_id: str,
         pack_id: str | None = None,
     ) -> str:
-        pack, tour = await self._published(tour_id, lang, pack_id)
-        manifest = self._pipeline.read_manifest(pack)
-        item = next((f for f in manifest["files"] if f["poi_id"] == poi_id), None)
-        if item is None:
-            raise NotFoundError("file_not_found", "Không có file này trong pack")
-        allowed = (
-            tour["access"] == "free"
-            or item["is_preview"]
-            or await self._tickets.device_has_access(device_id, tour_id, self._clock())
-        )
-        if not allowed:
-            raise ForbiddenError("ticket_required", "Tour này cần vé để tải")
+        item = await self._allowed_item(tour_id, lang, poi_id, device_id, pack_id)
         return self._pipeline.file_path(item["storage_key"])
+
+    async def public_image(
+        self,
+        tour_id: str,
+        lang: str,
+        poi_id: str,
+        index: int,
+        device_id: str,
+        pack_id: str | None = None,
+    ) -> tuple[str, str]:
+        """Đường dẫn và đuôi file của ảnh thứ `index` của điểm trong pack."""
+        item = await self._allowed_item(tour_id, lang, poi_id, device_id, pack_id)
+        images = item.get("images", [])
+        if not 0 <= index < len(images):
+            raise NotFoundError("file_not_found", "Không có ảnh này trong pack")
+        return self._pipeline.file_path(images[index]["storage_key"]), images[index]["ext"]
 
     async def _published(
         self, tour_id: str, lang: str, pack_id: str | None = None
@@ -245,8 +277,17 @@ class CatalogService:
         return await self._analytics.insert_events(device_id, events)
 
     async def analytics(
-        self, start: datetime | None, end: datetime | None, tour_id: str | None, lang: str | None
+        self,
+        start: datetime | None,
+        end: datetime | None,
+        tour_id: str | None,
+        lang: str | None,
+        tz: str = "UTC",
     ) -> dict[str, Any]:
+        try:
+            ZoneInfo(tz)
+        except (ZoneInfoNotFoundError, ValueError):
+            raise InvalidContentError("invalid_timezone", "Múi giờ không hợp lệ") from None
         finish = end or self._clock()
         begin = start or finish - timedelta(days=30)
-        return await self._analytics.summary(begin, finish, tour_id, lang)
+        return await self._analytics.summary(begin, finish, tour_id, lang, tz)

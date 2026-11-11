@@ -16,6 +16,12 @@ export const poiHandlers = [
     return HttpResponse.json(findAll({ category, status }));
   }),
 
+  // Giả lập upload: trả ảnh SVG nhúng sẵn thay cho URL Cloudinary
+  http.post(`${BASE}/images`, () => {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="240" height="160"><rect width="240" height="160" fill="#0d9488"/></svg>`;
+    return HttpResponse.json({ url: `data:image/svg+xml;utf8,${encodeURIComponent(svg)}#${Date.now()}` }, { status: 201 });
+  }),
+
   http.post(BASE, async ({ request }) => {
     const body = await request.json() as any;
     if (!body.name || body.lat == null || body.lng == null) {

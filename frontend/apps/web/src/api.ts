@@ -41,3 +41,16 @@ export async function getAudioPreview(poiId: string, lang: string, signal: Abort
   if (!response.ok) throw new Error(await errorMessage(response));
   return response.blob();
 }
+
+/** Tải 1 ảnh lên (qua backend → Cloudinary) và trả URL để lưu vào điểm. */
+export async function uploadImage(file: File): Promise<string> {
+  const res = await authFetch(
+    new Request("/api/v1/pois/images", {
+      method: "POST",
+      headers: { "Content-Type": file.type || "application/octet-stream" },
+      body: file,
+    })
+  );
+  if (!res.ok) throw new Error(await errorMessage(res));
+  return ((await res.json()) as { url: string }).url;
+}

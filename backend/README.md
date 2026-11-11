@@ -47,6 +47,7 @@ khoản bằng trang **Tài khoản** trên CMS hoặc dòng lệnh:
 | `GROQ_API_KEY`, `GROQ_MODEL` | Khóa Groq chỉ đặt ở backend; model mặc định `openai/gpt-oss-20b`. Thuật ngữ CMS được đưa vào hướng dẫn dịch và vẫn qua bước duyệt |
 | `TTS_PROVIDER` | `edge` hoặc `magpie` (MagpieTTS tự host, chạy offline) |
 | `MAGPIE_TTS_URL`, `MAGPIE_TTS_VOICE` | Máy chủ Magpie có endpoint `/v1/audio/speech`, trả WAV; cần ffmpeg để đổi MP3 |
+| `CLOUDINARY_URL`, `CLOUDINARY_FOLDER` | `cloudinary://api_key:api_secret@cloud_name` (Dashboard → Settings → API Keys). Bỏ trống thì `POST /pois/images` trả 503. Build pack tải ảnh Cloudinary của điểm vào pack để app xem offline |
 | `CORS_ORIGINS` | Mảng JSON origin của CMS, ví dụ `["https://cms.example.com"]` |
 | `PUBLIC_RATE_LIMIT`, `PUBLIC_ACTIVATE_RATE_LIMIT`, `PUBLIC_RATE_WINDOW_S` | Theo IP: mặc định 300 request và 10 lần kích hoạt trong 60 giây |
 | `APP_ENV`, `DEV_ADMIN_EMAIL`, `DEV_ADMIN_PASSWORD` | Chỉ dev: tạo sẵn một tài khoản admin |
@@ -86,16 +87,16 @@ Tất cả nằm dưới `/api/v1`. Lỗi trả theo RFC 7807 (`application/prob
 | Nhóm | Endpoint | Quyền |
 |---|---|---|
 | Đăng nhập (UC-01) | `POST /auth/login`, `/refresh`, `/logout`, `/logout-all` | — |
-| Điểm, kịch bản (UC-02, 03, 04) | `GET/POST /pois`, `GET/PATCH /pois/{id}`, `PUT .../script`, `POST .../{submit,approve,reject}` | `poi:read`, `script:write`; duyệt cần `admin:manage` |
-| Bản dịch (UC-05) | `GET /translations`, `PUT /translations/{id}`, `POST .../{approve,reject}` | `translation:review` |
-| Thuật ngữ (UC-06) | `GET/POST /glossaries`, `DELETE /glossaries/{id}` | `translation:review` |
-| Audio (UC-07) | `GET /audio/status`, `POST /audio/retry` | `audio:build` |
-| Tour (UC-08) | `GET/POST /tours`, `GET/PATCH /tours/{id}` | `admin:manage` |
-| Pack (UC-09, 10) | `GET /packs`, `POST /packs/build`, `POST /packs/{id}/{publish,rollback}` | build cần `audio:build`, còn lại `pack:publish` |
-| Tài khoản (UC-11) | `GET/POST /admin/users`, `PATCH /admin/users/{id}` | `admin:manage` |
-| Nhật ký (UC-12) | `GET /audit` (người, hành động, loại/mã đối tượng, từ khoá, khoảng ngày) | `admin:manage` |
-| Vé QR (UC-13) | `POST /tickets`, `GET /tickets?q=`, `POST /tickets/revoke` | `admin:manage` |
-| Analytics (UC-14) | `GET /analytics/summary` | `analytics:view` |
+| Điểm, kịch bản (UC-02, 03, 04) | `GET/POST /pois`, `GET/PATCH /pois/{id}`, `PUT .../script`, `POST .../{submit,approve,reject}` | `poi:read`, `poi:write`, `script:write`, `script:approve` |
+| Bản dịch (UC-05) | `GET /translations`, `PUT /translations/{id}`, `POST .../{approve,reject}` | `translation:read`, `translation:write`, `translation:approve` |
+| Thuật ngữ (UC-06) | `GET/POST /glossaries`, `DELETE /glossaries/{id}` | `glossary:read`, `glossary:write` |
+| Audio (UC-07) | `GET /audio/status`, `POST /audio/retry` | `audio:read`, `audio:build` |
+| Tour (UC-08) | `GET/POST /tours`, `GET/PATCH /tours/{id}` | `tour:read`, `tour:write` |
+| Pack (UC-09, 10) | `GET /packs`, `POST /packs/build`, `POST /packs/{id}/{publish,rollback}` | `pack:read`, `pack:build`, `pack:publish` |
+| Tài khoản (UC-11) | `GET/POST /admin/users`, `PATCH /admin/users/{id}` | `user:manage` |
+| Nhật ký (UC-12) | `GET /audit` (người, hành động, loại/mã đối tượng, từ khoá, khoảng ngày) | `audit:read` |
+| Vé QR (UC-13) | `POST /tickets`, `GET /tickets?q=`, `POST /tickets/revoke` | `ticket:read`, `ticket:manage` |
+| Analytics (UC-14) | `GET /analytics/summary` | `analytics:read` |
 | App di động (UC-15 đến 18) | `GET /public/tours`, `POST /public/tickets/activate`, `GET /public/tours/{id}/packs/{lang}`, `GET .../files/{poi_id}`, `POST /public/playback-events` | Không đăng nhập; `device_id` do máy chủ cấp qua `POST /public/devices` |
 
 ## Pipeline nội dung

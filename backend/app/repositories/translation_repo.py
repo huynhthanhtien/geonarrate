@@ -54,6 +54,13 @@ class SqlTranslationRepository:
         async with connection(self._engine) as conn:
             return [record(r) for r in (await conn.execute(stmt)).mappings().all()]
 
+    async def review_states(self) -> dict[tuple[str, str], str]:
+        """Trạng thái duyệt của mọi bản dịch, theo (poi_id, ngôn ngữ)."""
+        stmt = select(_t.c.poi_id, _t.c.target_lang, _t.c.review_status)
+        async with connection(self._engine) as conn:
+            rows = (await conn.execute(stmt)).all()
+        return {(str(r[0]), r[1]): r[2] for r in rows}
+
     async def upsert_machine(
         self,
         poi_id: str,

@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, Field, StringConstraints
@@ -63,6 +63,18 @@ class AudioCell(BaseModel):
     state: Literal["none", "queued", "running", "ready", "failed", "stale"]
     error: str | None
     duration_ms: int | None
+    hint: (
+        Literal[
+            "script_draft",
+            "script_in_review",
+            "translating",
+            "translation_pending",
+            "translation_rejected",
+            "translate_failed",
+            "not_started",
+        ]
+        | None
+    ) = None
 
 
 class AudioRow(BaseModel):
@@ -78,7 +90,6 @@ class AudioRetryIn(BaseModel):
 
 class TourPoint(BaseModel):
     id: str
-    is_preview: bool = False
 
 
 class TourCreateIn(BaseModel):
@@ -108,7 +119,6 @@ class TourPointOut(BaseModel):
     id: str
     name: str
     position: int
-    is_preview: bool
     lat: float
     lng: float
     radius: int
@@ -137,29 +147,67 @@ class PackOut(BaseModel):
     total_bytes: int | None
     file_count: int | None
     published_at: datetime | None
+    published_by_email: str | None = None
     created_at: datetime
+    updated_at: datetime
+
+
+class PackStatusOut(BaseModel):
+    lang: str
+    total_pois: int
+    ready_pois: int
+    missing: list[str]
+    can_build: bool
+    blocker: Literal["tour_empty", "audio_missing", "pack_building", "pack_unchanged"] | None
+    reason: str | None
+    same_version: int | None
+    published: PackOut | None
+    pending: PackOut | None
+    building: PackOut | None
+    history: list[PackOut]
+
+
+class PackChange(BaseModel):
+    name: str
+    what: list[str]
+
+
+class PackDiffOut(BaseModel):
+    against_version: int | None
+    added: list[str]
+    removed: list[str]
+    changed: list[PackChange]
+    bytes_delta: int
 
 
 class AccountCreateIn(BaseModel):
     email: str = Field(min_length=3, max_length=254)
     password: str = Field(min_length=8, max_length=256)
-    role: Literal["admin", "editor", "translator"]
+    roles: list[Literal["admin", "editor", "translator", "reviewer", "operator"]] = Field(
+        min_length=1
+    )
     full_name: Annotated[str, StringConstraints(strip_whitespace=True, max_length=200)] = ""
 
 
 class AccountUpdateIn(BaseModel):
-    role: Literal["admin", "editor", "translator"] | None = None
+    roles: list[Literal["admin", "editor", "translator", "reviewer", "operator"]] | None = Field(
+        default=None, min_length=1
+    )
     is_active: bool | None = None
     full_name: Annotated[str, StringConstraints(strip_whitespace=True, max_length=200)] | None = (
         None
     )
 
 
+class PasswordSetIn(BaseModel):
+    password: str = Field(min_length=8, max_length=256)
+
+
 class AccountOut(BaseModel):
     id: str
     email: str
     full_name: str
-    role: str
+    roles: list[str]
     is_active: bool
     last_login_at: datetime | None
 
@@ -202,6 +250,7 @@ class AnalyticsTop(BaseModel):
     id: str
     name: str
     plays: int
+    completes: int
 
 
 class AnalyticsLang(BaseModel):
@@ -209,12 +258,32 @@ class AnalyticsLang(BaseModel):
     plays: int
 
 
+class AnalyticsDay(BaseModel):
+    day: date
+    plays: int
+    completes: int
+
+
+class AnalyticsTrigger(BaseModel):
+    trigger: str
+    plays: int
+
+
+class AnalyticsHour(BaseModel):
+    hour: int
+    plays: int
+
+
 class AnalyticsOut(BaseModel):
     plays: int
     completes: int
     completion_rate: float | None
+    devices: int
+    by_trigger: list[AnalyticsTrigger]
+    by_hour: list[AnalyticsHour]
     top_pois: list[AnalyticsTop]
     by_lang: list[AnalyticsLang]
+    by_day: list[AnalyticsDay]
 
 
 class PublicTourOut(BaseModel):
@@ -237,6 +306,12 @@ class ActivateOut(BaseModel):
     valid_until: datetime
 
 
+class ManifestImage(BaseModel):
+    sha256: str
+    bytes: int
+    ext: Literal["jpg", "png", "webp", "gif"]
+
+
 class ManifestFile(BaseModel):
     poi_id: str
     name: str
@@ -245,10 +320,10 @@ class ManifestFile(BaseModel):
     lng: float
     radius: int
     priority: int
-    is_preview: bool
     sha256: str
     bytes: int
     duration_ms: int
+    images: list[ManifestImage] = []
 
 
 class ManifestOut(BaseModel):
@@ -256,7 +331,6 @@ class ManifestOut(BaseModel):
     tour_id: str
     lang: str
     version: int
-    access: Literal["full", "preview"]
     files: list[ManifestFile]
 
 

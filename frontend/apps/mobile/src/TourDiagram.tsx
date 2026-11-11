@@ -1,22 +1,25 @@
-import { color, radius, space } from "@geonarrate/tokens";
 import { useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import type { PackFile } from "./api";
-import { T } from "./ui";
+import { useI18n } from "./i18n";
+import { colors, radius, space } from "./theme";
+import { Txt } from "./ui";
 
 type Coordinates = Pick<PackFile, "lat" | "lng">;
 
-const MAP_HEIGHT = 240;
-const PADDING = 36;
-const MARKER_SIZE = 36;
+const PADDING = 38;
+const MARKER_SIZE = 30;
 const METERS_PER_DEGREE = 111_195;
 
-export function TourDiagram({ files, position, playingId, onPlay }: {
+/** Sơ đồ phẳng dùng được khi không có mạng hoặc không tải được nền bản đồ. */
+export function TourDiagram({ files, position, playingId, onPlay, height = 220 }: {
   files: PackFile[];
   position?: Coordinates | null;
   playingId?: string;
   onPlay?: (file: PackFile) => void;
+  height?: number;
 }) {
+  const { t } = useI18n();
   const [width, setWidth] = useState(0);
   const origin = files[0];
   if (!origin) return null;
@@ -37,71 +40,147 @@ export function TourDiagram({ files, position, playingId, onPlay }: {
     north = Math.min(north, point.y - point.file.radius);
     south = Math.max(south, point.y + point.file.radius);
   }
-  const scale = Math.min(Math.max(0, width - PADDING * 2) / (east - west), (MAP_HEIGHT - PADDING * 2) / (south - north));
+  const scale = Math.min(
+    Math.max(0, width - PADDING * 2) / (east - west),
+    (height - PADDING * 2) / (south - north),
+  );
   const project = ({ x, y }: { x: number; y: number }) => ({
     x: width / 2 + (x - (west + east) / 2) * scale,
-    y: MAP_HEIGHT / 2 + (y - (north + south) / 2) * scale,
+    y: height / 2 + (y - (north + south) / 2) * scale,
   });
   const visitor = position ? project(meters(position)) : null;
   const visitorOnMap = visitor && visitor.x >= 10 && visitor.x <= width - 10
-    && visitor.y >= 10 && visitor.y <= MAP_HEIGHT - 10;
+    && visitor.y >= 10 && visitor.y <= height - 10;
 
   return (
-    <View style={styles.section}>
-      <T.h>Sơ đồ tour đã tải</T.h>
-      <View style={styles.map} onLayout={(event) => setWidth(event.nativeEvent.layout.width)}>
-        <View pointerEvents="none" style={styles.compass}><Text style={styles.north}>↑ B</Text></View>
-        {scale > 0 && points.map((point) => {
-          const { x, y } = project(point);
-          const diameter = point.file.radius * scale * 2;
-          return <View key={point.file.poi_id} pointerEvents="none" style={[
-            styles.range, { left: x - diameter / 2, top: y - diameter / 2, width: diameter, height: diameter, borderRadius: diameter / 2 },
-          ]} />;
-        })}
-        {scale > 0 && points.map((point, index) => {
-          const { x, y } = project(point);
-          return (
-            <Pressable
-              key={point.file.poi_id}
-              accessibilityRole={onPlay ? "button" : undefined}
-              accessibilityLabel={onPlay ? `Nghe ${point.file.name}` : point.file.name}
-              disabled={!onPlay}
-              onPress={onPlay ? () => onPlay(point.file) : undefined}
-              hitSlop={4}
-              style={[
-                styles.marker,
-                { left: x - MARKER_SIZE / 2, top: y - MARKER_SIZE / 2 },
-                point.file.poi_id === playingId && styles.playing,
-              ]}
-            >
-              <Text style={styles.number}>{index + 1}</Text>
-            </Pressable>
-          );
-        })}
-        {scale > 0 && visitorOnMap && (
-          <View accessibilityLabel="Vị trí của bạn" pointerEvents="none" style={[
-            styles.visitor, { left: visitor.x - 8, top: visitor.y - 8 },
-          ]} />
-        )}
+    <View
+      style={[styles.map, { height }]}
+      onLayout={(event) => setWidth(event.nativeEvent.layout.width)}
+    >
+      <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+        {[0.25, 0.5, 0.75].map((ratio) => (
+          <View key={`v${ratio}`} style={[styles.gridLine, { left: `${ratio * 100}%`, top: 0, bottom: 0, width: StyleSheet.hairlineWidth }]} />
+        ))}
+        {[0.33, 0.66].map((ratio) => (
+          <View key={`h${ratio}`} style={[styles.gridLine, { top: `${ratio * 100}%`, left: 0, right: 0, height: StyleSheet.hairlineWidth }]} />
+        ))}
       </View>
-      <T.muted>Vòng tròn là vùng tự phát audio. Sơ đồ này hiển thị các điểm của tour.</T.muted>
-      {visitor && !visitorOnMap && <T.muted>Bạn đang ở ngoài khu vực hiển thị.</T.muted>}
+
+      <View pointerEvents="none" style={styles.compass}>
+        <Txt variant="caption" color={colors.textMuted}>{`↑ ${t("map.north")}`}</Txt>
+      </View>
+
+      {scale > 0 && points.map((point) => {
+        const { x, y } = project(point);
+        const diameter = point.file.radius * scale * 2;
+        return (
+          <View
+            key={`range-${point.file.poi_id}`}
+            pointerEvents="none"
+            style={[styles.range, {
+              left: x - diameter / 2,
+              top: y - diameter / 2,
+              width: diameter,
+              height: diameter,
+              borderRadius: diameter / 2,
+            }]}
+          />
+        );
+      })}
+
+      {scale > 0 && points.map((point, index) => {
+        const { x, y } = project(point);
+        return (
+          <Pressable
+            key={point.file.poi_id}
+            accessibilityRole={onPlay ? "button" : undefined}
+            accessibilityLabel={onPlay ? `${t("player.listen")} ${point.file.name}` : point.file.name}
+            disabled={!onPlay}
+            onPress={onPlay ? () => onPlay(point.file) : undefined}
+            hitSlop={4}
+            style={[
+              styles.marker,
+              { left: x - MARKER_SIZE / 2, top: y - MARKER_SIZE / 2 },
+              point.file.poi_id === playingId && styles.playing,
+            ]}
+          >
+            <Txt variant="caption" color={colors.primaryFg} style={{ fontSize: 12 }}>{index + 1}</Txt>
+          </Pressable>
+        );
+      })}
+
+      {scale > 0 && visitorOnMap ? (
+        <View
+          accessibilityLabel={t("map.myLocation")}
+          pointerEvents="none"
+          style={[styles.visitorRing, { left: visitor.x - 15, top: visitor.y - 15 }]}
+        >
+          <View style={styles.visitor} />
+        </View>
+      ) : null}
+      {visitor && !visitorOnMap && width > 0 ? (
+        <View style={styles.outside}>
+          <Txt variant="caption" color={colors.textMuted}>{t("map.outside")}</Txt>
+        </View>
+      ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  section: { gap: space.xs },
-  map: { height: MAP_HEIGHT, position: "relative", overflow: "hidden", backgroundColor: "#e8f2ee", borderRadius: radius.md },
-  compass: { position: "absolute", right: space.sm, top: space.sm },
-  north: { color: color.text, fontWeight: "700" },
-  range: { position: "absolute", backgroundColor: "#bce1d7", borderWidth: 1, borderColor: "#76b9a7" },
-  marker: {
-    position: "absolute", width: MARKER_SIZE, height: MARKER_SIZE, borderRadius: MARKER_SIZE / 2,
-    alignItems: "center", justifyContent: "center", backgroundColor: color.primary,
-    borderWidth: 2, borderColor: color.surface,
+  map: {
+    position: "relative",
+    overflow: "hidden",
+    backgroundColor: "#EDF3F0",
   },
-  playing: { backgroundColor: color.text },
-  number: { color: color.primaryFg, fontWeight: "700" },
-  visitor: { position: "absolute", width: 16, height: 16, borderRadius: 8, borderWidth: 2, borderColor: "white", backgroundColor: "#2563eb" },
+  gridLine: { position: "absolute", backgroundColor: "rgba(15,118,110,0.08)" },
+  compass: {
+    position: "absolute",
+    right: space.sm,
+    top: space.sm,
+    paddingHorizontal: space.sm,
+    paddingVertical: 3,
+    borderRadius: radius.pill,
+    backgroundColor: "rgba(255,255,255,0.9)",
+  },
+  range: {
+    position: "absolute",
+    backgroundColor: "rgba(15,118,110,0.10)",
+    borderWidth: 1,
+    borderColor: "rgba(15,118,110,0.28)",
+  },
+  marker: {
+    position: "absolute",
+    width: MARKER_SIZE,
+    height: MARKER_SIZE,
+    borderRadius: MARKER_SIZE / 2,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.primary,
+    borderWidth: 2,
+    borderColor: colors.white,
+  },
+  playing: { backgroundColor: colors.accent, transform: [{ scale: 1.12 }] },
+  visitorRing: {
+    position: "absolute",
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: "rgba(37,99,235,0.18)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  visitor: {
+    width: 14, height: 14, borderRadius: 7,
+    borderWidth: 2, borderColor: colors.white, backgroundColor: "#2563EB",
+  },
+  outside: {
+    position: "absolute",
+    left: space.sm,
+    bottom: space.sm,
+    paddingHorizontal: space.sm,
+    paddingVertical: 3,
+    borderRadius: radius.pill,
+    backgroundColor: "rgba(255,255,255,0.9)",
+  },
 });

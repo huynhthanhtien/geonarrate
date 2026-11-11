@@ -22,9 +22,9 @@ class FakeUserRepo:
         return self.items.get(user_id)
 
     async def insert(
-        self, email: str, password_hash: str, role: Role, full_name: str, now: datetime
+        self, email: str, password_hash: str, roles: list[Role], full_name: str, now: datetime
     ) -> User:
-        user = User(str(len(self.items) + 1), email, password_hash, role, full_name)
+        user = User(str(len(self.items) + 1), email, password_hash, tuple(roles), full_name)
         self.items[user.id] = user
         return user
 
@@ -112,7 +112,7 @@ def tokens() -> FakeTokenRepo:
 async def users() -> FakeUserRepo:
     repo = FakeUserRepo()
     now = datetime.now(UTC)
-    await repo.insert("editor@x.test", security.hash_password(PASSWORD), Role.EDITOR, "Ed", now)
+    await repo.insert("editor@x.test", security.hash_password(PASSWORD), [Role.EDITOR], "Ed", now)
     return repo
 
 
@@ -125,7 +125,7 @@ async def test_login_issues_tokens_and_records_login(
     svc: AuthService, users: FakeUserRepo, tokens: FakeTokenRepo, clock: Clock
 ) -> None:
     pair = await svc.login("  Editor@X.test ", PASSWORD)
-    assert security.decode_access_token(pair.access_token) == security.Principal("1", "editor")
+    assert security.decode_access_token(pair.access_token) == security.Principal("1", ("editor",))
     assert pair.expires_in == get_settings().access_token_ttl_s
     assert users.items["1"].last_login_at == clock.now
     [stored] = tokens.active()
@@ -230,13 +230,13 @@ async def test_logout_all_revokes_live_access_tokens(svc: AuthService, clock: Cl
 async def test_seed_dev_admin_is_idempotent(svc: AuthService, users: FakeUserRepo) -> None:
     await svc.seed_dev_admin()
     await svc.seed_dev_admin()
-    admins = [u for u in users.items.values() if u.role is Role.ADMIN]
+    admins = [u for u in users.items.values() if Role.ADMIN in u.roles]
     assert [u.email for u in admins] == [get_settings().dev_admin_email]
 
 
 async def test_create_user_normalizes_email_and_rejects_duplicate(svc: AuthService) -> None:
-    user = await svc.create_user(" Trans@X.test ", "secret-pass", Role.TRANSLATOR, "Tr")
-    assert (user.email, user.role) == ("trans@x.test", Role.TRANSLATOR)
+    user = await svc.create_user(" Trans@X.test ", "secret-pass", [Role.TRANSLATOR], "Tr")
+    assert (user.email, user.roles) == ("trans@x.test", (Role.TRANSLATOR,))
     assert (await svc.login("trans@x.test", "secret-pass")).user.id == user.id
     with pytest.raises(ConflictError):
-        await svc.create_user("trans@x.test", "other", Role.EDITOR)
+        await svc.create_user("trans@x.test", "other", [Role.EDITOR])

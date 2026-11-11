@@ -42,14 +42,14 @@ def client() -> Iterator[TestClient]:
                 email=EDITOR["email"],
                 password_hash=editor_hash,
                 full_name="Editor",
-                role="editor",
+                roles=["editor"],
             )
             .on_conflict_do_update(
                 index_elements=[users.c.email],
                 set_={
                     "password_hash": editor_hash,
                     "full_name": "Editor",
-                    "role": "editor",
+                    "roles": ["editor"],
                     "is_active": True,
                 },
             )
@@ -73,7 +73,7 @@ def test_login_rejects_wrong_password(client: TestClient) -> None:
 
 def test_refresh_rotation_and_reuse_detection(client: TestClient) -> None:
     first = client.post("/api/v1/auth/login", json=ADMIN).json()
-    assert first["user"]["role"] == "admin"
+    assert first["user"]["roles"] == ["admin"]
 
     second = client.post("/api/v1/auth/refresh", json={"refresh_token": first["refresh_token"]})
     assert second.status_code == 200
@@ -138,9 +138,9 @@ def test_login_rate_limit_counts_only_failures(client: TestClient) -> None:
 def test_permissions_in_token_response(client: TestClient) -> None:
     admin = client.post("/api/v1/auth/login", json=ADMIN).json()["user"]
     editor = client.post("/api/v1/auth/login", json=EDITOR).json()["user"]
-    assert "admin:manage" in admin["permissions"]
-    assert editor["role"] == "editor"
-    assert editor["permissions"] == ["poi:read", "script:write"]
+    assert "user:manage" in admin["permissions"]
+    assert editor["roles"] == ["editor"]
+    assert {"poi:read", "poi:write", "script:write"} <= set(editor["permissions"])
 
 
 def test_audit_requires_admin_manage(client: TestClient) -> None:
@@ -184,7 +184,7 @@ def test_foreign_id_formats_do_not_crash(client: TestClient) -> None:
     portal.call(svc._users.mark_login, legacy_id, get_utc_now(), None)
     portal.call(svc._tokens.revoke_all_for_user, legacy_id, get_utc_now())
 
-    token = create_access_token(legacy_id, "admin", get_utc_now())
+    token = create_access_token(legacy_id, ("admin",), get_utc_now())
     r = client.post("/api/v1/auth/logout-all", headers={"Authorization": f"Bearer {token}"})
     assert r.status_code == 204
     # không có user nào mang id ngẫu nhiên này

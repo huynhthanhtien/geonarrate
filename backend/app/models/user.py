@@ -4,11 +4,13 @@ from enum import StrEnum
 
 
 class Role(StrEnum):
-    """Vai trò lưu dạng chuỗi trong `users.role`; quyền của từng vai trò khai báo trong code."""
+    """Vai trò lưu dạng chuỗi trong `users.roles`; quyền của từng vai trò khai báo trong code."""
 
     ADMIN = "admin"
     EDITOR = "editor"
     TRANSLATOR = "translator"
+    REVIEWER = "reviewer"
+    OPERATOR = "operator"
 
 
 @dataclass(frozen=True)
@@ -18,7 +20,7 @@ class User:
     id: str
     email: str
     password_hash: str
-    role: Role
+    roles: tuple[Role, ...]
     full_name: str = ""
     is_active: bool = True
     last_login_at: datetime | None = None

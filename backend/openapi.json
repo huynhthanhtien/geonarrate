@@ -122,6 +122,46 @@
         }
       }
     },
+    "/api/v1/auth/change-password": {
+      "post": {
+        "tags": [
+          "identity"
+        ],
+        "summary": "Change Password",
+        "description": "Tự đổi mật khẩu (cần mật khẩu hiện tại); mọi phiên, kể cả phiên này, bị thu hồi.",
+        "operationId": "change_password_api_v1_auth_change_password_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordChangeIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/auth/logout-all": {
       "post": {
         "tags": [
@@ -493,6 +533,33 @@
         }
       }
     },
+    "/api/v1/pois/images": {
+      "post": {
+        "tags": [
+          "catalog"
+        ],
+        "summary": "Upload Image",
+        "description": "Tải 1 ảnh (body là file ảnh thô: JPEG, PNG, WebP hoặc GIF, tối đa 8 MB) lên Cloudinary.",
+        "operationId": "upload_image_api_v1_pois_images_post",
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImageOut"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/pois/{poi_id}": {
       "get": {
         "tags": [
@@ -821,6 +888,45 @@
                   },
                   "type": "array",
                   "title": "Response Translation Jobs Api V1 Translation Jobs Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/translation-jobs/retry": {
+      "post": {
+        "tags": [
+          "studio"
+        ],
+        "summary": "Retry Translation",
+        "operationId": "retry_translation_api_v1_translation_jobs_retry_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AudioRetryIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -1581,6 +1687,104 @@
         }
       }
     },
+    "/api/v1/packs/status": {
+      "get": {
+        "tags": [
+          "studio"
+        ],
+        "summary": "Pack Status",
+        "operationId": "pack_status_api_v1_packs_status_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tour_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tour Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PackStatusOut"
+                  },
+                  "title": "Response Pack Status Api V1 Packs Status Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/packs/{pack_id}/diff": {
+      "get": {
+        "tags": [
+          "studio"
+        ],
+        "summary": "Pack Diff",
+        "operationId": "pack_diff_api_v1_packs__pack_id__diff_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "pack_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Pack Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PackDiffOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/packs/build": {
       "post": {
         "tags": [
@@ -1862,6 +2066,56 @@
         }
       }
     },
+    "/api/v1/admin/users/{user_id}/password": {
+      "post": {
+        "tags": [
+          "studio"
+        ],
+        "summary": "Set Password",
+        "operationId": "set_password_api_v1_admin_users__user_id__password_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "User Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordSetIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/tickets": {
       "post": {
         "tags": [
@@ -2089,6 +2343,19 @@
               ],
               "title": "Lang"
             }
+          },
+          {
+            "name": "tz",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 64,
+              "description": "Múi giờ IANA để chia ngày",
+              "default": "UTC",
+              "title": "Tz"
+            },
+            "description": "Múi giờ IANA để chia ngày"
           }
         ],
         "responses": {
@@ -2242,16 +2509,6 @@
               "maxLength": 128,
               "title": "Device Id"
             }
-          },
-          {
-            "name": "preview",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "boolean",
-              "default": false,
-              "title": "Preview"
-            }
           }
         ],
         "responses": {
@@ -2346,6 +2603,98 @@
             "description": "Successful Response",
             "content": {
               "audio/mpeg": {}
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/public/tours/{tour_id}/packs/{lang}/files/{poi_id}/images/{index}": {
+      "get": {
+        "tags": [
+          "public"
+        ],
+        "summary": "Pack Image",
+        "operationId": "pack_image_api_v1_public_tours__tour_id__packs__lang__files__poi_id__images__index__get",
+        "parameters": [
+          {
+            "name": "tour_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tour Id"
+            }
+          },
+          {
+            "name": "lang",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Lang"
+            }
+          },
+          {
+            "name": "poi_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Poi Id"
+            }
+          },
+          {
+            "name": "index",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Index"
+            }
+          },
+          {
+            "name": "device_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 128,
+              "title": "Device Id"
+            }
+          },
+          {
+            "name": "pack_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Pack Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "image/*": {}
             }
           },
           "422": {
@@ -2469,14 +2818,20 @@
             "minLength": 8,
             "title": "Password"
           },
-          "role": {
-            "type": "string",
-            "enum": [
-              "admin",
-              "editor",
-              "translator"
-            ],
-            "title": "Role"
+          "roles": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "admin",
+                "editor",
+                "translator",
+                "reviewer",
+                "operator"
+              ]
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Roles"
           },
           "full_name": {
             "type": "string",
@@ -2489,7 +2844,7 @@
         "required": [
           "email",
           "password",
-          "role"
+          "roles"
         ],
         "title": "AccountCreateIn"
       },
@@ -2507,9 +2862,12 @@
             "type": "string",
             "title": "Full Name"
           },
-          "role": {
-            "type": "string",
-            "title": "Role"
+          "roles": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Roles"
           },
           "is_active": {
             "type": "boolean",
@@ -2533,7 +2891,7 @@
           "id",
           "email",
           "full_name",
-          "role",
+          "roles",
           "is_active",
           "last_login_at"
         ],
@@ -2541,21 +2899,27 @@
       },
       "AccountUpdateIn": {
         "properties": {
-          "role": {
+          "roles": {
             "anyOf": [
               {
-                "type": "string",
-                "enum": [
-                  "admin",
-                  "editor",
-                  "translator"
-                ]
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "admin",
+                    "editor",
+                    "translator",
+                    "reviewer",
+                    "operator"
+                  ]
+                },
+                "type": "array",
+                "minItems": 1
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Role"
+            "title": "Roles"
           },
           "is_active": {
             "anyOf": [
@@ -2633,6 +2997,48 @@
         ],
         "title": "ActivateOut"
       },
+      "AnalyticsDay": {
+        "properties": {
+          "day": {
+            "type": "string",
+            "format": "date",
+            "title": "Day"
+          },
+          "plays": {
+            "type": "integer",
+            "title": "Plays"
+          },
+          "completes": {
+            "type": "integer",
+            "title": "Completes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "day",
+          "plays",
+          "completes"
+        ],
+        "title": "AnalyticsDay"
+      },
+      "AnalyticsHour": {
+        "properties": {
+          "hour": {
+            "type": "integer",
+            "title": "Hour"
+          },
+          "plays": {
+            "type": "integer",
+            "title": "Plays"
+          }
+        },
+        "type": "object",
+        "required": [
+          "hour",
+          "plays"
+        ],
+        "title": "AnalyticsHour"
+      },
       "AnalyticsLang": {
         "properties": {
           "lang": {
@@ -2672,6 +3078,24 @@
             ],
             "title": "Completion Rate"
           },
+          "devices": {
+            "type": "integer",
+            "title": "Devices"
+          },
+          "by_trigger": {
+            "items": {
+              "$ref": "#/components/schemas/AnalyticsTrigger"
+            },
+            "type": "array",
+            "title": "By Trigger"
+          },
+          "by_hour": {
+            "items": {
+              "$ref": "#/components/schemas/AnalyticsHour"
+            },
+            "type": "array",
+            "title": "By Hour"
+          },
           "top_pois": {
             "items": {
               "$ref": "#/components/schemas/AnalyticsTop"
@@ -2685,6 +3109,13 @@
             },
             "type": "array",
             "title": "By Lang"
+          },
+          "by_day": {
+            "items": {
+              "$ref": "#/components/schemas/AnalyticsDay"
+            },
+            "type": "array",
+            "title": "By Day"
           }
         },
         "type": "object",
@@ -2692,8 +3123,12 @@
           "plays",
           "completes",
           "completion_rate",
+          "devices",
+          "by_trigger",
+          "by_hour",
           "top_pois",
-          "by_lang"
+          "by_lang",
+          "by_day"
         ],
         "title": "AnalyticsOut"
       },
@@ -2710,15 +3145,38 @@
           "plays": {
             "type": "integer",
             "title": "Plays"
+          },
+          "completes": {
+            "type": "integer",
+            "title": "Completes"
           }
         },
         "type": "object",
         "required": [
           "id",
           "name",
-          "plays"
+          "plays",
+          "completes"
         ],
         "title": "AnalyticsTop"
+      },
+      "AnalyticsTrigger": {
+        "properties": {
+          "trigger": {
+            "type": "string",
+            "title": "Trigger"
+          },
+          "plays": {
+            "type": "integer",
+            "title": "Plays"
+          }
+        },
+        "type": "object",
+        "required": [
+          "trigger",
+          "plays"
+        ],
+        "title": "AnalyticsTrigger"
       },
       "AudioCell": {
         "properties": {
@@ -2755,6 +3213,26 @@
               }
             ],
             "title": "Duration Ms"
+          },
+          "hint": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "script_draft",
+                  "script_in_review",
+                  "translating",
+                  "translation_pending",
+                  "translation_rejected",
+                  "translate_failed",
+                  "not_started"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hint"
           }
         },
         "type": "object",
@@ -3078,6 +3556,19 @@
         "type": "object",
         "title": "HTTPValidationError"
       },
+      "ImageOut": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "title": "ImageOut"
+      },
       "LanguageOut": {
         "properties": {
           "code": {
@@ -3165,10 +3656,6 @@
             "type": "integer",
             "title": "Priority"
           },
-          "is_preview": {
-            "type": "boolean",
-            "title": "Is Preview"
-          },
           "sha256": {
             "type": "string",
             "title": "Sha256"
@@ -3180,6 +3667,14 @@
           "duration_ms": {
             "type": "integer",
             "title": "Duration Ms"
+          },
+          "images": {
+            "items": {
+              "$ref": "#/components/schemas/ManifestImage"
+            },
+            "type": "array",
+            "title": "Images",
+            "default": []
           }
         },
         "type": "object",
@@ -3191,12 +3686,40 @@
           "lng",
           "radius",
           "priority",
-          "is_preview",
           "sha256",
           "bytes",
           "duration_ms"
         ],
         "title": "ManifestFile"
+      },
+      "ManifestImage": {
+        "properties": {
+          "sha256": {
+            "type": "string",
+            "title": "Sha256"
+          },
+          "bytes": {
+            "type": "integer",
+            "title": "Bytes"
+          },
+          "ext": {
+            "type": "string",
+            "enum": [
+              "jpg",
+              "png",
+              "webp",
+              "gif"
+            ],
+            "title": "Ext"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sha256",
+          "bytes",
+          "ext"
+        ],
+        "title": "ManifestImage"
       },
       "ManifestOut": {
         "properties": {
@@ -3216,14 +3739,6 @@
             "type": "integer",
             "title": "Version"
           },
-          "access": {
-            "type": "string",
-            "enum": [
-              "full",
-              "preview"
-            ],
-            "title": "Access"
-          },
           "files": {
             "items": {
               "$ref": "#/components/schemas/ManifestFile"
@@ -3238,7 +3753,6 @@
           "tour_id",
           "lang",
           "version",
-          "access",
           "files"
         ],
         "title": "ManifestOut"
@@ -3275,6 +3789,76 @@
           "lang"
         ],
         "title": "PackBuildIn"
+      },
+      "PackChange": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "what": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "What"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "what"
+        ],
+        "title": "PackChange"
+      },
+      "PackDiffOut": {
+        "properties": {
+          "against_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Against Version"
+          },
+          "added": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Added"
+          },
+          "removed": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Removed"
+          },
+          "changed": {
+            "items": {
+              "$ref": "#/components/schemas/PackChange"
+            },
+            "type": "array",
+            "title": "Changed"
+          },
+          "bytes_delta": {
+            "type": "integer",
+            "title": "Bytes Delta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "against_version",
+          "added",
+          "removed",
+          "changed",
+          "bytes_delta"
+        ],
+        "title": "PackDiffOut"
       },
       "PackOut": {
         "properties": {
@@ -3343,10 +3927,26 @@
             ],
             "title": "Published At"
           },
+          "published_by_email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published By Email"
+          },
           "created_at": {
             "type": "string",
             "format": "date-time",
             "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
           }
         },
         "type": "object",
@@ -3360,9 +3960,166 @@
           "total_bytes",
           "file_count",
           "published_at",
-          "created_at"
+          "created_at",
+          "updated_at"
         ],
         "title": "PackOut"
+      },
+      "PackStatusOut": {
+        "properties": {
+          "lang": {
+            "type": "string",
+            "title": "Lang"
+          },
+          "total_pois": {
+            "type": "integer",
+            "title": "Total Pois"
+          },
+          "ready_pois": {
+            "type": "integer",
+            "title": "Ready Pois"
+          },
+          "missing": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Missing"
+          },
+          "can_build": {
+            "type": "boolean",
+            "title": "Can Build"
+          },
+          "blocker": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "tour_empty",
+                  "audio_missing",
+                  "pack_building",
+                  "pack_unchanged"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Blocker"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "same_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Same Version"
+          },
+          "published": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PackOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "pending": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PackOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "building": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PackOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "history": {
+            "items": {
+              "$ref": "#/components/schemas/PackOut"
+            },
+            "type": "array",
+            "title": "History"
+          }
+        },
+        "type": "object",
+        "required": [
+          "lang",
+          "total_pois",
+          "ready_pois",
+          "missing",
+          "can_build",
+          "blocker",
+          "reason",
+          "same_version",
+          "published",
+          "pending",
+          "building",
+          "history"
+        ],
+        "title": "PackStatusOut"
+      },
+      "PasswordChangeIn": {
+        "properties": {
+          "current_password": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Current Password"
+          },
+          "new_password": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 8,
+            "title": "New Password"
+          }
+        },
+        "type": "object",
+        "required": [
+          "current_password",
+          "new_password"
+        ],
+        "title": "PasswordChangeIn"
+      },
+      "PasswordSetIn": {
+        "properties": {
+          "password": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 8,
+            "title": "Password"
+          }
+        },
+        "type": "object",
+        "required": [
+          "password"
+        ],
+        "title": "PasswordSetIn"
       },
       "PoiCreateIn": {
         "properties": {
@@ -4174,11 +4931,6 @@
           "id": {
             "type": "string",
             "title": "Id"
-          },
-          "is_preview": {
-            "type": "boolean",
-            "title": "Is Preview",
-            "default": false
           }
         },
         "type": "object",
@@ -4201,10 +4953,6 @@
             "type": "integer",
             "title": "Position"
           },
-          "is_preview": {
-            "type": "boolean",
-            "title": "Is Preview"
-          },
           "lat": {
             "type": "number",
             "title": "Lat"
@@ -4223,7 +4971,6 @@
           "id",
           "name",
           "position",
-          "is_preview",
           "lat",
           "lng",
           "radius"
@@ -4470,14 +5217,19 @@
             "type": "string",
             "title": "Full Name"
           },
-          "role": {
-            "type": "string",
-            "enum": [
-              "admin",
-              "editor",
-              "translator"
-            ],
-            "title": "Role"
+          "roles": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "admin",
+                "editor",
+                "translator",
+                "reviewer",
+                "operator"
+              ]
+            },
+            "type": "array",
+            "title": "Roles"
           },
           "permissions": {
             "items": {
@@ -4493,7 +5245,7 @@
           "id",
           "email",
           "full_name",
-          "role",
+          "roles",
           "permissions"
         ],
         "title": "UserOut"

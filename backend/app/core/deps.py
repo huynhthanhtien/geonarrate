@@ -10,6 +10,7 @@ from app.core.database import get_engine
 from app.core.exceptions import ForbiddenError, UnauthorizedError
 from app.core.permissions import Permission, permissions_for
 from app.core.security import Principal
+from app.integrations.images.cloudinary import CloudinaryImages
 from app.integrations.storage.local import LocalStorage
 from app.integrations.translate.base import TranslateProvider
 from app.integrations.translate.groq import GroqTranslate
@@ -64,7 +65,18 @@ def get_audit_service() -> AuditService:
 
 def get_poi_service() -> PoiService:
     engine = get_engine()
-    return PoiService(SqlPoiRepository(engine), get_audit_service(), SqlLanguageRepository(engine))
+    settings = get_settings()
+    uploader = (
+        CloudinaryImages(settings.cloudinary_url, settings.cloudinary_folder)
+        if settings.cloudinary_url
+        else None
+    )
+    return PoiService(
+        SqlPoiRepository(engine),
+        get_audit_service(),
+        SqlLanguageRepository(engine),
+        uploader=uploader,
+    )
 
 
 def get_content_service() -> ContentService:
@@ -142,8 +154,19 @@ def require_permission(permission: Permission) -> Callable[[Principal], Principa
     """Dependency guard: `Depends(require_permission(Permission.PACK_PUBLISH))` ở router."""
 
     def _check(principal: Annotated[Principal, Depends(get_current_principal)]) -> Principal:
-        if permission not in permissions_for(principal.role):
+        if permission not in permissions_for(principal.roles):
             raise ForbiddenError("forbidden", f"Cần quyền {permission}")
+        return principal
+
+    return _check
+
+
+def require_any_permission(*permissions: Permission) -> Callable[[Principal], Principal]:
+    """Cho qua nếu có ít nhất một quyền (vd. danh sách tour mà nhiều trang cần)."""
+
+    def _check(principal: Annotated[Principal, Depends(get_current_principal)]) -> Principal:
+        if not set(permissions) & permissions_for(principal.roles):
+            raise ForbiddenError("forbidden", f"Cần một trong các quyền {', '.join(permissions)}")
         return principal
 
     return _check
