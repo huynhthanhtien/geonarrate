@@ -1,8 +1,9 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Request, status
 
 from app.api.v1.schemas.poi import (
+    ImageOut,
     PoiCreateIn,
     PoiOut,
     PoiUpdateIn,
@@ -10,8 +11,10 @@ from app.api.v1.schemas.poi import (
     ScriptIn,
 )
 from app.core.deps import get_poi_service, require_permission
+from app.core.exceptions import InvalidContentError
 from app.core.permissions import Permission
 from app.core.security import Principal
+from app.integrations.images.fetch import MAX_IMAGE_BYTES
 from app.services.poi_service import PoiService
 
 router = APIRouter(prefix="/pois", tags=["catalog"])
@@ -36,6 +39,20 @@ async def list_pois(
 async def create_poi(body: PoiCreateIn, svc: Svc, user: PoiWriter) -> PoiOut:
     created = await svc.create(**body.model_dump(), actor_id=user.user_id)
     return PoiOut.model_validate(created)
+
+
+@router.post("/images", response_model=ImageOut, status_code=status.HTTP_201_CREATED)
+async def upload_image(request: Request, svc: Svc, user: PoiWriter) -> ImageOut:
+    """Tải 1 ảnh (body là file ảnh thô: JPEG, PNG, WebP hoặc GIF, tối đa 8 MB) lên Cloudinary."""
+    declared = request.headers.get("content-length", "")
+    if declared.isdigit() and int(declared) > MAX_IMAGE_BYTES:
+        raise InvalidContentError("image_invalid", "Ảnh rỗng hoặc lớn hơn 8 MB")
+    data = bytearray()
+    async for chunk in request.stream():  # dừng sớm, không nạp cả body quá lớn vào RAM
+        data += chunk
+        if len(data) > MAX_IMAGE_BYTES:
+            raise InvalidContentError("image_invalid", "Ảnh rỗng hoặc lớn hơn 8 MB")
+    return ImageOut(url=await svc.upload_image(bytes(data), user.user_id))
 
 
 @router.get("/{poi_id}", response_model=PoiOut)

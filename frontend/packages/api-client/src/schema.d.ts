@@ -156,6 +156,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/pois/images": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Upload Image
+         * @description Tải 1 ảnh (body là file ảnh thô: JPEG, PNG, WebP hoặc GIF, tối đa 8 MB) lên Cloudinary.
+         */
+        post: operations["upload_image_api_v1_pois_images_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/pois/{poi_id}": {
         parameters: {
             query?: never;
@@ -760,6 +780,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/public/tours/{tour_id}/packs/{lang}/files/{poi_id}/images/{index}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Pack Image */
+        get: operations["pack_image_api_v1_public_tours__tour_id__packs__lang__files__poi_id__images__index__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/public/playback-events": {
         parameters: {
             query?: never;
@@ -1064,6 +1101,11 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /** ImageOut */
+        ImageOut: {
+            /** Url */
+            url: string;
+        };
         /** LanguageOut */
         LanguageOut: {
             /** Code */
@@ -1104,6 +1146,23 @@ export interface components {
             bytes: number;
             /** Duration Ms */
             duration_ms: number;
+            /**
+             * Images
+             * @default []
+             */
+            images: components["schemas"]["ManifestImage"][];
+        };
+        /** ManifestImage */
+        ManifestImage: {
+            /** Sha256 */
+            sha256: string;
+            /** Bytes */
+            bytes: number;
+            /**
+             * Ext
+             * @enum {string}
+             */
+            ext: "jpg" | "png" | "webp" | "gif";
         };
         /** ManifestOut */
         ManifestOut: {
@@ -1888,6 +1947,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upload_image_api_v1_pois_images_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImageOut"];
                 };
             };
         };
@@ -3148,6 +3227,43 @@ export interface operations {
                 };
                 content: {
                     "audio/mpeg": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    pack_image_api_v1_public_tours__tour_id__packs__lang__files__poi_id__images__index__get: {
+        parameters: {
+            query: {
+                device_id: string;
+                pack_id?: string | null;
+            };
+            header?: never;
+            path: {
+                tour_id: string;
+                lang: string;
+                poi_id: string;
+                index: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/*": unknown;
                 };
             };
             /** @description Validation Error */

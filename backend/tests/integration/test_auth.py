@@ -184,7 +184,7 @@ def test_foreign_id_formats_do_not_crash(client: TestClient) -> None:
     portal.call(svc._users.mark_login, legacy_id, get_utc_now(), None)
     portal.call(svc._tokens.revoke_all_for_user, legacy_id, get_utc_now())
 
-    token = create_access_token(legacy_id, "admin", get_utc_now())
+    token = create_access_token(legacy_id, ("admin",), get_utc_now())
     r = client.post("/api/v1/auth/logout-all", headers={"Authorization": f"Bearer {token}"})
     assert r.status_code == 204
     # không có user nào mang id ngẫu nhiên này

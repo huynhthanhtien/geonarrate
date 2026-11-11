@@ -306,6 +306,12 @@ class ActivateOut(BaseModel):
     valid_until: datetime
 
 
+class ManifestImage(BaseModel):
+    sha256: str
+    bytes: int
+    ext: Literal["jpg", "png", "webp", "gif"]
+
+
 class ManifestFile(BaseModel):
     poi_id: str
     name: str
@@ -317,6 +323,7 @@ class ManifestFile(BaseModel):
     sha256: str
     bytes: int
     duration_ms: int
+    images: list[ManifestImage] = []
 
 
 class ManifestOut(BaseModel):

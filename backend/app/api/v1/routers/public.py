@@ -18,6 +18,8 @@ from app.core.deps import get_catalog_service
 from app.core.device import issue_device_id, verify_device_id
 from app.services.catalog_service import CatalogService
 
+IMAGE_TYPES = {"jpg": "image/jpeg", "png": "image/png", "webp": "image/webp", "gif": "image/gif"}
+
 router = APIRouter(prefix="/public", tags=["public"])
 Catalog = Annotated[CatalogService, Depends(get_catalog_service)]
 
@@ -65,6 +67,25 @@ async def pack_file(
     verify_device_id(device_id)
     path = await svc.public_file(tour_id, lang, poi_id, device_id, pack_id)
     return FileResponse(path, media_type="audio/mpeg")
+
+
+@router.get(
+    "/tours/{tour_id}/packs/{lang}/files/{poi_id}/images/{index}",
+    response_class=FileResponse,
+    responses={200: {"content": {"image/*": {}}}},
+)
+async def pack_image(
+    tour_id: str,
+    lang: str,
+    poi_id: str,
+    index: int,
+    svc: Catalog,
+    device_id: Annotated[Device, Query()],
+    pack_id: str | None = None,
+) -> FileResponse:
+    verify_device_id(device_id)
+    path, ext = await svc.public_image(tour_id, lang, poi_id, index, device_id, pack_id)
+    return FileResponse(path, media_type=IMAGE_TYPES[ext])
 
 
 @router.post("/playback-events", response_model=EventsOut)

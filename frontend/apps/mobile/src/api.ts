@@ -30,6 +30,11 @@ export interface PublicTour {
   poi_count: number;
   langs: string[];
 }
+export interface PackImage {
+  sha256: string;
+  bytes: number;
+  ext: "jpg" | "png" | "webp" | "gif";
+}
 export interface PackFile {
   poi_id: string;
   name: string;
@@ -41,6 +46,8 @@ export interface PackFile {
   sha256: string;
   bytes: number;
   duration_ms: number;
+  /** Thiếu ở pack cũ (build trước khi có ảnh). */
+  images?: PackImage[];
 }
 export interface Manifest {
   pack_id: string;
@@ -90,6 +97,13 @@ export const getManifest = (tourId: string, lang: string, device: string, server
   );
 export const fileUrl = (manifest: Manifest, poiId: string, device: string, server = backend) =>
   `${server}/api/v1/public/tours/${manifest.tour_id}/packs/${manifest.lang}/files/${poiId}?device_id=${encodeURIComponent(device)}&pack_id=${encodeURIComponent(manifest.pack_id)}`;
+export const imageUrl = (manifest: Manifest, poiId: string, index: number, device: string, server = backend) =>
+  `${server}/api/v1/public/tours/${manifest.tour_id}/packs/${manifest.lang}/files/${poiId}/images/${index}?device_id=${encodeURIComponent(device)}&pack_id=${encodeURIComponent(manifest.pack_id)}`;
+/** Tổng dung lượng pack: audio và ảnh. */
+export const packBytes = (m: Manifest) =>
+  m.files.reduce((sum, f) => sum + f.bytes + (f.images ?? []).reduce((n, i) => n + i.bytes, 0), 0);
+/** Số file phải tải (audio + ảnh), dùng cho thanh tiến độ. */
+export const packSteps = (m: Manifest) => m.files.reduce((sum, f) => sum + 1 + (f.images?.length ?? 0), 0);
 export const activateTicket = (code: string, device: string, server = backend) =>
   call<{ result: string; tour_ids: string[] }>("/public/tickets/activate", {
     method: "POST",

@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useState } from "react";
-import { Linking, Platform, Pressable, StyleSheet, View } from "react-native";
+import { useEffect, useState } from "react";
+import { Image, Linking, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { poiImageUris } from "../download";
 import { formatClock } from "../format";
 import { useI18n } from "../i18n";
 import { SPEEDS, usePlayback } from "../playback";
@@ -14,7 +15,10 @@ export function PlayerScreen({ onBack }: { onBack: () => void }) {
   const { t } = useI18n();
   const playback = usePlayback();
   const [confirmFinish, setConfirmFinish] = useState(false);
+  const [photo, setPhoto] = useState(0);
   const pack = playback.pack;
+  const nowId = playback.now?.poi_id;
+  useEffect(() => setPhoto(0), [nowId]);
 
   if (!pack) {
     return (
@@ -32,6 +36,7 @@ export function PlayerScreen({ onBack }: { onBack: () => void }) {
 
   const files = pack.manifest.files;
   const index = playback.now ? files.findIndex((file) => file.poi_id === playback.now?.poi_id) : -1;
+  const photos = pack && index >= 0 ? poiImageUris(pack.tourId, pack.lang, files[index]!) : [];
   const nextFile = index >= 0 ? files[index + 1] : files[0];
   const total = playback.duration > 0 ? playback.duration : (playback.now?.duration_ms ?? 0) / 1000;
   const progress = total > 0 ? playback.elapsed / total : 0;
@@ -71,6 +76,17 @@ export function PlayerScreen({ onBack }: { onBack: () => void }) {
             showInitials={!playback.now}
             style={{ width: "100%" }}
           >
+            {photos.length ? (
+              <>
+                <Image
+                  source={{ uri: photos[Math.min(photo, photos.length - 1)] }}
+                  accessibilityIgnoresInvertColors
+                  style={StyleSheet.absoluteFill}
+                  resizeMode="cover"
+                />
+                <View style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(0,0,0,0.25)" }]} />
+              </>
+            ) : null}
             {playback.now ? (
               <View style={styles.heroCenter} pointerEvents="none">
                 <Txt variant="hero" style={styles.heroNumber}>{index + 1}</Txt>
@@ -93,6 +109,25 @@ export function PlayerScreen({ onBack }: { onBack: () => void }) {
             </View>
           </Cover>
         </View>
+
+        {photos.length > 1 ? (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space.sm }}>
+            {photos.map((uri, i) => (
+              <Pressable
+                key={uri}
+                onPress={() => setPhoto(i)}
+                accessibilityRole="button"
+                accessibilityLabel={`${playback.now?.name ?? ""} ${i + 1}/${photos.length}`}
+              >
+                <Image
+                  source={{ uri }}
+                  style={[styles.thumb, i === photo && { borderColor: colors.primary }]}
+                  resizeMode="cover"
+                />
+              </Pressable>
+            ))}
+          </ScrollView>
+        ) : null}
 
         <View style={{ gap: space.xs }}>
           {playback.now ? (
@@ -271,6 +306,7 @@ export function PlayerScreen({ onBack }: { onBack: () => void }) {
           <SectionHeader title={`${t("player.stops")} · ${files.length}`} />
           {files.map((file, stopIndex) => {
             const active = file.poi_id === playback.now?.poi_id;
+            const thumb = poiImageUris(pack.tourId, pack.lang, file)[0];
             return (
               <Pressable
                 key={file.poi_id}
@@ -279,9 +315,13 @@ export function PlayerScreen({ onBack }: { onBack: () => void }) {
                 accessibilityLabel={file.name}
                 style={({ pressed }) => [styles.stop, active && styles.stopActive, pressed && { opacity: 0.9 }]}
               >
-                <View style={[styles.stopNumber, active && { backgroundColor: colors.accent }]}>
-                  <Txt variant="caption" color={colors.primaryFg}>{stopIndex + 1}</Txt>
-                </View>
+                {thumb ? (
+                  <Image source={{ uri: thumb }} style={styles.stopThumb} resizeMode="cover" />
+                ) : (
+                  <View style={[styles.stopNumber, active && { backgroundColor: colors.accent }]}>
+                    <Txt variant="caption" color={colors.primaryFg}>{stopIndex + 1}</Txt>
+                  </View>
+                )}
                 <View style={{ flex: 1 }}>
                   <Txt variant="bodyStrong" color={active ? colors.primaryDark : colors.text} numberOfLines={1}>
                     {file.name}
@@ -422,6 +462,18 @@ const styles = StyleSheet.create({
   stopActive: {
     backgroundColor: colors.primarySoft,
     borderColor: "#B7DED6",
+  },
+  thumb: {
+    width: 72,
+    height: 54,
+    borderRadius: radius.sm,
+    borderWidth: 2,
+    borderColor: "transparent",
+  },
+  stopThumb: {
+    width: 44,
+    height: 44,
+    borderRadius: radius.sm,
   },
   stopNumber: {
     width: 26,

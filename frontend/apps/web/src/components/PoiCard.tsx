@@ -28,9 +28,14 @@ export function PoiCard({ poi }: { poi: any }) {
     >
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-4 flex-1 min-w-0">
-          <div className="w-11 h-11 rounded-xl bg-teal-50 border border-teal-100 flex items-center justify-center text-xl shrink-0">
-            <CategoryIcon size={20} className="text-teal-700" aria-hidden />
-          </div>
+          {poi.images?.[0] ? (
+            <img src={poi.images[0]} alt="" loading="lazy"
+              className="w-11 h-11 rounded-xl border border-slate-200 object-cover shrink-0" />
+          ) : (
+            <div className="w-11 h-11 rounded-xl bg-teal-50 border border-teal-100 flex items-center justify-center text-xl shrink-0">
+              <CategoryIcon size={20} className="text-teal-700" aria-hidden />
+            </div>
+          )}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
               <h3 className="font-semibold text-slate-800 truncate">{poi.name}</h3>

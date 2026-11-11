@@ -47,6 +47,7 @@ khoản bằng trang **Tài khoản** trên CMS hoặc dòng lệnh:
 | `GROQ_API_KEY`, `GROQ_MODEL` | Khóa Groq chỉ đặt ở backend; model mặc định `openai/gpt-oss-20b`. Thuật ngữ CMS được đưa vào hướng dẫn dịch và vẫn qua bước duyệt |
 | `TTS_PROVIDER` | `edge` hoặc `magpie` (MagpieTTS tự host, chạy offline) |
 | `MAGPIE_TTS_URL`, `MAGPIE_TTS_VOICE` | Máy chủ Magpie có endpoint `/v1/audio/speech`, trả WAV; cần ffmpeg để đổi MP3 |
+| `CLOUDINARY_URL`, `CLOUDINARY_FOLDER` | `cloudinary://api_key:api_secret@cloud_name` (Dashboard → Settings → API Keys). Bỏ trống thì `POST /pois/images` trả 503. Build pack tải ảnh Cloudinary của điểm vào pack để app xem offline |
 | `CORS_ORIGINS` | Mảng JSON origin của CMS, ví dụ `["https://cms.example.com"]` |
 | `PUBLIC_RATE_LIMIT`, `PUBLIC_ACTIVATE_RATE_LIMIT`, `PUBLIC_RATE_WINDOW_S` | Theo IP: mặc định 300 request và 10 lần kích hoạt trong 60 giây |
 | `APP_ENV`, `DEV_ADMIN_EMAIL`, `DEV_ADMIN_PASSWORD` | Chỉ dev: tạo sẵn một tài khoản admin |

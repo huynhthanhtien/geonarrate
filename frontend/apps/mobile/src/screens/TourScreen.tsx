@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { StyleSheet, View } from "react-native";
-import { ApiError, getManifest, type Manifest, type PublicTour } from "../api";
+import { ApiError, getManifest, packBytes, packSteps, type Manifest, type PublicTour } from "../api";
 import { deletePack, downloadPack, limitProblem } from "../download";
 import { formatBytes, formatClock, minutesLabel } from "../format";
 import { useI18n } from "../i18n";
@@ -39,7 +39,7 @@ export function TourScreen({ tour, lang, onBack, onScan, onPlay, onChangeLang }:
   const updateAvailable = Boolean(installed && manifest
     && (installed.manifest.pack_id !== manifest.pack_id
       || installed.manifest.files.length !== manifest.files.length));
-  const totalBytes = content?.files.reduce((sum, file) => sum + file.bytes, 0) ?? 0;
+  const totalBytes = content ? packBytes(content) : 0;
   const totalMs = content?.files.reduce((sum, file) => sum + file.duration_ms, 0) ?? 0;
 
   const describe = (reason: unknown) =>
@@ -108,9 +108,9 @@ export function TourScreen({ tour, lang, onBack, onScan, onPlay, onChangeLang }:
     if (progress !== null) {
       footer = (
         <View style={{ gap: space.sm }}>
-          <ProgressBar value={content ? progress / Math.max(1, content.files.length) : 0} />
+          <ProgressBar value={content ? progress / Math.max(1, packSteps(content)) : 0} />
           <Button
-            label={t("tour.downloading", { done: progress, total: content?.files.length ?? 0 })}
+            label={t("tour.downloading", { done: progress, total: content ? packSteps(content) : 0 })}
             onPress={() => undefined}
             loading
             disabled

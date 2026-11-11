@@ -1,13 +1,14 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft, MapPin, Save, TriangleAlert } from "lucide-react";
+import { ArrowLeft, ImagePlus, MapPin, Save, TriangleAlert, X } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router";
-import { sendJson } from "../api";
+import { sendJson, uploadImage } from "../api";
 import { LoadError } from "../components/LoadError";
 import { MapPicker } from "../components/MapPicker";
 import { CATEGORIES, categoryLabel } from "../labels";
 import { Select } from "../components/Select";
 
+const MAX_IMAGES = 20;
 const DECIMAL = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/;
 
 function coordinate(value: string, limit: number): number | null {
@@ -49,7 +50,8 @@ export function PoiFormPage() {
   const sliderRadius = radiusText.trim() && Number.isInteger(radiusM) ? Math.min(200, Math.max(10, radiusM)) : 40;
   const invalidPair = Boolean(pair.trim()) && parsePair(pair) === null;
   const [summary, setSummary] = useState("");
-  const [images, setImages] = useState("");
+  const [images, setImages] = useState<string[]>([]);
+  const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -64,8 +66,26 @@ export function PoiFormPage() {
     setPairTouched(false);
     setRadiusText(String(existing.radius));
     setSummary(existing.summary ?? "");
-    setImages(existing.images.join("\n"));
+    setImages(existing.images);
   }, [existing]);
+
+  const addImages = async (files: FileList | null) => {
+    if (!files?.length) return;
+    setUploading(true);
+    setError("");
+    const added: string[] = [];
+    try {
+      for (const file of Array.from(files).slice(0, MAX_IMAGES - images.length)) {
+        added.push(await uploadImage(file));
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Không tải được ảnh");
+    } finally {
+      // Giữ lại các ảnh đã tải thành công dù ảnh sau bị lỗi
+      setImages((current) => [...current, ...added]);
+      setUploading(false);
+    }
+  };
 
   const handleSubmit = async () => {
     if (!name.trim()) { setError("Tên không được để trống"); return; }
@@ -85,7 +105,7 @@ export function PoiFormPage() {
         lng: longitude,
         radius: radiusM,
         summary: summary.trim() || null,
-        images: images.split("\n").map((url) => url.trim()).filter(Boolean),
+        images,
       };
       if (id) await sendJson(`/api/v1/pois/${id}`, "PATCH", body);
       else await sendJson("/api/v1/pois", "POST", body);
@@ -137,9 +157,28 @@ export function PoiFormPage() {
         </div>
 
         <div>
-          <label className={labelClass}>Hình ảnh (mỗi dòng một URL http hoặc https)</label>
-          <textarea value={images} onChange={(e) => setImages(e.target.value)} rows={2}
-            placeholder="https://..." className={inputClass} />
+          <label className={labelClass}>Hình ảnh ({images.length}/{MAX_IMAGES})</label>
+          <div className="flex flex-wrap gap-3">
+            {images.map((url, i) => (
+              <div key={url} className="relative h-24 w-24 overflow-hidden rounded-lg border border-slate-200 bg-slate-100">
+                <img src={url} alt={`Ảnh ${i + 1}`} loading="lazy" className="h-full w-full object-cover" />
+                <button type="button" aria-label={`Xoá ảnh ${i + 1}`}
+                  onClick={() => setImages(images.filter((_, j) => j !== i))}
+                  className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-slate-900/70 text-white hover:bg-slate-900">
+                  <X size={14} aria-hidden />
+                </button>
+              </div>
+            ))}
+            {images.length < MAX_IMAGES && (
+              <label className={`flex h-24 w-24 cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-slate-300 text-xs text-slate-500 hover:border-teal-500 hover:text-teal-600 ${uploading ? "pointer-events-none opacity-60" : ""}`}>
+                <ImagePlus size={20} aria-hidden />
+                {uploading ? "Đang tải…" : "Thêm ảnh"}
+                <input type="file" multiple accept="image/jpeg,image/png,image/webp,image/gif" className="sr-only"
+                  onChange={(e) => { void addImages(e.target.files); e.target.value = ""; }} />
+              </label>
+            )}
+          </div>
+          <p className="mt-1 text-xs text-slate-500">JPEG, PNG, WebP hoặc GIF, tối đa 8 MB mỗi ảnh. Ảnh được đưa vào pack để app xem khi không có mạng.</p>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
@@ -215,7 +254,7 @@ export function PoiFormPage() {
         </div>
 
         <div className="flex gap-3 pt-2 border-t border-slate-100">
-          <button onClick={handleSubmit} disabled={loading}
+          <button onClick={handleSubmit} disabled={loading || uploading}
             className="inline-flex items-center gap-1.5 bg-teal-600 hover:bg-teal-700 disabled:opacity-60 text-white px-6 py-2.5 rounded-lg text-sm font-semibold transition-colors shadow-sm">
             <Save size={15} aria-hidden /> {loading ? "Đang lưu..." : "Lưu điểm"}
           </button>

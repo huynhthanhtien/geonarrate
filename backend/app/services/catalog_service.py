@@ -210,16 +210,14 @@ class CatalogService:
         files = manifest["files"]
         for f in files:
             f.pop("storage_key", None)
+            for img in f.get("images", []):
+                img.pop("storage_key", None)
+                img.pop("url", None)
         return {**manifest, "files": files}
 
-    async def public_file(
-        self,
-        tour_id: str,
-        lang: str,
-        poi_id: str,
-        device_id: str,
-        pack_id: str | None = None,
-    ) -> str:
+    async def _allowed_item(
+        self, tour_id: str, lang: str, poi_id: str, device_id: str, pack_id: str | None
+    ) -> dict[str, Any]:
         pack, tour = await self._published(tour_id, lang, pack_id)
         manifest = self._pipeline.read_manifest(pack)
         item = next((f for f in manifest["files"] if f["poi_id"] == poi_id), None)
@@ -230,7 +228,34 @@ class CatalogService:
         )
         if not allowed:
             raise ForbiddenError("ticket_required", "Tour này cần vé để tải")
+        return dict(item)
+
+    async def public_file(
+        self,
+        tour_id: str,
+        lang: str,
+        poi_id: str,
+        device_id: str,
+        pack_id: str | None = None,
+    ) -> str:
+        item = await self._allowed_item(tour_id, lang, poi_id, device_id, pack_id)
         return self._pipeline.file_path(item["storage_key"])
+
+    async def public_image(
+        self,
+        tour_id: str,
+        lang: str,
+        poi_id: str,
+        index: int,
+        device_id: str,
+        pack_id: str | None = None,
+    ) -> tuple[str, str]:
+        """Đường dẫn và đuôi file của ảnh thứ `index` của điểm trong pack."""
+        item = await self._allowed_item(tour_id, lang, poi_id, device_id, pack_id)
+        images = item.get("images", [])
+        if not 0 <= index < len(images):
+            raise NotFoundError("file_not_found", "Không có ảnh này trong pack")
+        return self._pipeline.file_path(images[index]["storage_key"]), images[index]["ext"]
 
     async def _published(
         self, tour_id: str, lang: str, pack_id: str | None = None

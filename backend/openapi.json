@@ -533,6 +533,33 @@
         }
       }
     },
+    "/api/v1/pois/images": {
+      "post": {
+        "tags": [
+          "catalog"
+        ],
+        "summary": "Upload Image",
+        "description": "Tải 1 ảnh (body là file ảnh thô: JPEG, PNG, WebP hoặc GIF, tối đa 8 MB) lên Cloudinary.",
+        "operationId": "upload_image_api_v1_pois_images_post",
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImageOut"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/pois/{poi_id}": {
       "get": {
         "tags": [
@@ -2591,6 +2618,98 @@
         }
       }
     },
+    "/api/v1/public/tours/{tour_id}/packs/{lang}/files/{poi_id}/images/{index}": {
+      "get": {
+        "tags": [
+          "public"
+        ],
+        "summary": "Pack Image",
+        "operationId": "pack_image_api_v1_public_tours__tour_id__packs__lang__files__poi_id__images__index__get",
+        "parameters": [
+          {
+            "name": "tour_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tour Id"
+            }
+          },
+          {
+            "name": "lang",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Lang"
+            }
+          },
+          {
+            "name": "poi_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Poi Id"
+            }
+          },
+          {
+            "name": "index",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Index"
+            }
+          },
+          {
+            "name": "device_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 128,
+              "title": "Device Id"
+            }
+          },
+          {
+            "name": "pack_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Pack Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "image/*": {}
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/public/playback-events": {
       "post": {
         "tags": [
@@ -3437,6 +3556,19 @@
         "type": "object",
         "title": "HTTPValidationError"
       },
+      "ImageOut": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "title": "ImageOut"
+      },
       "LanguageOut": {
         "properties": {
           "code": {
@@ -3535,6 +3667,14 @@
           "duration_ms": {
             "type": "integer",
             "title": "Duration Ms"
+          },
+          "images": {
+            "items": {
+              "$ref": "#/components/schemas/ManifestImage"
+            },
+            "type": "array",
+            "title": "Images",
+            "default": []
           }
         },
         "type": "object",
@@ -3551,6 +3691,35 @@
           "duration_ms"
         ],
         "title": "ManifestFile"
+      },
+      "ManifestImage": {
+        "properties": {
+          "sha256": {
+            "type": "string",
+            "title": "Sha256"
+          },
+          "bytes": {
+            "type": "integer",
+            "title": "Bytes"
+          },
+          "ext": {
+            "type": "string",
+            "enum": [
+              "jpg",
+              "png",
+              "webp",
+              "gif"
+            ],
+            "title": "Ext"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sha256",
+          "bytes",
+          "ext"
+        ],
+        "title": "ManifestImage"
       },
       "ManifestOut": {
         "properties": {

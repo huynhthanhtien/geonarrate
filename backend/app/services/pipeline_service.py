@@ -4,11 +4,13 @@ import hashlib
 import io
 import json
 import zipfile
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from app.core.exceptions import ConflictError, InvalidContentError, NotFoundError
+from app.integrations.images.cloudinary import is_cloudinary_image
+from app.integrations.images.fetch import fetch_image as default_fetch_image
 from app.integrations.storage.local import LocalStorage
 from app.integrations.translate.base import GlossaryTerm, TranslateProvider
 from app.integrations.tts.base import TTSProvider
@@ -61,6 +63,7 @@ class PipelineService:
         clock: Callable[[], datetime] = _utcnow,
         *,
         tts_voice: str | None = None,
+        fetch_image: Callable[[str], Awaitable[tuple[bytes, str]]] = default_fetch_image,
     ) -> None:
         self._jobs = jobs
         self._pois = pois
@@ -75,6 +78,7 @@ class PipelineService:
         self._tts = tts
         self._tts_voice = tts_voice
         self._clock = clock
+        self._fetch_image = fetch_image
 
     # --- worker
     async def run_once(self) -> bool:
@@ -210,8 +214,19 @@ class PipelineService:
         return found, missing
 
     @staticmethod
-    def _manifest_files(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
-        """Danh sách file của manifest; dùng cả để so pack mới với các bản đã có."""
+    def _pack_image_urls(point: dict[str, Any]) -> list[str]:
+        """Ảnh của điểm được đưa vào pack: chỉ ảnh do Cloudinary phục vụ."""
+        return [u for u in point.get("images") or [] if is_cloudinary_image(u)]
+
+    @classmethod
+    def _manifest_files(
+        cls, items: list[dict[str, Any]], fetched: dict[str, dict[str, Any]] | None = None
+    ) -> list[dict[str, Any]]:
+        """Danh sách file của manifest; dùng cả để so pack mới với các bản đã có.
+
+        Chưa tải ảnh (`fetched` rỗng) thì mỗi ảnh chỉ có `url`, đủ để so sánh nội dung.
+        """
+        fetched = fetched or {}
         return [
             {
                 "poi_id": point["id"],
@@ -225,9 +240,25 @@ class PipelineService:
                 "sha256": asset["sha256"],
                 "bytes": asset["bytes"],
                 "duration_ms": asset["duration_ms"],
+                "images": [{"url": u, **fetched.get(u, {})} for u in cls._pack_image_urls(point)],
             }
             for point, asset in ((item["point"], item["asset"]) for item in items)
         ]
+
+    async def _fetch_images(self, items: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+        """Tải ảnh của các điểm về kho; trả metadata theo URL."""
+        out: dict[str, dict[str, Any]] = {}
+        for item in items:
+            for url in self._pack_image_urls(item["point"]):
+                if url in out:
+                    continue
+                data, ext = await self._fetch_image(url)
+                digest = _sha(data)
+                key = f"images/{digest}.{ext}"
+                if not self._storage.exists(key):
+                    self._storage.put(key, data)
+                out[url] = {"sha256": digest, "bytes": len(data), "ext": ext, "storage_key": key}
+        return out
 
     async def _build_pack(self, p: dict[str, Any]) -> None:
         pack = await self._audio.get_pack(p["pack_id"])
@@ -239,11 +270,16 @@ class PipelineService:
         items, missing = await self._tour_assets(tour, pack["lang"])
         if missing or not items:
             raise RuntimeError(f"Thiếu audio: {', '.join(missing) or 'tour không có điểm'}")
-        files = self._manifest_files(items)
+        files = self._manifest_files(items, await self._fetch_images(items))
         archive = io.BytesIO()
         with zipfile.ZipFile(archive, "w", zipfile.ZIP_STORED) as z:
             for f in files:
                 z.writestr(f"{f['poi_id']}.mp3", self._storage.read(f["storage_key"]))
+                for n, img in enumerate(f["images"]):
+                    z.writestr(
+                        f"{f['poi_id']}/images/{n}.{img['ext']}",
+                        self._storage.read(img["storage_key"]),
+                    )
         manifest = json.dumps(
             {
                 "pack_id": pack["id"],
@@ -274,7 +310,9 @@ class PipelineService:
                 "archive_key": f"{prefix}/pack.zip",
                 "manifest_key": f"{prefix}/manifest.json",
                 "sha256": _sha(data),
-                "total_bytes": sum(f["bytes"] for f in files),
+                "total_bytes": sum(
+                    f["bytes"] + sum(i["bytes"] for i in f["images"]) for f in files
+                ),
                 "file_count": len(files),
             },
             self._clock(),
@@ -282,10 +320,11 @@ class PipelineService:
         )
 
     def _verify_pack_files(self, files: list[dict[str, Any]]) -> bool:
+        entries = [e for f in files for e in (f, *f.get("images", []))]
         return all(
-            self._storage.exists(f["storage_key"])
-            and _sha(self._storage.read(f["storage_key"])) == f["sha256"]
-            for f in files
+            self._storage.exists(e["storage_key"])
+            and _sha(self._storage.read(e["storage_key"])) == e["sha256"]
+            for e in entries
         )
 
     def _pack_intact(self, pack: dict[str, Any]) -> bool:
@@ -435,13 +474,20 @@ class PipelineService:
             raise NotFoundError("tour_not_found", "Không tìm thấy tour")
         return tour
 
+    @staticmethod
+    def _comparable(files: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """Bỏ phần phụ thuộc lúc build (sha256, đường dẫn kho) của ảnh, chỉ giữ URL để so sánh."""
+        return [{**f, "images": [{"url": i["url"]} for i in f.get("images", [])]} for f in files]
+
     def _same_content(
         self, files: list[dict[str, Any]], packs: list[dict[str, Any]]
     ) -> dict[str, Any] | None:
         """Bản qa/published có đúng danh sách file này (điểm, toạ độ, sha256 audio...)."""
         for p in packs:
             if p["status"] in ("qa", "published") and p["manifest_key"]:
-                if self.read_manifest(p).get("files") == files:
+                if self._comparable(self.read_manifest(p).get("files", [])) == self._comparable(
+                    files
+                ):
                     return p
         return None
 

@@ -59,6 +59,7 @@ ROLE_PERMISSIONS: dict[Role, frozenset[Permission]] = {
             Permission.POI_READ,
             Permission.TRANSLATION_READ,
             Permission.TRANSLATION_WRITE,
+            Permission.TRANSLATION_APPROVE,
             Permission.GLOSSARY_READ,
             Permission.GLOSSARY_WRITE,
             Permission.AUDIO_READ,

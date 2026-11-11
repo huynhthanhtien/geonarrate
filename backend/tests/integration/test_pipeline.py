@@ -782,3 +782,98 @@ def test_failed_job_waits_before_next_attempt(
     _drain(client)  # lần 1 lỗi, job còn hàng đợi nhưng chưa tới giờ nên không chạy lại ngay
     cell = {x["id"]: x for x in client.get(f"{API}/audio/status", headers=admin).json()}[point]
     assert cell["langs"]["vi"]["state"] == "queued"
+
+
+PNG = b"\x89PNG\r\n\x1a\n" + b"fake-image" * 50
+CDN = "https://res.cloudinary.com/demo/image/upload/v1/geonarrate/a.png"
+
+
+def test_upload_image_needs_config_and_valid_file(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.integrations.images.cloudinary import CloudinaryImages
+
+    admin = _login(client, ADMIN)
+    url = f"{API}/pois/images"
+    monkeypatch.setattr(get_settings(), "cloudinary_url", "")  # .env local có thể đã bật
+    off = client.post(url, content=PNG, headers=admin)
+    assert (off.status_code, off.json()["title"]) == (503, "image_upload_disabled")
+
+    uploaded: list[tuple[int, str]] = []
+
+    async def fake_upload(self: CloudinaryImages, data: bytes, content_type: str) -> str:
+        uploaded.append((len(data), content_type))
+        return CDN
+
+    monkeypatch.setattr(get_settings(), "cloudinary_url", "cloudinary://k:s@demo")
+    monkeypatch.setattr(CloudinaryImages, "upload", fake_upload)
+    ok = client.post(url, content=PNG, headers=admin)
+    assert ok.status_code == 201 and ok.json() == {"url": CDN}
+    assert uploaded == [(len(PNG), "image/png")]
+    bad = client.post(url, content=b"not an image", headers=admin)
+    assert (bad.status_code, bad.json()["title"]) == (422, "image_invalid")
+    assert client.post(url, content=PNG).status_code == 401
+
+    async def failing_upload(self: CloudinaryImages, data: bytes, content_type: str) -> str:
+        raise RuntimeError("Cloudinary từ chối ảnh (400)")
+
+    monkeypatch.setattr(CloudinaryImages, "upload", failing_upload)
+    down = client.post(url, content=PNG, headers=admin)
+    assert (down.status_code, down.json()["title"]) == (503, "image_upload_failed")
+
+
+def test_pack_bundles_images_for_offline(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    fetched: list[str] = []
+
+    async def fake_fetch(url: str) -> tuple[bytes, str]:
+        fetched.append(url)
+        return PNG, "png"
+
+    from app.services.pipeline_service import PipelineService
+
+    real = PipelineService
+    monkeypatch.setattr(
+        deps, "PipelineService", lambda *a, **kw: real(*a, **kw, fetch_image=fake_fetch)
+    )
+    admin = _login(client, ADMIN)
+    body = {"name": "Có ảnh", "category": "museum", "lat": 10.77, "lng": 106.69, "radius": 40}
+    poi = client.post(
+        f"{API}/pois",
+        json={**body, "script": "Bài.", "images": [CDN, "https://example.com/other.jpg"]},
+        headers=admin,
+    ).json()["id"]
+    client.post(f"{API}/pois/{poi}/submit", headers=admin)
+    client.post(f"{API}/pois/{poi}/approve", headers=admin)
+    tour = _published_tour(client, admin, "free", [poi])
+    assert fetched == [CDN]  # ảnh ngoài Cloudinary không được kéo về
+
+    manifest = client.get(
+        f"{API}/public/tours/{tour}/packs/en", params={"device_id": DEVICE}
+    ).json()
+    images = manifest["files"][0]["images"]
+    assert [set(i) for i in images] == [{"sha256", "bytes", "ext"}]
+    assert images[0]["ext"] == "png" and images[0]["bytes"] == len(PNG)
+    img_url = f"{API}/public/tours/{tour}/packs/en/files/{poi}/images"
+    got = client.get(f"{img_url}/0", params={"device_id": DEVICE})
+    assert got.status_code == 200 and got.content == PNG
+    assert got.headers["content-type"] == "image/png"
+    assert client.get(f"{img_url}/1", params={"device_id": DEVICE}).status_code == 404
+
+    # đổi ảnh thì pack coi là nội dung mới; không đổi thì không build lại
+    again = client.post(f"{API}/packs/build", json={"tour_id": tour, "lang": "en"}, headers=admin)
+    assert again.status_code == 409
+    client.patch(f"{API}/pois/{poi}", json={"images": []}, headers=admin)
+    v2 = client.post(f"{API}/packs/build", json={"tour_id": tour, "lang": "en"}, headers=admin)
+    assert v2.status_code in (200, 201), v2.text
+
+
+def test_upload_image_rejects_oversize_body(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(get_settings(), "cloudinary_url", "cloudinary://k:s@demo")
+    admin = _login(client, ADMIN)
+    big = PNG + b"0" * (8 * 1024 * 1024)
+    r = client.post(f"{API}/pois/images", content=big, headers=admin)
+    assert (r.status_code, r.json()["title"]) == (422, "image_invalid")
