@@ -6,9 +6,9 @@ from sqlalchemy.dialects.postgresql import JSONB, insert
 from sqlalchemy.engine import RowMapping
 from sqlalchemy.ext.asyncio import AsyncEngine
 
-from app.core.schema import pois
+from app.core.schema import pois, tour_pois, tours
 from app.core.transaction import connection
-from app.models.poi import Poi, ScriptStatus
+from app.models.poi import Poi, PoiStatus, ScriptStatus
 from app.repositories._ids import parse_uuid
 from app.repositories.job_repo import add_jobs
 
@@ -42,6 +42,10 @@ class PoiRepository(Protocol):
     async def update_info(
         self, poi_id: str, fields: dict[str, Any], actor_id: str, now: datetime
     ) -> Poi | None: ...
+    async def set_status(
+        self, poi_id: str, status: PoiStatus, actor_id: str, now: datetime
+    ) -> Poi | None: ...
+    async def tours_of(self, poi_id: str) -> list[dict[str, str]]: ...
     async def update_script(
         self,
         poi_id: str,
@@ -116,7 +120,7 @@ class SqlPoiRepository:
                     "reviewed_by": None,
                     "reviewed_at": None,
                 },
-                status="draft",
+                status=PoiStatus.ACTIVE.value,
                 created_by=actor,
                 updated_by=actor,
                 created_at=now,
@@ -131,7 +135,7 @@ class SqlPoiRepository:
     async def update_info(
         self, poi_id: str, fields: dict[str, Any], actor_id: str, now: datetime
     ) -> Poi | None:
-        """Sửa thông tin điểm. Không có điểm thì trả về `None`."""
+        """Sửa thông tin điểm. Trả về `None` nếu không có điểm hoặc điểm đang khoá."""
         uid = parse_uuid(poi_id)
         if uid is None:
             return None
@@ -144,13 +148,45 @@ class SqlPoiRepository:
             values["geo"] = f"SRID=4326;POINT({values.pop('lng')} {values.pop('lat')})"
         stmt = (
             update(_t)
-            .where(_t.c.id == uid)
+            .where(_t.c.id == uid, _t.c.status == PoiStatus.ACTIVE.value)
             .values(**values, updated_by=parse_uuid(actor_id), updated_at=now)
             .returning(*_COLUMNS)
         )
         async with connection(self._engine, write=True) as conn:
             row = (await conn.execute(stmt)).mappings().one_or_none()
         return _to_entity(row) if row else None
+
+    async def set_status(
+        self, poi_id: str, status: PoiStatus, actor_id: str, now: datetime
+    ) -> Poi | None:
+        """Khoá hoặc mở khoá điểm. Không có điểm thì trả về `None`."""
+        uid = parse_uuid(poi_id)
+        if uid is None:
+            return None
+        stmt = (
+            update(_t)
+            .where(_t.c.id == uid)
+            .values(status=status.value, updated_by=parse_uuid(actor_id), updated_at=now)
+            .returning(*_COLUMNS)
+        )
+        async with connection(self._engine, write=True) as conn:
+            row = (await conn.execute(stmt)).mappings().one_or_none()
+        return _to_entity(row) if row else None
+
+    async def tours_of(self, poi_id: str) -> list[dict[str, str]]:
+        """Các tour đang chứa điểm này (`id`, `name`)."""
+        uid = parse_uuid(poi_id)
+        if uid is None:
+            return []
+        stmt = (
+            select(tours.c.id, tours.c.name)
+            .join(tour_pois, tour_pois.c.tour_id == tours.c.id)
+            .where(tour_pois.c.poi_id == uid)
+            .order_by(tours.c.name, tours.c.id)
+        )
+        async with connection(self._engine) as conn:
+            rows = (await conn.execute(stmt)).mappings().all()
+        return [{"id": str(r["id"]), "name": r["name"]} for r in rows]
 
     async def update_script(
         self,
@@ -163,7 +199,8 @@ class SqlPoiRepository:
     ) -> Poi | None:
         """Cập nhật nguyên tử theo trạng thái: hai người cùng duyệt thì chỉ một người thắng.
 
-        Trả về `None` nếu không có điểm này hoặc script không còn ở `expected_status`.
+        Trả về `None` nếu không có điểm này, điểm đang khoá hoặc script không còn ở
+        `expected_status`.
         """
         uid = parse_uuid(poi_id)
         if uid is None:
@@ -174,7 +211,11 @@ class SqlPoiRepository:
         )
         stmt = (
             update(_t)
-            .where(_t.c.id == uid, _SCRIPT_STATUS == expected_status.value)
+            .where(
+                _t.c.id == uid,
+                _t.c.status == PoiStatus.ACTIVE.value,
+                _SCRIPT_STATUS == expected_status.value,
+            )
             .values(
                 script=script_object.op("||", return_type=JSONB)(cast(patch, JSONB)),
                 updated_by=parse_uuid(actor_id),
@@ -205,6 +246,7 @@ def _to_entity(row: RowMapping) -> Poi:
         script_status=ScriptStatus(script.get("status") or ScriptStatus.DRAFT.value),
         script_version=script.get("version") or 1,
         review_note=script.get("review_note"),
+        status=PoiStatus(row["status"]),
         created_by=str(row["created_by"]) if row["created_by"] else None,
         updated_by=str(row["updated_by"]) if row["updated_by"] else None,
         created_at=row["created_at"],

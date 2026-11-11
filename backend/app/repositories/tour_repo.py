@@ -8,43 +8,49 @@ from app.core.schema import audio_packs, pois, tour_pois, tours
 from app.core.transaction import connection
 from app.repositories._ids import parse_uuid, record
 
-_COUNT = (
-    select(func.count())
-    .where(tour_pois.c.tour_id == tours.c.id)
-    .scalar_subquery()
-    .label("poi_count")
-)
+
+def _count(active_only: bool) -> Any:
+    """Số điểm của tour; `active_only` bỏ điểm đã khoá (catalog công khai, pack)."""
+    stmt = select(func.count()).select_from(tour_pois).where(tour_pois.c.tour_id == tours.c.id)
+    if active_only:
+        stmt = stmt.where(
+            tour_pois.c.poi_id.in_(select(pois.c.id).where(pois.c.status == "active"))
+        )
+    return stmt.scalar_subquery().label("poi_count")
 
 
 class SqlTourRepository:
     def __init__(self, engine: AsyncEngine) -> None:
         self._engine = engine
 
-    async def find(self, status: str | None = None) -> list[dict[str, Any]]:
-        stmt = select(tours, _COUNT).order_by(tours.c.updated_at.desc())
+    async def find(
+        self, status: str | None = None, active_only: bool = False
+    ) -> list[dict[str, Any]]:
+        stmt = select(tours, _count(active_only)).order_by(tours.c.updated_at.desc())
         if status:
             stmt = stmt.where(tours.c.status == status)
         async with connection(self._engine) as conn:
             return [record(r) for r in (await conn.execute(stmt)).mappings().all()]
 
-    async def get(self, tour_id: str) -> dict[str, Any] | None:
+    async def get(self, tour_id: str, active_only: bool = False) -> dict[str, Any] | None:
+        """`active_only` bỏ điểm khoá khỏi `pois` và `poi_count` (liên kết CSDL giữ nguyên)."""
         uid = parse_uuid(tour_id)
         if uid is None:
             return None
         async with connection(self._engine) as conn:
             row = (
-                (await conn.execute(select(tours, _COUNT).where(tours.c.id == uid)))
+                (await conn.execute(select(tours, _count(active_only)).where(tours.c.id == uid)))
                 .mappings()
                 .one_or_none()
             )
             if row is None:
                 return None
             out = record(row)
-            out["pois"] = await self._points(conn, uid)
+            out["pois"] = await self._points(conn, uid, active_only)
         return out
 
     @staticmethod
-    async def _points(conn: AsyncConnection, uid: Any) -> list[dict[str, Any]]:
+    async def _points(conn: AsyncConnection, uid: Any, active_only: bool) -> list[dict[str, Any]]:
         stmt = (
             select(
                 pois.c.id,
@@ -54,6 +60,7 @@ class SqlTourRepository:
                 pois.c.trigger_radius_m.label("radius"),
                 pois.c.priority,
                 pois.c.script,
+                pois.c.status,
                 literal_column("ST_Y(pois.geo::geometry)").label("lat"),
                 literal_column("ST_X(pois.geo::geometry)").label("lng"),
                 tour_pois.c.position,
@@ -62,6 +69,8 @@ class SqlTourRepository:
             .where(tour_pois.c.tour_id == uid)
             .order_by(tour_pois.c.position)
         )
+        if active_only:
+            stmt = stmt.where(pois.c.status == "active")
         return [record(r) for r in (await conn.execute(stmt)).mappings().all()]
 
     async def count_existing(self, poi_ids: list[str]) -> int:

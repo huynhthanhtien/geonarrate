@@ -14,6 +14,13 @@ class ScriptStatus(StrEnum):
     APPROVED = "approved"
 
 
+class PoiStatus(StrEnum):
+    """Khoá điểm: `locked` thì không sửa điểm/kịch bản, không vào pack và catalog công khai."""
+
+    ACTIVE = "active"
+    LOCKED = "locked"
+
+
 @dataclass(frozen=True)
 class Poi:
     """Domain entity — không phụ thuộc CSDL hay HTTP."""
@@ -35,3 +42,4 @@ class Poi:
     updated_by: str | None
     created_at: datetime
     updated_at: datetime
+    status: PoiStatus = PoiStatus.ACTIVE

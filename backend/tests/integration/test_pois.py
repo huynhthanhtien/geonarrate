@@ -349,3 +349,54 @@ def test_every_cms_endpoint_enforces_its_permission(
         if (code == 403) == allowed or code == 401:
             wrong.append(f"{method} {path}: {code} (được phép={allowed})")
     assert wrong == []
+
+
+def test_lock_unlock_is_idempotent_audited_and_permissioned(client: TestClient) -> None:
+    admin = _headers(client, ADMIN)
+    editor = _headers(client, EDITOR)
+    a = client.post(BASE, json=NEW, headers=editor).json()
+    assert a["status"] == "active"
+    url = f"{BASE}/{a['id']}"
+    for creds in (TRANSLATOR, REVIEWER, OPERATOR):
+        h = _headers(client, creds)
+        assert client.post(f"{url}/lock", headers=h).status_code == 403
+        assert client.post(f"{url}/unlock", headers=h).status_code == 403
+    assert client.post(f"{url}/lock").status_code == 401
+
+    locked = client.post(f"{url}/lock", headers=editor)
+    assert locked.status_code == 200 and locked.json()["status"] == "locked"
+    assert client.post(f"{url}/lock", headers=admin).json()["status"] == "locked"  # idempotent
+    assert client.get(BASE, headers=admin).json()[0]["status"] == "locked"
+    assert client.post(f"{url}/unlock", headers=admin).json()["status"] == "active"
+    assert client.post(f"{url}/unlock", headers=admin).json()["status"] == "active"
+    actions = [x["action"] for x in client.get("/api/v1/audit", headers=admin).json()]
+    assert actions == ["poi.unlock", "poi.lock", "poi.create"]  # lần lặp không ghi thêm
+
+    for bad in ("khong-phai-uuid", "00000000-0000-0000-0000-000000000000"):
+        assert client.post(f"{BASE}/{bad}/lock", headers=admin).status_code == 404
+        assert client.post(f"{BASE}/{bad}/unlock", headers=admin).status_code == 404
+
+
+def test_locked_poi_rejects_edits_and_script_workflow(client: TestClient) -> None:
+    admin = _headers(client, ADMIN)
+    editor = _headers(client, EDITOR)
+    a = client.post(BASE, json={**NEW, "script": "Nội dung"}, headers=editor).json()
+    url = f"{BASE}/{a['id']}"
+    client.post(f"{url}/submit", headers=editor)  # đang chờ duyệt
+    client.post(f"{url}/lock", headers=editor)
+
+    calls = [
+        client.patch(url, json={"name": "Đổi"}, headers=editor),
+        client.put(f"{url}/script", json={"script": "Mới"}, headers=editor),
+        client.post(f"{url}/submit", headers=editor),
+        client.post(f"{url}/approve", headers=admin),
+        client.post(f"{url}/reject", json={"review_note": "x"}, headers=admin),
+    ]
+    for r in calls:
+        assert r.status_code == 409, r.text
+        assert r.json()["title"] == "poi_locked"
+    current = client.get(url, headers=admin).json()
+    assert (current["name"], current["script_status"]) == (NEW["name"], "in_review")
+
+    client.post(f"{url}/unlock", headers=editor)
+    assert client.post(f"{url}/approve", headers=admin).status_code == 200

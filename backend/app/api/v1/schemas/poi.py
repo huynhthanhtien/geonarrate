@@ -63,6 +63,11 @@ class RejectIn(BaseModel):
     review_note: ReviewNote
 
 
+class AffectedTour(BaseModel):
+    id: str
+    name: str
+
+
 class PoiOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -79,7 +84,12 @@ class PoiOut(BaseModel):
     script_status: Literal["draft", "in_review", "approved"]
     script_version: int
     review_note: str | None
+    status: Literal["active", "locked"]
     created_by: str | None
     updated_by: str | None
     created_at: datetime
     updated_at: datetime
+
+
+class PoiLockOut(PoiOut):
+    affected_tours: list[AffectedTour]

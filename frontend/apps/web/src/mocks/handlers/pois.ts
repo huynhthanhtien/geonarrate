@@ -6,6 +6,9 @@ const SCRIPT_MAX_CHARS = contract.components.schemas.ScriptIn.properties.script.
 
 const BASE = "/api/v1/pois";
 
+const lockedResponse = () =>
+  HttpResponse.json({ title: "poi_locked", detail: "Điểm đang bị khoá, hãy mở khoá trước khi sửa" }, { status: 409 });
+
 export const poiHandlers = [
   http.get("/api/v1/translation-jobs", () => HttpResponse.json([])),
   http.get("/api/v1/content-limits", () => HttpResponse.json({ script_max_chars: SCRIPT_MAX_CHARS })),
@@ -37,6 +40,7 @@ export const poiHandlers = [
       images: body.images ?? [],
       script_status: "draft",
       script_version: 1,
+      status: "active",
       created_by: "user-mock",
       updated_by: "user-mock",
     });
@@ -51,6 +55,7 @@ export const poiHandlers = [
 
   http.patch(`${BASE}/:id`, async ({ params, request }) => {
     const body = await request.json() as any;
+    if (findById(params.id as string)?.status === "locked") return lockedResponse();
     const updated = update(params.id as string, body);
     if (!updated) return HttpResponse.json({ detail: "Không tìm thấy" }, { status: 404 });
     return HttpResponse.json(updated);
@@ -66,6 +71,7 @@ export const poiHandlers = [
     const body = await request.json() as any;
     const poi = findById(params.id as string);
     if (!poi) return HttpResponse.json({ detail: "Không tìm thấy" }, { status: 404 });
+    if (poi.status === "locked") return lockedResponse();
     if (poi.script_status === "in_review") {
       return HttpResponse.json({ detail: "Không sửa được script đang chờ duyệt" }, { status: 409 });
     }
@@ -85,6 +91,7 @@ export const poiHandlers = [
   http.post(`${BASE}/:id/submit`, ({ params }) => {
     const poi = findById(params.id as string);
     if (!poi) return HttpResponse.json({ detail: "Không tìm thấy" }, { status: 404 });
+    if (poi.status === "locked") return lockedResponse();
     if (poi.script_status !== "draft") {
       return HttpResponse.json({ detail: "Chỉ submit từ draft" }, { status: 409 });
     }
@@ -98,6 +105,7 @@ export const poiHandlers = [
   http.post(`${BASE}/:id/approve`, ({ params }) => {
     const poi = findById(params.id as string);
     if (!poi) return HttpResponse.json({ detail: "Không tìm thấy" }, { status: 404 });
+    if (poi.status === "locked") return lockedResponse();
     if (poi.script_status !== "in_review") {
       return HttpResponse.json({ detail: "Chỉ approve từ in_review" }, { status: 409 });
     }
@@ -109,10 +117,23 @@ export const poiHandlers = [
     const body = await request.json() as any;
     const poi = findById(params.id as string);
     if (!poi) return HttpResponse.json({ detail: "Không tìm thấy" }, { status: 404 });
+    if (poi.status === "locked") return lockedResponse();
     if (poi.script_status !== "in_review") {
       return HttpResponse.json({ detail: "Chỉ trả lại được script đang chờ duyệt" }, { status: 409 });
     }
     const updated = update(params.id as string, { script_status: "draft", review_note: body.review_note });
+    return HttpResponse.json(updated);
+  }),
+
+  http.post(`${BASE}/:id/lock`, ({ params }) => {
+    const updated = update(params.id as string, { status: "locked" });
+    if (!updated) return HttpResponse.json({ detail: "Không tìm thấy" }, { status: 404 });
+    return HttpResponse.json({ ...updated, affected_tours: [] });
+  }),
+
+  http.post(`${BASE}/:id/unlock`, ({ params }) => {
+    const updated = update(params.id as string, { status: "active" });
+    if (!updated) return HttpResponse.json({ detail: "Không tìm thấy" }, { status: 404 });
     return HttpResponse.json(updated);
   }),
 ];

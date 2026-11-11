@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router";
-import { Church, Flower2, Landmark, MapPin, MessageSquare, PenLine, Radius, Settings2, Trees, type LucideIcon } from "lucide-react";
+import { Church, Lock, LockOpen, Flower2, Landmark, MapPin, MessageSquare, PenLine, Radius, Settings2, Trees, type LucideIcon } from "lucide-react";
 import { useCan } from "../auth/session";
 import { categoryLabel } from "../labels";
 
@@ -13,10 +13,15 @@ const CATEGORY_ICON: Record<string, LucideIcon> = {
   temple: Flower2, church: Church, museum: Landmark, park: Trees, other: MapPin,
 };
 
-export function PoiCard({ poi }: { poi: any }) {
+export function PoiCard({ poi, onToggleLock, lockPending = false }: {
+  poi: any;
+  onToggleLock?: (poi: any) => void;
+  lockPending?: boolean;
+}) {
   // Người chỉ có quyền xem (vd. biên dịch viên) không thấy nút sửa
   const canWrite = useCan()("poi:write");
   const navigate = useNavigate();
+  const locked = poi.status === "locked";
   const scriptStatus = poi.script_status as keyof typeof STATUS_CONFIG;
   const statusCfg = STATUS_CONFIG[scriptStatus] ?? STATUS_CONFIG.draft;
   const CategoryIcon = CATEGORY_ICON[poi.category] ?? MapPin;
@@ -42,6 +47,9 @@ export function PoiCard({ poi }: { poi: any }) {
               <span className={`shrink-0 text-xs font-medium px-2 py-0.5 rounded-full ${statusCfg.className}`}>
                 {statusCfg.label}
               </span>
+              {locked && <span className="shrink-0 inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-slate-200 text-slate-700">
+                <Lock size={11} aria-hidden /> Đã khoá
+              </span>}
             </div>
             <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-slate-400">
               <span className="inline-flex items-center gap-1"><MapPin size={12} aria-hidden /> {poi.lat.toFixed(4)}, {poi.lng.toFixed(4)}</span>
@@ -58,17 +66,28 @@ export function PoiCard({ poi }: { poi: any }) {
           onClick={(e) => e.stopPropagation()}
         >
           <button
+            disabled={locked}
+            title={locked ? "Điểm đã khoá, hãy mở khoá trước khi sửa" : undefined}
             onClick={() => navigate(`/pois/${poi.id}/script`)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-medium rounded-lg transition-colors"
+            className="disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-1.5 px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-medium rounded-lg transition-colors"
           >
             <PenLine size={13} aria-hidden /> {poi.review_note ? "Sửa kịch bản" : "Script"}
           </button>
           <button
+            disabled={locked}
+            title={locked ? "Điểm đã khoá, hãy mở khoá trước khi sửa" : undefined}
             onClick={() => navigate(`/pois/${poi.id}/edit`)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-medium rounded-lg transition-colors"
+            className="disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-medium rounded-lg transition-colors"
           >
             <Settings2 size={13} aria-hidden /> Sửa điểm
           </button>
+          {onToggleLock && <button
+            disabled={lockPending}
+            onClick={() => onToggleLock(poi)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-medium rounded-lg transition-colors disabled:opacity-50"
+          >
+            {locked ? <><LockOpen size={13} aria-hidden /> Mở khoá</> : <><Lock size={13} aria-hidden /> Khoá</>}
+          </button>}
         </div>}
       </div>
 

@@ -194,6 +194,43 @@ export interface paths {
         patch: operations["update_poi_api_v1_pois__poi_id__patch"];
         trace?: never;
     };
+    "/api/v1/pois/{poi_id}/lock": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Lock Poi
+         * @description Khoá điểm: không sửa được, không vào pack và catalog công khai. Gọi lại không đổi gì.
+         */
+        post: operations["lock_poi_api_v1_pois__poi_id__lock_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/pois/{poi_id}/unlock": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Unlock Poi */
+        post: operations["unlock_poi_api_v1_pois__poi_id__unlock_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/pois/{poi_id}/script": {
         parameters: {
             query?: never;
@@ -909,6 +946,13 @@ export interface components {
              */
             valid_until: string;
         };
+        /** AffectedTour */
+        AffectedTour: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+        };
         /** AnalyticsDay */
         AnalyticsDay: {
             /**
@@ -1314,6 +1358,59 @@ export interface components {
              */
             images: string[];
         };
+        /** PoiLockOut */
+        PoiLockOut: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Summary */
+            summary: string | null;
+            /** Images */
+            images: string[];
+            /** Lat */
+            lat: number;
+            /** Lng */
+            lng: number;
+            /** Radius */
+            radius: number;
+            /** Category */
+            category: string;
+            /** Priority */
+            priority: number;
+            /** Script */
+            script: string;
+            /**
+             * Script Status
+             * @enum {string}
+             */
+            script_status: "draft" | "in_review" | "approved";
+            /** Script Version */
+            script_version: number;
+            /** Review Note */
+            review_note: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "active" | "locked";
+            /** Created By */
+            created_by: string | null;
+            /** Updated By */
+            updated_by: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Affected Tours */
+            affected_tours: components["schemas"]["AffectedTour"][];
+        };
         /** PoiOut */
         PoiOut: {
             /** Id */
@@ -1345,6 +1442,11 @@ export interface components {
             script_version: number;
             /** Review Note */
             review_note: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "active" | "locked";
             /** Created By */
             created_by: string | null;
             /** Updated By */
@@ -1568,6 +1670,11 @@ export interface components {
             lng: number;
             /** Radius */
             radius: number;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "active" | "locked";
         };
         /** TourUpdateIn */
         TourUpdateIn: {
@@ -2016,6 +2123,68 @@ export interface operations {
                 "application/json": components["schemas"]["PoiUpdateIn"];
             };
         };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PoiOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    lock_poi_api_v1_pois__poi_id__lock_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                poi_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PoiLockOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    unlock_poi_api_v1_pois__poi_id__unlock_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                poi_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {

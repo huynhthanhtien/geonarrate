@@ -90,6 +90,7 @@ export function ToursPage() {
                         }}
                       />
                       {p.name}
+                      {p.status === "locked" && <Badge tone="gray">Đã khoá</Badge>}
                     </label>
                   </div>
                 );

@@ -881,3 +881,52 @@ def test_upload_image_rejects_oversize_body(
     big = PNG + b"0" * (8 * 1024 * 1024)
     r = client.post(f"{API}/pois/images", content=big, headers=admin)
     assert (r.status_code, r.json()["title"]) == (422, "image_invalid")
+
+
+def test_locked_poi_is_left_out_of_catalog_pack_and_jobs(client: TestClient) -> None:
+    admin = _login(client, ADMIN)
+    p1 = _approved_point(client, admin, "Điểm mở", "Bài mở.")
+    p2 = _approved_point(client, admin, "Điểm khoá", "Bài khoá.")
+    tour = _published_tour(client, admin, "free", [p1, p2])
+    root = Path(get_settings().storage_dir)
+    v1 = json.loads((root / f"packs/{tour}/en/1/manifest.json").read_text())
+    assert {f["poi_id"] for f in v1["files"]} == {p1, p2}
+
+    locked = client.post(f"{API}/pois/{p2}/lock", headers=admin)
+    assert locked.status_code == 200
+    assert locked.json()["affected_tours"] == [{"id": tour, "name": "Tour free"}]
+    # Catalog công khai không đếm điểm khoá; CMS vẫn thấy liên kết tour_pois
+    assert client.get(f"{API}/public/tours").json()[0]["poi_count"] == 1
+    cms = client.get(f"{API}/tours/{tour}", headers=admin).json()
+    assert cms["poi_count"] == 2 and [p["id"] for p in cms["pois"]] == [p1, p2]
+    assert [p["status"] for p in cms["pois"]] == ["active", "locked"]
+
+    pack = client.post(f"{API}/packs/build", json={"tour_id": tour, "lang": "en"}, headers=admin)
+    assert pack.status_code == 201, pack.text
+    _drain(client)
+    v2 = json.loads((root / f"packs/{tour}/en/2/manifest.json").read_text())
+    assert [f["poi_id"] for f in v2["files"]] == [p1]
+    # Pack đã phát hành trước đó không bị đổi
+    again = json.loads((root / f"packs/{tour}/en/1/manifest.json").read_text())
+    assert {f["poi_id"] for f in again["files"]} == {p1, p2}
+
+    # Job dịch/audio của điểm khoá bị bỏ qua, job không lỗi
+    p3 = _approved_point(client, admin, "Điểm ba", "Bài ba.")
+    assert client.post(f"{API}/pois/{p3}/lock", headers=admin).status_code == 200
+    _drain(client)
+    rows = client.get(f"{API}/translations", headers=admin).json()
+    assert p3 not in {r["poi_id"] for r in rows}
+    jobs = client.get(f"{API}/translation-jobs", headers=admin).json()
+    assert all(j["status"] != "failed" for j in jobs)
+    status = {x["id"]: x for x in client.get(f"{API}/audio/status", headers=admin).json()}[p3]
+    assert status["langs"]["vi"]["state"] != "ready"
+
+
+def test_build_pack_fails_when_every_point_is_locked(client: TestClient) -> None:
+    admin = _login(client, ADMIN)
+    p1 = _approved_point(client, admin, "Điểm duy nhất", "Bài.")
+    tour = _published_tour(client, admin, "free", [p1])
+    assert client.post(f"{API}/pois/{p1}/lock", headers=admin).status_code == 200
+    r = client.post(f"{API}/packs/build", json={"tour_id": tour, "lang": "en"}, headers=admin)
+    assert r.status_code == 422
+    assert r.json()["title"] == "tour_empty"

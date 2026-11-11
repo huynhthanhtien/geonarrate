@@ -14,6 +14,7 @@ export interface Poi {
   script_status: PoiStatus;
   script_version: number;
   review_note?: string;
+  status: "active" | "locked";
   created_by: string;
   updated_by: string;
   created_at: string;
@@ -37,6 +38,7 @@ export const db: Poi[] = [
     script: "Chùa Ngọc Hoàng, còn gọi là Phước Hải Tự, là một trong những ngôi chùa cổ nhất Sài Gòn.",
     script_status: "draft",
     script_version: 1,
+    status: "active",
     created_by: "user-01",
     updated_by: "user-01",
     created_at: new Date().toISOString(),
@@ -55,6 +57,7 @@ export const db: Poi[] = [
     script: "Nhà thờ Đức Bà Sài Gòn được xây dựng từ năm 1863, là biểu tượng nổi bật nhất của thành phố.",
     script_status: "in_review",
     script_version: 1,
+    status: "active",
     created_by: "user-01",
     updated_by: "user-01",
     created_at: new Date().toISOString(),
@@ -87,6 +90,7 @@ export function create(data: {
   script_status: PoiStatus;
   script_version: number;
   review_note?: string;
+  status: "active" | "locked";
   created_by: string;
   updated_by: string;
 }) {

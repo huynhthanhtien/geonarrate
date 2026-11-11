@@ -193,7 +193,7 @@ class CatalogService:
     # --- UC-15, UC-17
     async def public_tours(self) -> list[dict[str, Any]]:
         out = []
-        for tour in await self._tours.find("published"):
+        for tour in await self._tours.find("published", active_only=True):
             langs = await self._tours.published_langs(tour["id"])
             if langs:
                 out.append({**tour, "langs": langs})

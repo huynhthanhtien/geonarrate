@@ -130,11 +130,13 @@ pois = Table(
     Column("images", JSONB, nullable=False, server_default=text("'[]'::jsonb")),
     # {version, body, status, review_note, reviewed_by, reviewed_at}
     Column("script", JSONB),
-    Column("status", Text, nullable=False),
+    # active | locked: điểm khoá không sửa được và không vào pack/catalog công khai
+    Column("status", Text, nullable=False, server_default=text("'active'")),
     Column("published_at", DateTime(timezone=True)),
     _user_fk("created_by"),
     _user_fk("updated_by"),
     *_timestamps(),
+    CheckConstraint("status IN ('active', 'locked')", name="status"),
     Index("ix_pois_geo", "geo", postgresql_using="gist"),
     Index("ix_pois_status_updated_at", "status", text("updated_at DESC")),
     Index("ix_pois_script_status", text("(script ->> 'status')")),

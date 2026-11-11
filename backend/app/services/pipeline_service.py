@@ -15,6 +15,7 @@ from app.integrations.storage.local import LocalStorage
 from app.integrations.translate.base import GlossaryTerm, TranslateProvider
 from app.integrations.tts.base import TTSProvider
 from app.models.audit import AuditResource
+from app.models.poi import PoiStatus
 from app.repositories.audio_repo import SqlAudioRepository
 from app.repositories.glossary_repo import SqlGlossaryRepository
 from app.repositories.job_repo import MAX_ATTEMPTS, SqlJobRepository, job_spec, text_hash
@@ -128,8 +129,8 @@ class PipelineService:
 
     async def _translate(self, p: dict[str, Any]) -> None:
         poi = await self._pois.get(p["poi_id"])
-        if poi is None or poi.script_status.value != "approved":
-            return
+        if poi is None or poi.status is PoiStatus.LOCKED or poi.script_status.value != "approved":
+            return  # điểm khoá: bỏ qua, mở khoá rồi duyệt/thử lại sẽ tạo job mới
         source_hash = text_hash(poi.script)
         if p.get("source_hash", source_hash) != source_hash:
             return
@@ -172,6 +173,9 @@ class PipelineService:
 
     async def _generate_audio(self, p: dict[str, Any]) -> None:
         aid, lang = p["poi_id"], p["lang"]
+        poi = await self._pois.get(aid)
+        if poi is None or poi.status is PoiStatus.LOCKED:
+            return
         text = await self._approved_text(aid, lang)
         if text is None:
             return  # nội dung đã đổi sau khi tạo job: lần duyệt sau sẽ tạo job mới
@@ -264,7 +268,7 @@ class PipelineService:
         pack = await self._audio.get_pack(p["pack_id"])
         if pack is None or pack["status"] != "building":
             return  # job chạy lại (worker kẹt hoặc chết sau khi lưu): không build đè bản đã QA
-        tour = await self._tours.get(pack["tour_id"])
+        tour = await self._tours.get(pack["tour_id"], active_only=True)
         if tour is None:
             return
         items, missing = await self._tour_assets(tour, pack["lang"])
@@ -469,7 +473,7 @@ class PipelineService:
         return await self._audio.find_packs(tour_id, lang)
 
     async def _tour(self, tour_id: str) -> dict[str, Any]:
-        tour = await self._tours.get(tour_id)
+        tour = await self._tours.get(tour_id, active_only=True)
         if tour is None:
             raise NotFoundError("tour_not_found", "Không tìm thấy tour")
         return tour
@@ -494,9 +498,10 @@ class PipelineService:
     async def build_pack(self, tour_id: str, lang: str, actor_id: str) -> dict[str, Any]:
         tour = await self._tour(tour_id)
         items, missing = await self._tour_assets(tour, lang)
-        if missing or not tour["pois"]:
-            detail = ", ".join(missing) or "tour chưa có điểm nào"
-            raise InvalidContentError("audio_missing", f"Còn thiếu audio: {detail}")
+        if not tour["pois"]:
+            raise InvalidContentError("tour_empty", "Tour không còn điểm nào đang hoạt động")
+        if missing:
+            raise InvalidContentError("audio_missing", f"Còn thiếu audio: {', '.join(missing)}")
         same = self._same_content(
             self._manifest_files(items), await self._audio.find_packs(tour_id, lang)
         )

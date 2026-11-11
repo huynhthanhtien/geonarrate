@@ -122,6 +122,7 @@ class TourPointOut(BaseModel):
     lat: float
     lng: float
     radius: int
+    status: Literal["active", "locked"]
 
 
 class TourDetailOut(TourOut):

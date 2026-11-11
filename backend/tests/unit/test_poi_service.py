@@ -7,7 +7,7 @@ import pytest
 from app.core.exceptions import ConflictError, InvalidContentError, NotFoundError
 from app.models.audit import AuditFilters, AuditLog, AuditResource
 from app.models.language import Language
-from app.models.poi import Poi, ScriptStatus
+from app.models.poi import Poi, PoiStatus, ScriptStatus
 from app.services.audit_service import AuditService
 from app.services.poi_service import PoiService
 
@@ -87,10 +87,22 @@ class FakeRepo:
         self, poi_id: str, fields: dict[str, Any], actor_id: str, now: datetime
     ) -> Poi | None:
         cur = self.items.get(poi_id)
-        if cur is None:
+        if cur is None or cur.status is PoiStatus.LOCKED:
             return None
         self.items[poi_id] = Poi(**{**cur.__dict__, **fields})
         return self.items[poi_id]
+
+    async def set_status(
+        self, poi_id: str, status: PoiStatus, actor_id: str, now: datetime
+    ) -> Poi | None:
+        cur = self.items.get(poi_id)
+        if cur is None:
+            return None
+        self.items[poi_id] = Poi(**{**cur.__dict__, "status": status})
+        return self.items[poi_id]
+
+    async def tours_of(self, poi_id: str) -> list[dict[str, str]]:
+        return []
 
     async def update_script(
         self,
@@ -103,7 +115,7 @@ class FakeRepo:
     ) -> Poi | None:
         self.jobs.extend(jobs or [])
         cur = self.items.get(poi_id)
-        if cur is None or cur.script_status != expected_status:
+        if cur is None or cur.status is PoiStatus.LOCKED or cur.script_status != expected_status:
             return None
         data = dict(cur.__dict__)
         if "body" in patch:
@@ -199,3 +211,25 @@ async def test_update_records_audit_and_empty_patch_changes_nothing() -> None:
     assert audit.actions == ["poi.create", "poi.update"]
     with pytest.raises(NotFoundError):
         await svc.update("x", {"summary": "y"}, ACTOR)
+
+
+async def test_lock_is_idempotent_and_blocks_changes() -> None:
+    svc, audit = _svc()
+    a = await _create(svc)
+    assert (await svc.lock(a.id, ACTOR))[0].status is PoiStatus.LOCKED
+    assert (await svc.lock(a.id, ACTOR))[0].status is PoiStatus.LOCKED
+    for call in (
+        svc.update(a.id, {"summary": "x"}, ACTOR),
+        svc.save_script(a.id, "x", ACTOR),
+        svc.submit(a.id, ACTOR),
+        svc.approve(a.id, ACTOR),
+        svc.reject(a.id, "x", ACTOR),
+    ):
+        with pytest.raises(ConflictError) as e:
+            await call
+        assert e.value.code == "poi_locked"
+    assert (await svc.unlock(a.id, ACTOR)).status is PoiStatus.ACTIVE
+    assert (await svc.unlock(a.id, ACTOR)).status is PoiStatus.ACTIVE
+    assert audit.actions == ["poi.create", "poi.lock", "poi.unlock"]
+    with pytest.raises(NotFoundError):
+        await svc.lock("x", ACTOR)

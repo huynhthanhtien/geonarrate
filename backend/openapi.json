@@ -662,6 +662,101 @@
         }
       }
     },
+    "/api/v1/pois/{poi_id}/lock": {
+      "post": {
+        "tags": [
+          "catalog"
+        ],
+        "summary": "Lock Poi",
+        "description": "Khoá điểm: không sửa được, không vào pack và catalog công khai. Gọi lại không đổi gì.",
+        "operationId": "lock_poi_api_v1_pois__poi_id__lock_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "poi_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Poi Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PoiLockOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/pois/{poi_id}/unlock": {
+      "post": {
+        "tags": [
+          "catalog"
+        ],
+        "summary": "Unlock Poi",
+        "operationId": "unlock_poi_api_v1_pois__poi_id__unlock_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "poi_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Poi Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PoiOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/pois/{poi_id}/script": {
       "put": {
         "tags": [
@@ -2997,6 +3092,24 @@
         ],
         "title": "ActivateOut"
       },
+      "AffectedTour": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "AffectedTour"
+      },
       "AnalyticsDay": {
         "properties": {
           "day": {
@@ -4206,6 +4319,154 @@
         ],
         "title": "PoiCreateIn"
       },
+      "PoiLockOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          },
+          "images": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Images"
+          },
+          "lat": {
+            "type": "number",
+            "title": "Lat"
+          },
+          "lng": {
+            "type": "number",
+            "title": "Lng"
+          },
+          "radius": {
+            "type": "integer",
+            "title": "Radius"
+          },
+          "category": {
+            "type": "string",
+            "title": "Category"
+          },
+          "priority": {
+            "type": "integer",
+            "title": "Priority"
+          },
+          "script": {
+            "type": "string",
+            "title": "Script"
+          },
+          "script_status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "in_review",
+              "approved"
+            ],
+            "title": "Script Status"
+          },
+          "script_version": {
+            "type": "integer",
+            "title": "Script Version"
+          },
+          "review_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Note"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "locked"
+            ],
+            "title": "Status"
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By"
+          },
+          "updated_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated By"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "affected_tours": {
+            "items": {
+              "$ref": "#/components/schemas/AffectedTour"
+            },
+            "type": "array",
+            "title": "Affected Tours"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "summary",
+          "images",
+          "lat",
+          "lng",
+          "radius",
+          "category",
+          "priority",
+          "script",
+          "script_status",
+          "script_version",
+          "review_note",
+          "status",
+          "created_by",
+          "updated_by",
+          "created_at",
+          "updated_at",
+          "affected_tours"
+        ],
+        "title": "PoiLockOut"
+      },
       "PoiOut": {
         "properties": {
           "id": {
@@ -4282,6 +4543,14 @@
             ],
             "title": "Review Note"
           },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "locked"
+            ],
+            "title": "Status"
+          },
           "created_by": {
             "anyOf": [
               {
@@ -4330,6 +4599,7 @@
           "script_status",
           "script_version",
           "review_note",
+          "status",
           "created_by",
           "updated_by",
           "created_at",
@@ -4964,6 +5234,14 @@
           "radius": {
             "type": "integer",
             "title": "Radius"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "locked"
+            ],
+            "title": "Status"
           }
         },
         "type": "object",
@@ -4973,7 +5251,8 @@
           "position",
           "lat",
           "lng",
-          "radius"
+          "radius",
+          "status"
         ],
         "title": "TourPointOut"
       },

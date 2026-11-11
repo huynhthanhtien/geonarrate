@@ -59,7 +59,7 @@ def _poi(name: str, lat: float = 10.7797, lng: float = 106.6990) -> dict[str, An
         "category": "museum",
         "geo": f"SRID=4326;POINT({lng} {lat})",
         "trigger_radius_m": 40,
-        "status": "draft",
+        "status": "active",
     }
 
 

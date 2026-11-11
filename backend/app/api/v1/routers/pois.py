@@ -3,8 +3,10 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Request, status
 
 from app.api.v1.schemas.poi import (
+    AffectedTour,
     ImageOut,
     PoiCreateIn,
+    PoiLockOut,
     PoiOut,
     PoiUpdateIn,
     RejectIn,
@@ -64,6 +66,19 @@ async def get_poi(poi_id: str, svc: Svc, _: Reader) -> PoiOut:
 async def update_poi(poi_id: str, body: PoiUpdateIn, svc: Svc, user: PoiWriter) -> PoiOut:
     updated = await svc.update(poi_id, body.model_dump(exclude_unset=True), user.user_id)
     return PoiOut.model_validate(updated)
+
+
+@router.post("/{poi_id}/lock", response_model=PoiLockOut)
+async def lock_poi(poi_id: str, svc: Svc, user: PoiWriter) -> PoiLockOut:
+    """Khoá điểm: không sửa được, không vào pack và catalog công khai. Gọi lại không đổi gì."""
+    poi, tours = await svc.lock(poi_id, user.user_id)
+    affected = [AffectedTour(**t) for t in tours]
+    return PoiLockOut(**PoiOut.model_validate(poi).model_dump(), affected_tours=affected)
+
+
+@router.post("/{poi_id}/unlock", response_model=PoiOut)
+async def unlock_poi(poi_id: str, svc: Svc, user: PoiWriter) -> PoiOut:
+    return PoiOut.model_validate(await svc.unlock(poi_id, user.user_id))
 
 
 @router.put("/{poi_id}/script", response_model=PoiOut)

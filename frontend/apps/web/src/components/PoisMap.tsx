@@ -8,8 +8,10 @@ export interface MapPoint {
   lng: number;
   radius: number;
   script_status?: string;
+  status?: string;
 }
-const COLORS: Record<string, string> = { approved: "#15803d", in_review: "#d97706", draft: "#64748b" };
+const COLORS: Record<string, string> = { approved: "#15803d", in_review: "#d97706", draft: "#64748b", locked: "#9ca3af" };
+const colorOf = (point: MapPoint) => point.status === "locked" ? COLORS.locked : COLORS[point.script_status ?? "draft"] ?? COLORS.draft;
 
 function fitPoints(map: maplibregl.Map, points: MapPoint[]) {
   const bounds = new maplibregl.LngLatBounds();
@@ -56,9 +58,9 @@ export function PoisMap({ points, selectedId, onSelect, connectPoints = false }:
     markers.current.forEach(({ marker }) => marker.remove());
     markers.current = valid.map((point, index) => {
       const button = document.createElement("button");
-      button.type = "button"; button.textContent = String(index + 1); button.title = point.name;
+      button.type = "button"; button.textContent = String(index + 1); button.title = point.status === "locked" ? `${point.name} (đã khoá)` : point.name;
       button.setAttribute("aria-label", `Chọn điểm ${point.name}`);
-      button.style.cssText = `width:32px;height:32px;border:3px solid white;border-radius:50%;color:white;font-weight:700;box-shadow:0 2px 8px #0004;background:${COLORS[point.script_status ?? "draft"] ?? COLORS.draft}`;
+      button.style.cssText = `width:32px;height:32px;border:3px solid white;border-radius:50%;color:white;font-weight:700;box-shadow:0 2px 8px #0004;background:${colorOf(point)};${point.status === "locked" ? "opacity:.75;" : ""}`;
       button.addEventListener("click", () => latest.current?.(point.id));
       const marker = new maplibregl.Marker({ element: button }).setLngLat([point.lng, point.lat]).addTo(map);
       if (!latest.current) marker.setPopup(new maplibregl.Popup({ offset: 20 }).setText(`${index + 1}. ${point.name} · Vùng ${point.radius}m`));
@@ -66,7 +68,7 @@ export function PoisMap({ points, selectedId, onSelect, connectPoints = false }:
     });
     fitPoints(map, valid);
     if (!ready) return;
-    const regions = { type: "FeatureCollection" as const, features: valid.map((point) => ({ ...createCircle([point.lng, point.lat], point.radius), properties: { color: COLORS[point.script_status ?? "draft"] ?? COLORS.draft } })) };
+    const regions = { type: "FeatureCollection" as const, features: valid.map((point) => ({ ...createCircle([point.lng, point.lat], point.radius), properties: { color: colorOf(point) } })) };
     const source = map.getSource<maplibregl.GeoJSONSource>("regions");
     if (source) source.setData(regions);
     else {
@@ -99,7 +101,7 @@ export function PoisMap({ points, selectedId, onSelect, connectPoints = false }:
     {error && <p role="status" className="bg-amber-50 px-3 py-2 text-sm text-amber-800">Không tải được đầy đủ bản đồ. Danh sách điểm vẫn sử dụng được.</p>}
     <div ref={container} aria-label="Bản đồ các điểm tham quan và vùng kích hoạt" className="h-[440px] w-full" />
     <div className="flex flex-wrap gap-4 bg-white px-3 py-2 text-xs text-slate-500">
-      <span><span className="text-green-700">●</span> Đã duyệt</span><span><span className="text-amber-600">●</span> Chờ duyệt</span><span>● Nháp</span>
+      <span><span className="text-green-700">●</span> Đã duyệt</span><span><span className="text-amber-600">●</span> Chờ duyệt</span><span>● Nháp</span><span><span className="text-gray-400">●</span> Đã khoá</span>
       <span>Vòng tròn: vùng tự phát thuyết minh</span>
       {connectPoints && <span>Nét đứt nối các điểm, không phải đường chỉ dẫn</span>}
     </div>

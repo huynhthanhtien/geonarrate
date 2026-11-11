@@ -12,7 +12,7 @@ from app.core.exceptions import (
 )
 from app.integrations.images.fetch import MAX_IMAGE_BYTES, sniff
 from app.models.audit import AuditResource
-from app.models.poi import Poi, ScriptStatus
+from app.models.poi import Poi, PoiStatus, ScriptStatus
 from app.repositories.job_repo import job_spec, text_hash
 from app.repositories.language_repo import LanguageRepository
 from app.repositories.poi_repo import PoiRepository
@@ -103,13 +103,33 @@ class PoiService:
             return await self.get(poi_id)
         updated = await self._repo.update_info(poi_id, fields, actor_id, self._clock())
         if updated is None:
+            _ = _require_unlocked(await self.get(poi_id))  # 404 nếu không có, 409 nếu đang khoá
             raise NotFoundError("poi_not_found", "Không tìm thấy điểm tham quan")
         await self._audit.record(actor_id, "poi.update", _resource(poi_id))
         return updated
 
+    async def lock(self, poi_id: str, actor_id: str) -> tuple[Poi, list[dict[str, str]]]:
+        """Khoá điểm; trả thêm các tour đang chứa điểm để CMS nhắc build lại pack."""
+        poi = await self._set_status(poi_id, PoiStatus.LOCKED, "poi.lock", actor_id)
+        return poi, await self._repo.tours_of(poi_id)
+
+    async def unlock(self, poi_id: str, actor_id: str) -> Poi:
+        return await self._set_status(poi_id, PoiStatus.ACTIVE, "poi.unlock", actor_id)
+
+    async def _set_status(self, poi_id: str, status: PoiStatus, action: str, actor_id: str) -> Poi:
+        """Idempotent: điểm đã ở trạng thái đó thì trả về nguyên trạng, không ghi audit."""
+        current = await self.get(poi_id)
+        if current.status is status:
+            return current
+        updated = await self._repo.set_status(poi_id, status, actor_id, self._clock())
+        if updated is None:
+            raise NotFoundError("poi_not_found", "Không tìm thấy điểm tham quan")
+        await self._audit.record(actor_id, action, _resource(poi_id))
+        return updated
+
     async def save_script(self, poi_id: str, body: str, actor_id: str) -> Poi:
         """Sửa script đã duyệt: về nháp, tăng version. Đang chờ duyệt: không sửa được."""
-        current = await self.get(poi_id)
+        current = _require_unlocked(await self.get(poi_id))
         if current.script_status is ScriptStatus.APPROVED:
             return await self._transition(
                 poi_id,
@@ -132,7 +152,7 @@ class PoiService:
         )
 
     async def submit(self, poi_id: str, actor_id: str) -> Poi:
-        current = await self.get(poi_id)
+        current = _require_unlocked(await self.get(poi_id))
         if current.script_status is ScriptStatus.DRAFT and not current.script.strip():
             raise InvalidContentError("script_empty", "Kịch bản đang rỗng, chưa thể gửi duyệt")
         updated = await self._transition(
@@ -146,7 +166,7 @@ class PoiService:
         return updated
 
     async def approve(self, poi_id: str, actor_id: str) -> Poi:
-        current = await self.get(poi_id)
+        current = _require_unlocked(await self.get(poi_id))
         h = text_hash(current.script)
         jobs = []
         for lang in await self._languages.list_active():
@@ -170,6 +190,7 @@ class PoiService:
         return updated
 
     async def reject(self, poi_id: str, note: str, actor_id: str) -> Poi:
+        _require_unlocked(await self.get(poi_id))
         updated = await self._transition(
             poi_id,
             ScriptStatus.IN_REVIEW,
@@ -200,9 +221,16 @@ class PoiService:
             poi_id, expected, patch, actor_id, self._clock(), jobs
         )
         if updated is None:
-            await self.get(poi_id)  # không có điểm này thì báo 404, còn lại là sai trạng thái
+            # không có điểm thì 404; điểm khoá (khoá giữa chừng) thì 409 poi_locked
+            _require_unlocked(await self.get(poi_id))
             raise ConflictError("invalid_script_status", conflict_detail)
         return updated
+
+
+def _require_unlocked(poi: Poi) -> Poi:
+    if poi.status is PoiStatus.LOCKED:
+        raise ConflictError("poi_locked", "Điểm đang bị khoá, hãy mở khoá trước khi sửa")
+    return poi
 
 
 def _resource(poi_id: str) -> AuditResource:
