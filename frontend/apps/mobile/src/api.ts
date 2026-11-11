@@ -7,7 +7,7 @@ let backend = DEFAULT_BACKEND;
 export const getBackend = () => backend;
 export const setBackend = (value: string) => { backend = value; };
 
-/** Lỗi nhập địa chỉ máy chủ: `format` = sai định dạng; `cleartext` = HTTP tới địa chỉ mà bản Android này không được phép. */
+/** Lỗi nhập địa chỉ máy chủ: `format` = sai định dạng; `cleartext` = HTTP tới địa chỉ không thuộc mạng nội bộ. */
 export class BackendAddressError extends Error {
   constructor(public readonly reason: "format" | "cleartext", message: string) {
     super(message);
@@ -28,12 +28,9 @@ export function parseBackend(value: string): string {
     throw new BackendAddressError("format", "Nhập địa chỉ máy chủ, ví dụ https://tour.example.com hoặc http://192.168.1.10:8000.");
   }
   const [, scheme, host, port] = match;
-  if (Platform.OS === "android" && scheme?.toLowerCase() === "http") {
-    const defaultHost = /^http:\/\/([^:/]+)/i.exec(DEFAULT_BACKEND)?.[1];
-    const localHosts = ["localhost", "127.0.0.1", "10.0.2.2", defaultHost];
-    if (!localHosts.includes(host?.toLowerCase())) {
-      throw new BackendAddressError("cleartext", "Bản Android này chỉ cho phép HTTP tới máy dev đã cấu hình. Hãy dùng HTTPS hoặc kết nối USB.");
-    }
+  // HTTP chỉ dành cho mạng nội bộ; địa chỉ công khai bắt buộc HTTPS
+  if (scheme?.toLowerCase() === "http" && !PRIVATE_HOST.test(host ?? "")) {
+    throw new BackendAddressError("cleartext", "HTTP chỉ dùng cho địa chỉ mạng nội bộ. Hãy dùng HTTPS.");
   }
   return `${scheme?.toLowerCase()}://${host?.toLowerCase()}${port ? `:${port}` : ""}`;
 }
