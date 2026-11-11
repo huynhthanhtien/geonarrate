@@ -221,7 +221,9 @@ def test_audio_failure_retries_then_can_be_retried_by_admin(client: TestClient) 
     assert cell["langs"]["vi"]["state"] == "ready"
     assert client.get(preview).status_code == 401
     translator = _login(client, TRANSLATOR)
-    assert client.get(preview, headers=translator).status_code == 403
+    # biên dịch viên được nghe thử (audio:read) nhưng không được sinh lại audio (audio:build)
+    assert client.get(preview, headers=translator).status_code == 200
+    assert client.post(f"{API}/audio/retry", json=body, headers=translator).status_code == 403
     audio = client.get(preview, headers=admin)
     assert audio.status_code == 200
     assert audio.headers["content-type"] == "audio/mpeg"
@@ -517,7 +519,9 @@ def test_tour_validation(client: TestClient) -> None:
     assert client.get(f"{API}/tours/khong-co", headers=admin).status_code == 404
     assert len(client.get(f"{API}/tours", headers=admin).json()) == 2
     tr = _login(client, TRANSLATOR)
-    assert client.get(f"{API}/tours", headers=tr).status_code == 403
+    # biên dịch viên xem được tour (tour:read) nhưng không tạo được (tour:write)
+    assert client.get(f"{API}/tours", headers=tr).status_code == 200
+    assert client.post(f"{API}/tours", json=body, headers=tr).status_code == 403
 
 
 def test_ticket_mobile_flow_and_analytics(client: TestClient) -> None:
